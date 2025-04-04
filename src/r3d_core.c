@@ -81,10 +81,8 @@ static void r3d_reset_raylib_state(void);
 
 void R3D_Init(int resWidth, int resHeight, unsigned int flags)
 {
-    // Load GL Objects
-    r3d_framebuffers_load(resWidth, resHeight);
-    r3d_textures_load();
-    r3d_shaders_load();
+    // Set parameter flags
+    R3D.state.flags = flags;
 
     // Load draw call arrays
     R3D.container.aDrawForward = r3d_array_create(32, sizeof(r3d_drawcall_t));
@@ -141,9 +139,6 @@ void R3D_Init(int resWidth, int resHeight, unsigned int flags)
         (Vector3) {  100,  100,  100 }
     };
 
-    // Set parameter flags
-    R3D.state.flags = flags;
-
     // Load primitive shapes
     R3D.primitive.quad = r3d_primitive_load_quad();
     R3D.primitive.cube = r3d_primitive_load_cube();
@@ -155,6 +150,13 @@ void R3D_Init(int resWidth, int resHeight, unsigned int flags)
     R3D.misc.matCubeViews[3] = MatrixLookAt((Vector3) { 0 }, (Vector3) {  0.0f, -1.0f,  0.0f }, (Vector3) { 0.0f,  0.0f, -1.0f });
     R3D.misc.matCubeViews[4] = MatrixLookAt((Vector3) { 0 }, (Vector3) {  0.0f,  0.0f,  1.0f }, (Vector3) { 0.0f, -1.0f,  0.0f });
     R3D.misc.matCubeViews[5] = MatrixLookAt((Vector3) { 0 }, (Vector3) {  0.0f,  0.0f, -1.0f }, (Vector3) { 0.0f, -1.0f,  0.0f });
+
+    // Load GL Objects - framebuffers, textures, shaders...
+    // NOTE: The initialization of these resources is based
+    //       on the global state and should be performed last.
+    r3d_framebuffers_load(resWidth, resHeight);
+    r3d_textures_load();
+    r3d_shaders_load();
 }
 
 void R3D_Close(void)
