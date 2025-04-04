@@ -10,14 +10,18 @@ R3D is ideal for developers who want to add 3D rendering to their raylib project
 
 ## Features
 
-- **Material**: Uses raylib’s material system, just load a model and set its material maps, R3D handles the rest.  
-- **Lighting**: Supports deferred lighting with directional, spot, and omni-directional lights.  
-- **Shadow Mapping**: Real-time shadows with adjustable resolution and support for multiple light types.  
-- **Skyboxes**: Loads and renders HDR/non-HDR skyboxes, with IBL support for scene lighting.  
-- **Post-processing**: Includes SSAO, bloom, fog, tonemapping, color adjustment, FXAA, and more.  
-- **Instanced Rendering**: Supports instance rendering with matrix arrays, an optional global matrix, and per-instance colors.  
-- **Frustum Culling**: Provides easy shape tests (bounding boxes, spheres, points) for visibility in the scene frustum.  
-- **Blit Management**: Renders at an internal resolution and blits the result to the main framebuffer or a render texture, with aspect ratio options.  
+- **Hybrid Renderer**: Supports both deferred and forward rendering. You can force a mode globally (always deferred or always forward), or let the engine choose the optimal path based on rendering parameters.
+- **Material System**: Uses raylib’s material system—just load a model and set its material maps, R3D takes care of the rest.
+- **Lighting**: Supports directional, spot, and omni lights, fully integrated with both deferred and forward rendering paths.
+- **Shadow Mapping**: Soft shadows (PCSS) with per-light resolution and dynamic update modes (manual, interval, or per-frame).
+- **Skyboxes**: HDR and non-HDR skybox rendering with IBL (image-based lighting) support.
+- **Post-processing Effects**: Includes SSAO, bloom, fog, tonemapping, color grading, FXAA, and more.
+- **Instanced Rendering**: Render instances with per-instance transform matrices, optional global matrix, and color instances support.
+- **Frustum Culling**: Shape-based visibility testing (bounding box, sphere, point) to cull unseen objects efficiently.
+- **Blit Management**: Renders at internal resolution and blits to screen or texture with aspect ratio controls.
+- **CPU Particles**: Particle system simulated on CPU, with support for dynamic curves for size over lifetime and other interpolated properties.
+- **3D Sprites**: Render 3D-facing sprites with support for sprite sheet animations.
+- **Billboard Rendering**: Billboards now supported across all render types—meshes, instanced geometry, particles, and sprites.
 
 ---
 
