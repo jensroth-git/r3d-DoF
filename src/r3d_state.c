@@ -392,18 +392,18 @@ void r3d_framebuffer_load_scene(int width, int height)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glBindTexture(GL_TEXTURE_2D, 0);
 
+    // Attach the depth-stencil buffer from the G-buffer
+    glFramebufferTexture2D(
+        GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT,
+        GL_TEXTURE_2D, R3D.framebuffer.gBuffer.depth, 0
+    );
+
     // Activate the draw buffers for all the attachments
     rlActiveDrawBuffers(2);
 
     // Attach the textures to the framebuffer
     rlFramebufferAttach(scene->id, scene->color, RL_ATTACHMENT_COLOR_CHANNEL0, RL_ATTACHMENT_TEXTURE2D, 0);
     rlFramebufferAttach(scene->id, scene->bright, RL_ATTACHMENT_COLOR_CHANNEL1, RL_ATTACHMENT_TEXTURE2D, 0);
-
-    // Attach the depth-stencil buffer from the G-buffer
-    glFramebufferTexture2D(
-        GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT,
-        GL_TEXTURE_2D, R3D.framebuffer.gBuffer.depth, 0
-    );
 
     // Check if the framebuffer is complete
     if (!rlFramebufferComplete(scene->id)) {
