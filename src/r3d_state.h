@@ -28,7 +28,6 @@
 #include "./details/containers/r3d_registry.h"
 
 #include "./embedded/r3d_shaders.h"
-#include "./embedded/r3d_textures.h"
 
 /* === Defines === */
 
@@ -202,6 +201,7 @@ extern struct R3D_State {
 
     // Primitives
     struct {
+        unsigned int dummyVAO;      //< VAO with no buffers, used to generate geometry in the shader via glDrawArrays
         r3d_primitive_t quad;
         r3d_primitive_t cube;
     } primitive;
@@ -536,6 +536,13 @@ void r3d_texture_load_ibl_brdf_lut(void);
 #define r3d_primitive_draw_cube()                           \
 {                                                           \
     r3d_primitive_draw(&R3D.primitive.cube);                \
+}
+
+#define r3d_primitive_draw_screen()                         \
+{                                                           \
+    glBindVertexArray(R3D.primitive.dummyVAO);              \
+    glDrawArrays(GL_TRIANGLES, 0, 3);                       \
+    glBindVertexArray(0);                                   \
 }
 
 #endif // R3D_STATE_H

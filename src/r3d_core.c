@@ -85,8 +85,8 @@ void R3D_Init(int resWidth, int resHeight, unsigned int flags)
     R3D.state.flags = flags;
 
     // Load draw call arrays
-    R3D.container.aDrawForward = r3d_array_create(32, sizeof(r3d_drawcall_t));
-    R3D.container.aDrawDeferred = r3d_array_create(256, sizeof(r3d_drawcall_t));
+    R3D.container.aDrawForward = r3d_array_create(128, sizeof(r3d_drawcall_t));
+    R3D.container.aDrawDeferred = r3d_array_create(128, sizeof(r3d_drawcall_t));
     R3D.container.aDrawForwardInst = r3d_array_create(8, sizeof(r3d_drawcall_t));
     R3D.container.aDrawDeferredInst = r3d_array_create(8, sizeof(r3d_drawcall_t));
 
@@ -140,6 +140,7 @@ void R3D_Init(int resWidth, int resHeight, unsigned int flags)
     };
 
     // Load primitive shapes
+    glGenVertexArrays(1, &R3D.primitive.dummyVAO);
     R3D.primitive.quad = r3d_primitive_load_quad();
     R3D.primitive.cube = r3d_primitive_load_cube();
 
@@ -173,6 +174,7 @@ void R3D_Close(void)
     r3d_registry_destroy(&R3D.container.rLights);
     r3d_array_destroy(&R3D.container.aLightBatch);
 
+    glDeleteVertexArrays(1, &R3D.primitive.dummyVAO);
     r3d_primitive_unload(&R3D.primitive.quad);
     r3d_primitive_unload(&R3D.primitive.cube);
 }
@@ -1080,7 +1082,7 @@ void r3d_pass_ssao(void)
             r3d_shader_bind_sampler1D(screen.ssao, uTexKernel, R3D.texture.ssaoKernel);
             r3d_shader_bind_sampler2D(screen.ssao, uTexNoise, R3D.texture.randNoise);
 
-            r3d_primitive_draw_quad();
+            r3d_primitive_draw_screen();
 
             r3d_shader_unbind_sampler2D(screen.ssao, uTexDepth);
             r3d_shader_unbind_sampler2D(screen.ssao, uTexNormal);
@@ -1103,7 +1105,7 @@ void r3d_pass_ssao(void)
                     generate.gaussianBlurDualPass, uTexture,
                     R3D.framebuffer.pingPongSSAO.source
                 );
-                r3d_primitive_draw_quad();
+                r3d_primitive_draw_screen();
             }
         }
         r3d_shader_disable();
@@ -1162,7 +1164,7 @@ void r3d_pass_deferred_ambient(void)
                 r3d_shader_set_mat4(screen.ambientIbl, uMatInvView, R3D.state.transform.invView);
                 r3d_shader_set_vec4(screen.ambientIbl, uQuatSkybox, R3D.env.quatSky);
 
-                r3d_primitive_draw_quad();
+                r3d_primitive_draw_screen();
 
                 r3d_shader_unbind_sampler2D(screen.ambientIbl, uTexAlbedo);
                 r3d_shader_unbind_sampler2D(screen.ambientIbl, uTexNormal);
@@ -1205,7 +1207,7 @@ void r3d_pass_deferred_ambient(void)
                     0.0f
                 }));
 
-                r3d_primitive_draw_quad();
+                r3d_primitive_draw_screen();
 
                 r3d_shader_unbind_sampler2D(screen.ambient, uTexSSAO);
                 r3d_shader_unbind_sampler2D(screen.ambient, uTexORM);
@@ -1300,7 +1302,7 @@ void r3d_pass_deferred_lights(void)
                 //    );
                 //}
 
-                r3d_primitive_draw_quad();
+                r3d_primitive_draw_screen();
 
                 //if (light->data->type != R3D_LIGHT_DIR) {
                 //    glDisable(GL_SCISSOR_TEST);
@@ -1404,9 +1406,9 @@ void r3d_pass_scene_background(void)
         {
             glClearBufferfv(GL_COLOR, 0, (float[4]) {
                 R3D.env.backgroundColor.x,
-                    R3D.env.backgroundColor.y,
-                    R3D.env.backgroundColor.z,
-                    0.0f
+                R3D.env.backgroundColor.y,
+                R3D.env.backgroundColor.z,
+                0.0f
             });
             glClearBufferfv(GL_COLOR, 1, (float[4]) {
                 0.0f, 0.0f, 0.0f, 0.0f
@@ -1435,7 +1437,7 @@ void r3d_pass_scene_deferred(void)
 
             r3d_shader_set_float(screen.scene, uBloomHdrThreshold, R3D.env.bloomHdrThreshold);
 
-            r3d_primitive_draw_quad();
+            r3d_primitive_draw_screen();
 
             r3d_shader_unbind_sampler2D(screen.scene, uTexAlbedo);
             r3d_shader_unbind_sampler2D(screen.scene, uTexEmission);
@@ -1817,7 +1819,7 @@ void r3d_pass_post_bloom(void)
                     ? R3D.framebuffer.pingPongBloom.source
                     : R3D.framebuffer.scene.bright
                 );
-                r3d_primitive_draw_quad();
+                r3d_primitive_draw_screen();
             }
         }
         r3d_shader_disable();
@@ -1838,7 +1840,7 @@ void r3d_pass_post_bloom(void)
             r3d_shader_set_int(screen.bloom, uBloomMode, R3D.env.bloomMode);
             r3d_shader_set_float(screen.bloom, uBloomIntensity, R3D.env.bloomIntensity);
 
-            r3d_primitive_draw_quad();
+            r3d_primitive_draw_screen();
         }
         r3d_shader_disable();
     }
@@ -1867,7 +1869,7 @@ void r3d_pass_post_fog(void)
             r3d_shader_set_float(screen.fog, uFogEnd, R3D.env.fogEnd);
             r3d_shader_set_float(screen.fog, uFogDensity, R3D.env.fogDensity);
 
-            r3d_primitive_draw_quad();
+            r3d_primitive_draw_screen();
         }
         r3d_shader_disable();
     }
@@ -1891,7 +1893,7 @@ void r3d_pass_post_tonemap(void)
             r3d_shader_set_float(screen.tonemap, uTonemapExposure, R3D.env.tonemapExposure);
             r3d_shader_set_float(screen.tonemap, uTonemapWhite, R3D.env.tonemapWhite);
 
-            r3d_primitive_draw_quad();
+            r3d_primitive_draw_screen();
         }
         r3d_shader_disable();
     }
@@ -1915,7 +1917,7 @@ void r3d_pass_post_adjustment(void)
             r3d_shader_set_float(screen.adjustment, uContrast, R3D.env.contrast);
             r3d_shader_set_float(screen.adjustment, uSaturation, R3D.env.saturation);
 
-            r3d_primitive_draw_quad();
+            r3d_primitive_draw_screen();
         }
         r3d_shader_disable();
     }
@@ -1940,7 +1942,7 @@ void r3d_pass_post_fxaa(void)
                 R3D.state.resolution.texelY
             }));
 
-            r3d_primitive_draw_quad();
+            r3d_primitive_draw_screen();
         }
         r3d_shader_disable();
     }
