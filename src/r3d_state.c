@@ -245,7 +245,12 @@ void r3d_framebuffer_load_gbuffer(int width, int height)
     // Normals will be encoded and decoded using octahedral mapping for efficient storage and reconstruction.
     glGenTextures(1, &gBuffer->normal);
     glBindTexture(GL_TEXTURE_2D, gBuffer->normal);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RG16F, width, height, 0, GL_RG, GL_FLOAT, NULL);
+    if (R3D.state.flags & R3D_FLAG_8_BIT_NORMALS) {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RG8, width, height, 0, GL_RG, GL_UNSIGNED_BYTE, NULL);
+    }
+    else {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RG16F, width, height, 0, GL_RG, GL_FLOAT, NULL);
+    }
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
