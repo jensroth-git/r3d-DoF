@@ -186,6 +186,11 @@ bool R3D_HasState(unsigned int flag)
 
 void R3D_SetState(unsigned int flags)
 {
+    if (flags & R3D_FLAG_8_BIT_NORMALS) {
+        TraceLog(LOG_WARNING, "Cannot set 'R3D_FLAG_8_BIT_NORMALS'; this flag must be set before R3D initialization");
+        flags &= ~R3D_FLAG_8_BIT_NORMALS;
+    }
+
     R3D.state.flags |= flags;
 
     if (flags & R3D_FLAG_FXAA) {
@@ -197,6 +202,11 @@ void R3D_SetState(unsigned int flags)
 
 void R3D_ClearState(unsigned int flags)
 {
+    if (flags & R3D_FLAG_8_BIT_NORMALS) {
+        TraceLog(LOG_WARNING, "Cannot clear 'R3D_FLAG_8_BIT_NORMALS'; this flag must be set before R3D initialization");
+        flags &= ~R3D_FLAG_8_BIT_NORMALS;
+    }    
+
     R3D.state.flags &= ~flags;
 }
 
