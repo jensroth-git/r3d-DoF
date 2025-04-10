@@ -22,10 +22,9 @@ endif()
 
 option(R3D_BUILD_SHARED "Build r3d as a shared library" OFF)
 option(R3D_BUILD_EXAMPLES "Build the examples" ${R3D_IS_MAIN})
+option(R3D_RAYLIB_VENDORED "Use vendored raylib from submodule" OFF)
 
 set(R3D_CUSTOM_SHADER_PATH "" CACHE STRING "Path to custom shaders")
-set(R3D_RAYLIB_SRC_PATH "" CACHE STRING "Path to a specific raylib source")
-set(R3D_RAYLIB_BIN_PATH "" CACHE STRING "Path to a specific raylib binary")
 
 # Include standard cmake scripts
 
@@ -33,36 +32,33 @@ include(CheckLibraryExists)
 
 # Checks for raylib installation
 
-if("${R3D_RAYLIB_SRC_PATH}" STREQUAL "" AND "${R3D_RAYLIB_BIN_PATH}" STREQUAL "")
-    if(EXISTS "${R3D_ROOT_PATH}/external/raylib/CMakeLists.txt")
-        message(STATUS "Using raylib from submodule: ${R3D_ROOT_PATH}/external/raylib")
-        add_subdirectory("${R3D_ROOT_PATH}/external/raylib")
-        set(R3D_RAYLIB_SRC_PATH "${R3D_ROOT_PATH}/external/raylib/src" CACHE STRING "Path to raylib source" FORCE)
-        set(R3D_RAYLIB_BIN_PATH "raylib" CACHE STRING "Path to raylib binary" FORCE)
-    else()
-        find_package(raylib QUIET)
-        if(TARGET raylib)
-            message(STATUS "Using system-installed raylib")
-            get_target_property(RAYLIB_INCLUDE_DIR raylib INTERFACE_INCLUDE_DIRECTORIES)
-            set(R3D_RAYLIB_SRC_PATH "${RAYLIB_INCLUDE_DIR}" CACHE STRING "Path to raylib source" FORCE)
-            set(R3D_RAYLIB_BIN_PATH "raylib" CACHE STRING "Path to raylib binary" FORCE)
-        else()
-            message(FATAL_ERROR "No valid raylib installation found!
-- Custom path: '${R3D_RAYLIB_SRC_PATH}' '${R3D_RAYLIB_BIN_PATH}' (invalid or missing CMakeLists.txt)
-- Submodule: '${R3D_ROOT_PATH}/external/raylib' (missing or incomplete)
-- System-wide installation: find_package(raylib) failed
+# TODO: Add a version check for raylib, currently compatible with 5.6 dev
+#       Do this for the next release
 
-Please provide a valid raylib installation, initialize the submodule with:
-    git submodule update --init --recursive
-or install raylib on your system.")
-        endif()
+if(R3D_RAYLIB_VENDORED)
+    set(R3D_RAYLIB_SUBMODULE_PATH "${R3D_ROOT_PATH}/external/raylib")
+    set(R3D_RAYLIB_CMAKELISTS "${R3D_RAYLIB_SUBMODULE_PATH}/CMakeLists.txt")
+
+    if(EXISTS "${R3D_RAYLIB_CMAKELISTS}")
+        message(STATUS "Using vendored raylib from: ${R3D_RAYLIB_SUBMODULE_PATH}")
+        add_subdirectory("${R3D_RAYLIB_SUBMODULE_PATH}")
+        set(R3D_RAYLIB_INC_PATH "${R3D_RAYLIB_SUBMODULE_PATH}/src" CACHE STRING "Path to raylib includes" FORCE)
+    else()
+        message(FATAL_ERROR "Vendored raylib not found!
+Missing: ${R3D_RAYLIB_CMAKELISTS}
+Please initialize the submodule with:
+    git submodule update --init --recursive")
     endif()
 else()
-    if("${R3D_RAYLIB_SRC_PATH}" STREQUAL "")
-        message(FATAL_ERROR "Invalid raylib source directory: ${R3D_RAYLIB_SRC_PATH}")
-    endif()
-    if("${R3D_RAYLIB_BIN_PATH}" STREQUAL "")
-        message(FATAL_ERROR "Invalid raylib binary path: ${R3D_RAYLIB_BIN_PATH}")
+    find_package(raylib QUIET)
+
+    if(TARGET raylib)
+        message(STATUS "Using system-installed raylib")
+        get_target_property(RAYLIB_INCLUDE_DIR raylib INTERFACE_INCLUDE_DIRECTORIES)
+        set(R3D_RAYLIB_INC_PATH "${RAYLIB_INCLUDE_DIR}" CACHE STRING "Path to raylib includes" FORCE)
+    else()
+        message(FATAL_ERROR "System raylib not found.
+Make sure raylib is installed and discoverable by CMake (e.g. via CMAKE_PREFIX_PATH or pkg-config).")
     endif()
 endif()
 
@@ -111,7 +107,7 @@ add_library(${PROJECT_NAME}
 
 # Link project dependencies
 
-target_link_libraries(${PROJECT_NAME} PUBLIC "${R3D_RAYLIB_BIN_PATH}")
+target_link_libraries(${PROJECT_NAME} PUBLIC raylib)
 
 check_library_exists(m cos "" HAVE_LIB_M)
 
@@ -124,7 +120,7 @@ endif()
 target_include_directories(${PROJECT_NAME} PUBLIC
     "${R3D_ROOT_PATH}/external/glad"
     "${R3D_ROOT_PATH}/include"
-    "${R3D_RAYLIB_SRC_PATH}"
+    "${R3D_RAYLIB_INC_PATH}"
 )
 
 # Ensure the C standard is set for MSVC if using CMake version greater than 3.12
