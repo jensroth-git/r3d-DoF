@@ -41,9 +41,12 @@ git submodule update --init --recursive
 
 To build and use R3D, ensure you have the following dependencies installed:
 
-- **raylib 5.5 or later**
-  The library is included as an optional submodule. If **raylib 5.5** is already installed on your system, you can use R3D without cloning the submodule.
-  🔹 *Note:* It is recommended to use **raylib 5.6-dev** ([commit c647d337](https://github.com/raysan5/raylib/commit/c647d337034585251d3d76d32093ac88a4c4ab82)), as it includes a fix for an issue affecting the default normal maps.
+- **raylib 5.6-dev or later**  
+  R3D currently requires raylib version 5.6-dev (from the master branch) or newer. This is because it relies on a specific fix related to default tangent generation, see [commit c647d337](https://github.com/raysan5/raylib/commit/c647d337034585251d3d76d32093ac88a4c4ab82) for details.
+
+  By default, R3D uses `find_package(raylib)` to detect a system-installed version. If you don't have the required version installed, or prefer not to install it manually, you can enable the `R3D_RAYLIB_VENDORED` CMake option to use the vendored version included as a Git submodule.
+
+  To clone the submodule, refer to the **Getting Started** section.
 
 - **Python (>= 3.6)**
   Required for shader minification, which integrates optimized shaders into the library's binary.
