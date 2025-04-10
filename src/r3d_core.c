@@ -84,6 +84,21 @@ void R3D_Init(int resWidth, int resHeight, unsigned int flags)
     // Set parameter flags
     R3D.state.flags = flags;
 
+    // Check GPU supports
+    {
+        R3D.support.TEX_R16G16F = r3d_check_texture_format_support(GL_RG16F);
+        if (R3D.support.TEX_R16G16F) TraceLog(LOG_INFO, "R3D: RG16F is supported");
+        else TraceLog(LOG_WARNING, "R3D: RG16F is NOT supported");
+
+        R3D.support.TEX_R16G16B16F = r3d_check_texture_format_support(GL_RGB16F);
+        if (R3D.support.TEX_R16G16B16F) TraceLog(LOG_INFO, "R3D: RGB16F is supported");
+        else TraceLog(LOG_WARNING, "R3D: RGB16F is NOT supported");
+
+        R3D.support.TEX_R11G11B10F = r3d_check_texture_format_support(GL_R11F_G11F_B10F);
+        if (R3D.support.TEX_R11G11B10F) TraceLog(LOG_INFO, "R3D: R11F_G11F_B10F is supported");
+        else TraceLog(LOG_WARNING, "R3D: R11F_G11F_B10F is NOT supported");
+    }
+
     // Load draw call arrays
     R3D.container.aDrawForward = r3d_array_create(128, sizeof(r3d_drawcall_t));
     R3D.container.aDrawDeferred = r3d_array_create(128, sizeof(r3d_drawcall_t));
@@ -187,7 +202,7 @@ bool R3D_HasState(unsigned int flag)
 void R3D_SetState(unsigned int flags)
 {
     if (flags & R3D_FLAG_8_BIT_NORMALS) {
-        TraceLog(LOG_WARNING, "Cannot set 'R3D_FLAG_8_BIT_NORMALS'; this flag must be set before R3D initialization");
+        TraceLog(LOG_WARNING, "R3D: Cannot set 'R3D_FLAG_8_BIT_NORMALS'; this flag must be set before R3D initialization");
         flags &= ~R3D_FLAG_8_BIT_NORMALS;
     }
 
@@ -203,7 +218,7 @@ void R3D_SetState(unsigned int flags)
 void R3D_ClearState(unsigned int flags)
 {
     if (flags & R3D_FLAG_8_BIT_NORMALS) {
-        TraceLog(LOG_WARNING, "Cannot clear 'R3D_FLAG_8_BIT_NORMALS'; this flag must be set before R3D initialization");
+        TraceLog(LOG_WARNING, "R3D: Cannot clear 'R3D_FLAG_8_BIT_NORMALS'; this flag must be set before R3D initialization");
         flags &= ~R3D_FLAG_8_BIT_NORMALS;
     }    
 
@@ -219,7 +234,7 @@ void R3D_GetResolution(int* width, int* height)
 void R3D_UpdateResolution(int width, int height)
 {
     if (width <= 0 || height <= 0) {
-        TraceLog(LOG_ERROR, "Invalid resolution given to 'R3D_UpdateResolution'");
+        TraceLog(LOG_ERROR, "R3D: Invalid resolution given to 'R3D_UpdateResolution'");
         return;
     }
 
