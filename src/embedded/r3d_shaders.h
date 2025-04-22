@@ -32,6 +32,8 @@ extern const char VS_COMMON_SCREEN[];
 extern const char VS_COMMON_CUBEMAP[];
 
 extern const char FS_GENERATE_GAUSSIAN_BLUR_DUAL_PASS[];
+extern const char FS_GENERATE_DOWNSAMPLING[];
+extern const char FS_GENERATE_UPSAMPLING[];
 extern const char FS_GENERATE_CUBEMAP_FROM_EQUIRECTANGULAR[];
 extern const char FS_GENERATE_IRRADIANCE_CONVOLUTION[];
 extern const char FS_GENERATE_PREFILTER[];
@@ -83,6 +85,19 @@ typedef struct {
     r3d_shader_uniform_sampler2D_t uTexture;
     r3d_shader_uniform_vec2_t uTexelDir;
 } r3d_shader_generate_gaussian_blur_dual_pass_t;
+
+typedef struct {
+    unsigned int id;
+    r3d_shader_uniform_sampler2D_t uTexture;
+    r3d_shader_uniform_vec2_t uResolution;
+    r3d_shader_uniform_int_t uMipLevel;
+} r3d_shader_generate_downsampling_t;
+
+typedef struct {
+    unsigned int id;
+    r3d_shader_uniform_sampler2D_t uTexture;
+    r3d_shader_uniform_vec2_t uFilterRadius;
+} r3d_shader_generate_upsampling_t;
 
 typedef struct {
     unsigned int id;
@@ -155,7 +170,6 @@ typedef struct {
     r3d_shader_uniform_mat4_t uMatView;
     r3d_shader_uniform_vec4_t uRotation;
     r3d_shader_uniform_samplerCube_t uCubeSky;
-    r3d_shader_uniform_float_t uBloomHdrThreshold;
 } r3d_shader_raster_skybox_t;
 
 typedef struct {
@@ -250,7 +264,6 @@ typedef struct {
     r3d_shader_uniform_vec4_t uQuatSkybox;
     r3d_shader_uniform_int_t uHasSkybox;
     r3d_shader_uniform_float_t uAlphaScissorThreshold;
-    r3d_shader_uniform_float_t uBloomHdrThreshold;
     r3d_shader_uniform_vec3_t uViewPosition;
 } r3d_shader_raster_forward_t;
 
@@ -304,7 +317,6 @@ typedef struct {
     r3d_shader_uniform_vec4_t uQuatSkybox;
     r3d_shader_uniform_int_t uHasSkybox;
     r3d_shader_uniform_float_t uAlphaScissorThreshold;
-    r3d_shader_uniform_float_t uBloomHdrThreshold;
     r3d_shader_uniform_vec3_t uViewPosition;
 } r3d_shader_raster_forward_inst_t;
 
@@ -387,7 +399,6 @@ typedef struct {
     r3d_shader_uniform_sampler2D_t uTexEmission;
     r3d_shader_uniform_sampler2D_t uTexDiffuse;
     r3d_shader_uniform_sampler2D_t uTexSpecular;
-    r3d_shader_uniform_float_t uBloomHdrThreshold;
 } r3d_shader_screen_scene_t;
 
 typedef struct {

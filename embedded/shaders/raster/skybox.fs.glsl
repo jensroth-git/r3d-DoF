@@ -22,21 +22,10 @@
 in vec3 vPosition;
 
 uniform samplerCube uCubeSky;
-uniform float uBloomHdrThreshold;
 
 layout(location = 0) out vec3 FragColor;
-layout(location = 1) out vec3 FragBrightness;
-
-float GetBrightness(vec3 color)
-{
-    return length(color);
-}
 
 void main()
 {
     FragColor = texture(uCubeSky, vPosition).rgb;
-
-    float brightness = GetBrightness(FragColor.rgb);
-    FragBrightness = (brightness > uBloomHdrThreshold)
-        ? vec3(FragColor.rgb) : vec3(0.0);
 }

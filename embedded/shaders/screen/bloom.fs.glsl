@@ -21,9 +21,9 @@
 
 /* === Definitions === */
 
-#define BLOOM_DISABLED 0
-#define BLOOM_ADDITIVE 1
-#define BLOOM_SOFT_LIGHT 2
+#define BLOOM_MIX           1
+#define BLOOM_ADDITIVE      2
+#define BLOOM_SCREEN        3
 
 /* === Varyings === */
 
@@ -41,24 +41,28 @@ uniform float uBloomIntensity;
 
 out vec3 FragColor;
 
-// === Main program === //
+/* === Main program === */
 
 void main()
 {
     // Sampling scene color texture
-    vec3 result = texture(uTexColor, vTexCoord).rgb;
+    vec3 color = texture(uTexColor, vTexCoord).rgb;
 
     // Apply bloom
     vec3 bloom = texture(uTexBloomBlur, vTexCoord).rgb;
     bloom *= uBloomIntensity;
 
-    if (uBloomMode == BLOOM_SOFT_LIGHT) {
-        bloom = clamp(bloom.rgb, vec3(0.0), vec3(1.0));
-        result = max((result + bloom) - (result * bloom), vec3(0.0));
-    } else if (uBloomMode == BLOOM_ADDITIVE) {
-        result += bloom;
+    if (uBloomMode == BLOOM_MIX) {
+        color = mix(color, bloom, uBloomIntensity);
+    }
+    else if (uBloomMode == BLOOM_ADDITIVE) {
+        color += bloom;
+    }
+    else if (uBloomMode == BLOOM_SCREEN) {
+        bloom = clamp(bloom, vec3(0.0), vec3(1.0));
+        color = max((color + bloom) - (color * bloom), vec3(0.0));
     }
 
     // Final color output
-    FragColor = vec3(result);
+    FragColor = vec3(color);
 }

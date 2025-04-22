@@ -119,7 +119,7 @@ void r3d_framebuffers_load(int width, int height)
     }
 
     if (R3D.env.bloomMode != R3D_BLOOM_DISABLED) {
-        r3d_framebuffer_load_pingpong_bloom(width, height);
+        r3d_framebuffer_load_mipchain_bloom(width, height);
     }
 }
 
@@ -134,8 +134,8 @@ void r3d_framebuffers_unload(void)
         r3d_framebuffer_unload_pingpong_ssao();
     }
 
-    if (R3D.framebuffer.pingPongBloom.id != 0) {
-        r3d_framebuffer_unload_pingpong_bloom();
+    if (R3D.framebuffer.mipChainBloom.id != 0) {
+        r3d_framebuffer_unload_mipchain_bloom();
     }
 }
 
@@ -168,7 +168,6 @@ void r3d_textures_unload(void)
 void r3d_shaders_load(void)
 {
     // Load generation shaders
-    r3d_shader_load_generate_gaussian_blur_dual_pass();
     r3d_shader_load_generate_cubemap_from_equirectangular();
     r3d_shader_load_generate_irradiance_convolution();
     r3d_shader_load_generate_prefilter();
@@ -193,9 +192,12 @@ void r3d_shaders_load(void)
     r3d_shader_load_screen_adjustment();
 
     if (R3D.env.ssaoEnabled) {
+        r3d_shader_load_generate_gaussian_blur_dual_pass();
         r3d_shader_load_screen_ssao();
     }
     if (R3D.env.bloomMode != R3D_BLOOM_DISABLED) {
+        r3d_shader_load_generate_downsampling();
+        r3d_shader_load_generate_upsampling();
         r3d_shader_load_screen_bloom();
     }
     if (R3D.env.fogMode != R3D_FOG_DISABLED) {
@@ -414,11 +416,8 @@ void r3d_framebuffer_load_scene(int width, int height)
     rlEnableFramebuffer(scene->id);
 
     // Generate color texture
-    scene->color = rlLoadTexture(NULL, width, height, RL_PIXELFORMAT_UNCOMPRESSED_R8G8B8, 1);
-
-    // Generate bright texture
-    glGenTextures(1, &scene->bright);
-    glBindTexture(GL_TEXTURE_2D, scene->bright);
+    glGenTextures(1, &scene->color);
+    glBindTexture(GL_TEXTURE_2D, scene->color);
 
     r3d_texture_create_hdr(width, height);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -433,11 +432,10 @@ void r3d_framebuffer_load_scene(int width, int height)
     );
 
     // Activate the draw buffers for all the attachments
-    rlActiveDrawBuffers(2);
+    rlActiveDrawBuffers(1);
 
     // Attach the textures to the framebuffer
     rlFramebufferAttach(scene->id, scene->color, RL_ATTACHMENT_COLOR_CHANNEL0, RL_ATTACHMENT_TEXTURE2D, 0);
-    rlFramebufferAttach(scene->id, scene->bright, RL_ATTACHMENT_COLOR_CHANNEL1, RL_ATTACHMENT_TEXTURE2D, 0);
 
     // Check if the framebuffer is complete
     if (!rlFramebufferComplete(scene->id)) {
@@ -445,45 +443,64 @@ void r3d_framebuffer_load_scene(int width, int height)
     }
 }
 
-void r3d_framebuffer_load_pingpong_bloom(int width, int height)
+void r3d_framebuffer_load_mipchain_bloom(int width, int height)
 {
-    struct r3d_fb_pingpong_bloom_t* bloom = &R3D.framebuffer.pingPongBloom;
+    struct r3d_fb_mipchain_bloom_t* bloom = &R3D.framebuffer.mipChainBloom;
 
-    width /= 2, height /= 2;
+    glGenFramebuffers(1, &bloom->id);
+    glBindFramebuffer(GL_FRAMEBUFFER, bloom->id);
 
-    bloom->id = rlLoadFramebuffer();
-    if (bloom->id == 0) {
-        TraceLog(LOG_WARNING, "Failed to create framebuffer");
+    int mipChainLength = (int)floor(log2(fminf(width, height)));
+
+    bloom->mipChain = MemAlloc(mipChainLength * sizeof(struct r3d_mip_bloom_t));
+    if (bloom->mipChain == NULL) {
+        TraceLog(LOG_ERROR, "R3D: Failed to allocate memory to store bloom mip chain");
     }
 
-    rlEnableFramebuffer(bloom->id);
+    bloom->mipCount = mipChainLength;
 
-    // Generate (color) buffers
-    GLuint textures[2];
-    glGenTextures(2, textures);
-    for (int i = 0; i < 2; i++) {
-        glBindTexture(GL_TEXTURE_2D, textures[i]);
+    int iMipW = width;
+    int iMipH = height;
+    float fMipW = (float)iMipW;
+    float fMipH = (float)iMipH;
 
-        r3d_texture_create_hdr(width, height);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    for (GLuint i = 0; i < mipChainLength; i++) {
+
+        struct r3d_mip_bloom_t* mip = &bloom->mipChain[i];
+    
+        iMipW /= 2;
+        iMipH /= 2;
+        fMipW *= 0.5f;
+        fMipH *= 0.5f;
+
+        mip->iW = iMipW;
+        mip->iH = iMipH;
+        mip->fW = fMipW;
+        mip->fH = fMipH;
+
+        glGenTextures(1, &mip->id);
+        glBindTexture(GL_TEXTURE_2D, mip->id);
+
+        // we are downscaling an HDR color buffer, so we need a float texture format
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_R11F_G11F_B10F, iMipW, iMipH, 0, GL_RGB, GL_FLOAT, NULL);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
     }
-    glBindTexture(GL_TEXTURE_2D, 0);
-    bloom->target = textures[0];
-    bloom->source = textures[1];
 
-    // Activate the draw buffers for all the attachments
-    rlActiveDrawBuffers(1);
+    // Attach first mip to the framebuffer
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, bloom->mipChain[0].id, 0);
 
-    // Attach the textures to the framebuffer
-    rlFramebufferAttach(bloom->id, bloom->target, RL_ATTACHMENT_COLOR_CHANNEL0, RL_ATTACHMENT_TEXTURE2D, 0);
+    GLenum attachments[1] = { GL_COLOR_ATTACHMENT0 };
+    glDrawBuffers(1, attachments);
 
-    // Check if the framebuffer is complete
-    if (!rlFramebufferComplete(bloom->id)) {
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         TraceLog(LOG_WARNING, "Framebuffer is not complete");
     }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void r3d_framebuffer_load_pingpong_post(int width, int height)
@@ -569,23 +586,26 @@ void r3d_framebuffer_unload_scene(void)
     struct r3d_fb_scene_t* scene = &R3D.framebuffer.scene;
 
     rlUnloadTexture(scene->color);
-    rlUnloadTexture(scene->bright);
 
     rlUnloadFramebuffer(scene->id);
 
     memset(scene, 0, sizeof(struct r3d_fb_scene_t));
 }
 
-void r3d_framebuffer_unload_pingpong_bloom(void)
+void r3d_framebuffer_unload_mipchain_bloom(void)
 {
-    struct r3d_fb_pingpong_bloom_t* bloom = &R3D.framebuffer.pingPongBloom;
+    struct r3d_fb_mipchain_bloom_t* bloom = &R3D.framebuffer.mipChainBloom;
 
-    rlUnloadTexture(bloom->source);
-    rlUnloadTexture(bloom->target);
+    for (int i = 0; i < bloom->mipCount; i++) {
+        glDeleteTextures(1, &bloom->mipChain[i].id);
+    }
+    glDeleteFramebuffers(1, &bloom->id);
 
-    rlUnloadFramebuffer(bloom->id);
+    MemFree(bloom->mipChain);
 
-    memset(bloom, 0, sizeof(struct r3d_fb_pingpong_bloom_t));
+    bloom->mipChain = NULL;
+    bloom->mipCount = 0;
+    bloom->id = 0;
 }
 
 void r3d_framebuffer_unload_pingpong_post(void)
@@ -614,6 +634,35 @@ void r3d_shader_load_generate_gaussian_blur_dual_pass(void)
 
     r3d_shader_enable(generate.gaussianBlurDualPass);
     r3d_shader_set_sampler2D_slot(generate.gaussianBlurDualPass, uTexture, 0);
+    r3d_shader_disable();
+}
+
+void r3d_shader_load_generate_downsampling(void)
+{
+    R3D.shader.generate.downsampling.id = rlLoadShaderCode(
+        VS_COMMON_SCREEN, FS_GENERATE_DOWNSAMPLING
+    );
+
+    r3d_shader_get_location(generate.downsampling, uTexture);
+    r3d_shader_get_location(generate.downsampling, uResolution);
+    r3d_shader_get_location(generate.downsampling, uMipLevel);
+
+    r3d_shader_enable(generate.downsampling);
+    r3d_shader_set_sampler2D_slot(generate.downsampling, uTexture, 0);
+    r3d_shader_disable();
+}
+
+void r3d_shader_load_generate_upsampling(void)
+{
+    R3D.shader.generate.upsampling.id = rlLoadShaderCode(
+        VS_COMMON_SCREEN, FS_GENERATE_UPSAMPLING
+    );
+
+    r3d_shader_get_location(generate.upsampling, uTexture);
+    r3d_shader_get_location(generate.upsampling, uFilterRadius);
+
+    r3d_shader_enable(generate.upsampling);
+    r3d_shader_set_sampler2D_slot(generate.upsampling, uTexture, 0);
     r3d_shader_disable();
 }
 
@@ -765,7 +814,6 @@ void r3d_shader_load_raster_forward(void)
     r3d_shader_get_location(raster.forward, uQuatSkybox);
     r3d_shader_get_location(raster.forward, uHasSkybox);
     r3d_shader_get_location(raster.forward, uAlphaScissorThreshold);
-    r3d_shader_get_location(raster.forward, uBloomHdrThreshold);
     r3d_shader_get_location(raster.forward, uViewPosition);
 
     r3d_shader_enable(raster.forward);
@@ -845,7 +893,6 @@ void r3d_shader_load_raster_forward_inst(void)
     r3d_shader_get_location(raster.forwardInst, uQuatSkybox);
     r3d_shader_get_location(raster.forwardInst, uHasSkybox);
     r3d_shader_get_location(raster.forwardInst, uAlphaScissorThreshold);
-    r3d_shader_get_location(raster.forwardInst, uBloomHdrThreshold);
     r3d_shader_get_location(raster.forwardInst, uViewPosition);
 
     r3d_shader_enable(raster.forwardInst);
@@ -901,7 +948,6 @@ void r3d_shader_load_raster_skybox(void)
     r3d_shader_get_location(raster.skybox, uMatView);
     r3d_shader_get_location(raster.skybox, uRotation);
     r3d_shader_get_location(raster.skybox, uCubeSky);
-    r3d_shader_get_location(raster.skybox, uBloomHdrThreshold);
 
     r3d_shader_enable(raster.skybox);
     r3d_shader_set_samplerCube_slot(raster.skybox, uCubeSky, 0);
@@ -1108,7 +1154,6 @@ void r3d_shader_load_screen_scene(void)
     r3d_shader_get_location(screen.scene, uTexEmission);
     r3d_shader_get_location(screen.scene, uTexDiffuse);
     r3d_shader_get_location(screen.scene, uTexSpecular);
-    r3d_shader_get_location(screen.scene, uBloomHdrThreshold);
 
     r3d_shader_enable(screen.scene);
 

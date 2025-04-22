@@ -299,30 +299,10 @@ void R3D_DrawBufferSSAO(float x, float y, float w, float h)
     );
 }
 
-void R3D_DrawBufferBrightColors(float x, float y, float w, float h)
-{
-    Texture2D tex = {
-        .id = R3D.framebuffer.scene.bright,
-        .width = R3D.state.resolution.width,
-        .height = R3D.state.resolution.height
-    };
-
-    DrawTexturePro(
-        tex, (Rectangle) { 0, 0, (float)tex.width, (float)tex.height },
-        (Rectangle) { x, y, w, h }, (Vector2) { 0 }, 0, WHITE
-    );
-
-    DrawRectangleLines(
-        (int)(x + 0.5f), (int)(y + 0.5f),
-        (int)(w + 0.5f), (int)(h + 0.5f),
-        (Color) { 255, 0, 0, 255 }
-    );
-}
-
 void R3D_DrawBufferBloom(float x, float y, float w, float h)
 {
     Texture2D tex = {
-        .id = R3D.framebuffer.pingPongBloom.target,
+        .id = R3D.framebuffer.mipChainBloom.mipChain[0].id,
         .width = R3D.state.resolution.width / 2,
         .height = R3D.state.resolution.height / 2
     };

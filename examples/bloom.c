@@ -2,12 +2,35 @@
 
 /* === Resources === */
 
-static Model		sphere = { 0 };
-static R3D_Skybox	skybox = { 0 };
+static Model		cube = { 0 };
 static Camera3D		camera = { 0 };
+static float        hueCube = 0.0f;
 
-static Material materials[5 * 5] = { 0 };
+/* === Local Functions === */
 
+static const char* getBloomModeName(R3D_Bloom mode)
+{
+    switch (R3D_GetBloomMode()) {
+        case R3D_BLOOM_DISABLED:
+            return "Disabled";
+        case R3D_BLOOM_MIX:
+            return "Mix";
+        case R3D_BLOOM_ADDITIVE:
+            return "Additive";
+        case R3D_BLOOM_SCREEN:
+            return "Screen";
+        }
+
+    return "Unknown";
+}
+
+static void updateCubeColor(void)
+{
+    Color color = ColorFromHSV(hueCube, 1.0f, 1.0f);
+    R3D_SetMaterialAlbedo(&cube.materials[0], NULL, color);
+    R3D_SetMaterialOcclusion(&cube.materials[0], NULL, 1.0f);
+    R3D_SetMaterialEmission(&cube.materials[0], NULL, color, 1.0f);
+}
 
 /* === Examples === */
 
@@ -16,30 +39,15 @@ const char* Init(void)
     R3D_Init(GetScreenWidth(), GetScreenHeight(), 0);
     SetTargetFPS(60);
 
-    R3D_SetBloomMode(R3D_BLOOM_ADDITIVE);
+    R3D_SetTonemapMode(R3D_TONEMAP_ACES);
+    R3D_SetBloomMode(R3D_BLOOM_MIX);
+    R3D_SetBackgroundColor(BLACK);
 
-    sphere = LoadModelFromMesh(GenMeshSphere(0.5f, 64, 64));
-    UnloadMaterial(sphere.materials[0]);
-
-    for (int y = 0; y < 5; y++) {
-        for (int x = 0; x < 5; x++) {
-            int i = y * 5 + x;
-            materials[i] = LoadMaterialDefault();
-            materials[i].maps[MATERIAL_MAP_EMISSION].value = 1.0f;
-            materials[i].maps[MATERIAL_MAP_OCCLUSION].value = 1.0f;
-            materials[i].maps[MATERIAL_MAP_ROUGHNESS].value = (float)x / 5;
-            materials[i].maps[MATERIAL_MAP_METALNESS].value = (float)y / 5;
-            materials[i].maps[MATERIAL_MAP_ALBEDO].color = ColorFromHSV(x / 5.0f * 330, 1.0f, 1.0f);
-            materials[i].maps[MATERIAL_MAP_EMISSION].color = materials[i].maps[MATERIAL_MAP_ALBEDO].color;
-            materials[i].maps[MATERIAL_MAP_EMISSION].texture = materials[i].maps[MATERIAL_MAP_ALBEDO].texture;
-        }
-    }
-
-    skybox = R3D_LoadSkybox(RESOURCES_PATH "sky/skybox1.png", CUBEMAP_LAYOUT_AUTO_DETECT);
-    R3D_EnableSkybox(skybox);
+    cube = LoadModelFromMesh(GenMeshCube(1.0f, 1.0f, 1.0f));
+    updateCubeColor();
 
     camera = (Camera3D){
-        .position = (Vector3) { 0, 0, 5 },
+        .position = (Vector3) { 0, 3.5, 5 },
         .target = (Vector3) { 0, 0, 0 },
         .up = (Vector3) { 0, 1, 0 },
         .fovy = 60,
@@ -51,26 +59,59 @@ const char* Init(void)
 void Update(float delta)
 {
     UpdateCamera(&camera, CAMERA_ORBITAL);
+
+    int hueDir = IsMouseButtonDown(MOUSE_BUTTON_RIGHT) - IsMouseButtonDown(MOUSE_BUTTON_LEFT);
+    if (hueDir != 0) {
+        hueCube = Wrap(hueCube + hueDir * 90.0f * delta, 0, 360);
+        updateCubeColor();
+    }
+
+    int intensityDir = (IsKeyPressedRepeat(KEY_RIGHT) || IsKeyPressed(KEY_RIGHT)) -
+                       (IsKeyPressedRepeat(KEY_LEFT) || IsKeyPressed(KEY_LEFT));
+
+    if (intensityDir != 0) {
+        R3D_SetBloomIntensity(R3D_GetBloomIntensity() + intensityDir * 0.01f);
+    }
+
+    int radiusDir = (IsKeyPressedRepeat(KEY_UP) || IsKeyPressed(KEY_UP)) -
+                    (IsKeyPressedRepeat(KEY_DOWN) || IsKeyPressed(KEY_DOWN));
+
+    if (radiusDir != 0) {
+        R3D_SetBloomFilterRadius(R3D_GetBloomFilterRadius() + radiusDir);
+    }
+
+    if (IsKeyPressed(KEY_SPACE)) {
+        R3D_SetBloomMode((R3D_GetBloomMode() + 1) % (R3D_BLOOM_SCREEN + 1));
+    }
 }
 
 void Draw(void)
 {
     R3D_Begin(camera);
-    for (int y = -2; y <= 2; y++) {
-        for (int x = -2; x <= 2; x++) {
-            sphere.materials[0] = materials[(y + 2) * 5 + (x + 2)];
-            R3D_DrawModel(sphere, (Vector3) { x * 1.1f, y * 1.1f, 0.0f }, 1.0f);
-        }
-    }
+        R3D_DrawModel(cube, (Vector3) { 0 }, 1.0f);
     R3D_End();
 
     R3D_DrawBufferEmission(10, 10, 100, 100);
     R3D_DrawBufferBloom(120, 10, 100, 100);
+
+    const char* infoStr;
+    int infoLen;
+
+    infoStr = TextFormat("Mode: %s", getBloomModeName(R3D_GetBloomMode()));
+    infoLen = MeasureText(infoStr, 20);
+    DrawText(infoStr, GetScreenWidth() - infoLen - 10, 10, 20, LIME);
+
+    infoStr = TextFormat("Intensity: %.2f", R3D_GetBloomIntensity());
+    infoLen = MeasureText(infoStr, 20);
+    DrawText(infoStr, GetScreenWidth() - infoLen - 10, 40, 20, LIME);
+
+    infoStr = TextFormat("Filter Radius: %i", R3D_GetBloomFilterRadius());
+    infoLen = MeasureText(infoStr, 20);
+    DrawText(infoStr, GetScreenWidth() - infoLen - 10, 70, 20, LIME);
 }
 
 void Close(void)
 {
-    UnloadModel(sphere);
-    R3D_UnloadSkybox(skybox);
+    UnloadModel(cube);
     R3D_Close();
 }

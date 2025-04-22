@@ -21,6 +21,8 @@ function(EmbedShaders generated_shaders_source shaders_source shaders_header)
     ProcessShader("${R3D_CUSTOM_SHADER_PATH}/common/cubemap.vs.glsl" VS_COMMON_CUBEMAP)
     # Minify and store generate shaders
     ProcessShader("${R3D_CUSTOM_SHADER_PATH}/generate/gaussianBlurDualPass.fs.glsl" FS_GENERATE_GAUSSIAN_BLUR_DUAL_PASS)
+    ProcessShader("${R3D_CUSTOM_SHADER_PATH}/generate/downsampling.fs.glsl" FS_GENERATE_DOWNSAMPLING)
+    ProcessShader("${R3D_CUSTOM_SHADER_PATH}/generate/upsampling.fs.glsl" FS_GENERATE_UPSAMPLING)
     ProcessShader("${R3D_CUSTOM_SHADER_PATH}/generate/cubemapFromEquirectangular.fs.glsl" FS_GENERATE_CUBEMAP_FROM_EQUIRECTANGULAR)
     ProcessShader("${R3D_CUSTOM_SHADER_PATH}/generate/irradianceConvolution.fs.glsl" FS_GENERATE_IRRADIANCE_CONVOLUTION)
     ProcessShader("${R3D_CUSTOM_SHADER_PATH}/generate/prefilter.fs.glsl" FS_GENERATE_PREFILTER)

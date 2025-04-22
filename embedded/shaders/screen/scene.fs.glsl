@@ -31,19 +31,9 @@ uniform sampler2D uTexEmission;
 uniform sampler2D uTexDiffuse;
 uniform sampler2D uTexSpecular;
 
-uniform float uBloomHdrThreshold;
-
 /* === Fragments === */
 
 layout(location = 0) out vec3 FragColor;
-layout(location = 1) out vec3 FragBrightness;
-
-/* === Helper functions === */
-
-float GetBrightness(vec3 color)
-{
-    return length(color);
-}
 
 /* === Main function === */
 
@@ -60,11 +50,4 @@ void main()
     /* Combine all lighting contributions */
 
     FragColor = (albedo * diffuse) + specular + emission;
-
-    /* Extract brightness parts for bloom */
-
-    float brightness = GetBrightness(FragColor);
-    float isBright = step(uBloomHdrThreshold, brightness);
-
-    FragBrightness = FragColor * isBright;
 }

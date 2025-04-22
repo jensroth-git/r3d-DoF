@@ -74,6 +74,9 @@ void R3D_SetSSAO(bool enabled)
 		if (R3D.shader.screen.ssao.id == 0) {
 			r3d_shader_load_screen_ssao();
 		}
+		if (R3D.shader.generate.gaussianBlurDualPass.id == 0) {
+			r3d_shader_load_generate_gaussian_blur_dual_pass();
+		}
 	}
 }
 
@@ -117,14 +120,20 @@ void R3D_SetBloomMode(R3D_Bloom mode)
 	R3D.env.bloomMode = mode;
 
 	if (mode != R3D_BLOOM_DISABLED) {
-		if (R3D.framebuffer.pingPongBloom.id == 0) {
-			r3d_framebuffer_load_pingpong_bloom(
+		if (R3D.framebuffer.mipChainBloom.id == 0) {
+			r3d_framebuffer_load_mipchain_bloom(
 				R3D.state.resolution.width,
 				R3D.state.resolution.height
 			);
 		}
 		if (R3D.shader.screen.bloom.id == 0) {
 			r3d_shader_load_screen_bloom();
+		}
+		if (R3D.shader.generate.downsampling.id == 0) {
+			r3d_shader_load_generate_downsampling();
+		}
+		if (R3D.shader.generate.upsampling.id == 0) {
+			r3d_shader_load_generate_upsampling();
 		}
 	}
 }
@@ -144,34 +153,14 @@ float R3D_GetBloomIntensity(void)
 	return R3D.env.bloomIntensity;
 }
 
-void R3D_SetBloomHdrThreshold(float value)
+void R3D_SetBloomFilterRadius(int value)
 {
-	R3D.env.bloomHdrThreshold = value;
+	R3D.env.bloomFilterRadius = value;
 }
 
-float R3D_GetBloomHdrThreshold(void)
+int R3D_GetBloomFilterRadius(void)
 {
-	return R3D.env.bloomHdrThreshold;
-}
-
-void R3D_SetBloomSkyHdrThreshold(float value)
-{
-	R3D.env.bloomSkyHdrThreshold = value;
-}
-
-float R3D_GetBloomSkyHdrThreshold(void)
-{
-	return R3D.env.bloomSkyHdrThreshold;
-}
-
-void R3D_SetBloomIterations(int value)
-{
-	R3D.env.bloomIterations = value;
-}
-
-int R3D_GetBloomIterations(void)
-{
-	return R3D.env.bloomIterations;
+	return R3D.env.bloomFilterRadius;
 }
 
 void R3D_SetFogMode(R3D_Fog mode)

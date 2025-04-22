@@ -83,16 +83,19 @@ extern struct R3D_State {
         //  - Forward
         struct r3d_fb_scene_t {
             unsigned int id;
-            unsigned int color;             ///< RGB[8|8|8] -> Final color
-            unsigned int bright;            ///< RGB[11|11|10] (or 16F || 32F || 8UI) -> Bright areas only, used for bloom
+            unsigned int color;             ///< RGB[11|11|10] (or 16F || 32F || 8UI) -> Also used for bloom
         } scene;
 
-        // Ping-pong buffer for bloom blur processing (half internal resolution)
-        struct r3d_fb_pingpong_bloom_t {
+        // Ping-pong buffer for bloom blur processing (start at half internal resolution)
+        struct r3d_fb_mipchain_bloom_t {
             unsigned int id;
-            unsigned int source;            ///< RGB[11|11|10] (or 16F || 32F || 8UI)
-            unsigned int target;            ///< RGB[11|11|10] (or 16F || 32F || 8UI)
-        } pingPongBloom;
+            struct r3d_mip_bloom_t {
+                unsigned int id;            //< RGB[11|11|10] (or 16F || 32F || 8UI) //< 8UI: Break bloom
+                int iW, iH;
+                float fW, fH;
+            } *mipChain;
+            int mipCount;
+        } mipChainBloom;
 
         // Post-processing ping-pong buffer
         struct r3d_fb_pingpong_post_t {
@@ -126,6 +129,8 @@ extern struct R3D_State {
         // Generation shaders
         struct {
             r3d_shader_generate_gaussian_blur_dual_pass_t gaussianBlurDualPass;
+            r3d_shader_generate_downsampling_t downsampling;
+            r3d_shader_generate_upsampling_t upsampling;
             r3d_shader_generate_cubemap_from_equirectangular_t cubemapFromEquirectangular;
             r3d_shader_generate_irradiance_convolution_t irradianceConvolution;
             r3d_shader_generate_prefilter_t prefilter;
@@ -177,9 +182,7 @@ extern struct R3D_State {
 
         R3D_Bloom bloomMode;        // (post pass)
         float bloomIntensity;       // (post pass)
-        float bloomHdrThreshold;    // (raster pass)
-        float bloomSkyHdrThreshold; // (raster pass)
-        int bloomIterations;        // Number of iteration during the generation of the vagueness (post pass)
+        int bloomFilterRadius;      // (gen pass)
 
         R3D_Fog fogMode;            // (post pass)
         Vector3 fogColor;           // (post pass)
@@ -287,20 +290,22 @@ void r3d_framebuffer_load_gbuffer(int width, int height);
 void r3d_framebuffer_load_pingpong_ssao(int width, int height);
 void r3d_framebuffer_load_deferred(int width, int height);
 void r3d_framebuffer_load_scene(int width, int height);
-void r3d_framebuffer_load_pingpong_bloom(int width, int height);
+void r3d_framebuffer_load_mipchain_bloom(int width, int height);
 void r3d_framebuffer_load_pingpong_post(int width, int height);
 
 void r3d_framebuffer_unload_gbuffer(void);
 void r3d_framebuffer_unload_pingpong_ssao(void);
 void r3d_framebuffer_unload_deferred(void);
 void r3d_framebuffer_unload_scene(void);
-void r3d_framebuffer_unload_pingpong_bloom(void);
+void r3d_framebuffer_unload_mipchain_bloom(void);
 void r3d_framebuffer_unload_pingpong_post(void);
 
 
 /* === Shader loading functions === */
 
 void r3d_shader_load_generate_gaussian_blur_dual_pass(void);
+void r3d_shader_load_generate_downsampling(void);
+void r3d_shader_load_generate_upsampling(void);
 void r3d_shader_load_generate_cubemap_from_equirectangular(void);
 void r3d_shader_load_generate_irradiance_convolution(void);
 void r3d_shader_load_generate_prefilter(void);
