@@ -498,8 +498,20 @@ void r3d_framebuffer_load_pingpong_post(int width, int height)
     rlEnableFramebuffer(post->id);
 
     // Generate (color) buffers
-    post->source = rlLoadTexture(NULL, width, height, RL_PIXELFORMAT_UNCOMPRESSED_R8G8B8, 1);
-    post->target = rlLoadTexture(NULL, width, height, RL_PIXELFORMAT_UNCOMPRESSED_R8G8B8, 1);
+    GLuint textures[2];
+    glGenTextures(2, textures);
+    for (int i = 0; i < 2; i++) {
+        glBindTexture(GL_TEXTURE_2D, textures[i]);
+
+        r3d_texture_create_hdr(width, height);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    }
+    glBindTexture(GL_TEXTURE_2D, 0);
+    post->target = textures[0];
+    post->source = textures[1];
 
     // Activate the draw buffers for all the attachments
     rlActiveDrawBuffers(1);
