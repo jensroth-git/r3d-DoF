@@ -97,8 +97,8 @@ extern struct R3D_State {
         // Post-processing ping-pong buffer
         struct r3d_fb_pingpong_post_t {
             unsigned int id;
-            unsigned int source;            ///< RGB[8|8|8]
-            unsigned int target;            ///< RGB[8|8|8]
+            unsigned int source;            ///< RGB[11|11|10] (or 16F || 32F || 8UI)
+            unsigned int target;            ///< RGB[11|11|10] (or 16F || 32F || 8UI)
         } post;
 
         // Custom target (optional)
@@ -295,7 +295,7 @@ void r3d_framebuffer_unload_pingpong_ssao(void);
 void r3d_framebuffer_unload_deferred(void);
 void r3d_framebuffer_unload_scene(void);
 void r3d_framebuffer_unload_pingpong_bloom(void);
-void r3d_framebuffer_unload_post(void);
+void r3d_framebuffer_unload_pingpong_post(void);
 
 
 /* === Shader loading functions === */

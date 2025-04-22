@@ -128,7 +128,7 @@ void r3d_framebuffers_unload(void)
     r3d_framebuffer_unload_gbuffer();
     r3d_framebuffer_unload_deferred();
     r3d_framebuffer_unload_scene();
-    r3d_framebuffer_unload_post();
+    r3d_framebuffer_unload_pingpong_post();
 
     if (R3D.framebuffer.pingPongSSAO.id != 0) {
         r3d_framebuffer_unload_pingpong_ssao();
@@ -336,23 +336,19 @@ void r3d_framebuffer_load_pingpong_ssao(int width, int height)
     rlEnableFramebuffer(ssao->id);
 
     // Generate (ssao) buffers
-    glGenTextures(1, &ssao->source);
-    glBindTexture(GL_TEXTURE_2D, ssao->source);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, width, height, 0, GL_RED, GL_UNSIGNED_BYTE, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-    glGenTextures(1, &ssao->target);
-    glBindTexture(GL_TEXTURE_2D, ssao->target);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, width, height, 0, GL_RED, GL_UNSIGNED_BYTE, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
+    GLuint textures[2];
+    glGenTextures(2, textures);
+    for (int i = 0; i < 2; i++) {
+        glBindTexture(GL_TEXTURE_2D, textures[i]);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, width, height, 0, GL_RED, GL_UNSIGNED_BYTE, NULL);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    }
     glBindTexture(GL_TEXTURE_2D, 0);
+    ssao->target = textures[0];
+    ssao->source = textures[1];
 
     // Activate the draw buffers for all the attachments
     rlActiveDrawBuffers(1);
@@ -377,28 +373,24 @@ void r3d_framebuffer_load_deferred(int width, int height)
 
     rlEnableFramebuffer(deferred->id);
 
-    // Generate diffuse texture
-    glGenTextures(1, &deferred->diffuse);
-    glBindTexture(GL_TEXTURE_2D, deferred->diffuse);
+    // Generate diffuse/specular textures
+    GLuint textures[2];
+    glGenTextures(2, textures);
+    for (int i = 0; i < 2; i++) {
+        glBindTexture(GL_TEXTURE_2D, textures[i]);
 
-    r3d_texture_create_hdr(width, height);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-    // Generate specular texture
-    glGenTextures(1, &deferred->specular);
-    glBindTexture(GL_TEXTURE_2D, deferred->specular);
-
-    r3d_texture_create_hdr(width, height);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        r3d_texture_create_hdr(width, height);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    }
+    glBindTexture(GL_TEXTURE_2D, 0);
+    deferred->diffuse = textures[0];
+    deferred->specular = textures[1];
 
     // Activate the draw buffers for all the attachments
-    rlActiveDrawBuffers(3);
+    rlActiveDrawBuffers(2);
 
     // Attach the textures to the framebuffer
     rlFramebufferAttach(deferred->id, deferred->diffuse, RL_ATTACHMENT_COLOR_CHANNEL0, RL_ATTACHMENT_TEXTURE2D, 0);
@@ -467,23 +459,20 @@ void r3d_framebuffer_load_pingpong_bloom(int width, int height)
     rlEnableFramebuffer(bloom->id);
 
     // Generate (color) buffers
-    glGenTextures(1, &bloom->source);
-    glBindTexture(GL_TEXTURE_2D, bloom->source);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    GLuint textures[2];
+    glGenTextures(2, textures);
+    for (int i = 0; i < 2; i++) {
+        glBindTexture(GL_TEXTURE_2D, textures[i]);
 
-    glGenTextures(1, &bloom->target);
-    glBindTexture(GL_TEXTURE_2D, bloom->target);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
+        r3d_texture_create_hdr(width, height);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    }
     glBindTexture(GL_TEXTURE_2D, 0);
+    bloom->target = textures[0];
+    bloom->source = textures[1];
 
     // Activate the draw buffers for all the attachments
     rlActiveDrawBuffers(1);
@@ -587,7 +576,7 @@ void r3d_framebuffer_unload_pingpong_bloom(void)
     memset(bloom, 0, sizeof(struct r3d_fb_pingpong_bloom_t));
 }
 
-void r3d_framebuffer_unload_post(void)
+void r3d_framebuffer_unload_pingpong_post(void)
 {
     struct r3d_fb_pingpong_post_t* post = &R3D.framebuffer.post;
 
