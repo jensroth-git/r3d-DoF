@@ -36,6 +36,7 @@ glsl_keywords = {
     # Programming keywords
     'for', 'while', 'if', 'else', 'return', 'main', 
     'true', 'false', 'break', 'continue', 'discard', 'do',
+    'switch', 'case', 'default'
 
     # Mathematical functions
     'sin', 'cos', 'tan', 'min', 'max', 'mix', 'smoothstep', 'step', 'length', 
