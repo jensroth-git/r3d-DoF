@@ -86,13 +86,17 @@ void R3D_Init(int resWidth, int resHeight, unsigned int flags)
 
     // Check GPU supports
     {
-        R3D.support.TEX_R16G16F = r3d_check_texture_format_support(GL_RG16F);
-        if (R3D.support.TEX_R16G16F) TraceLog(LOG_INFO, "R3D: RG16F is supported");
+        R3D.support.TEX_RG16F = r3d_check_texture_format_support(GL_RG16F);
+        if (R3D.support.TEX_RG16F) TraceLog(LOG_INFO, "R3D: RG16F is supported");
         else TraceLog(LOG_WARNING, "R3D: RG16F is NOT supported");
 
-        R3D.support.TEX_R16G16B16F = r3d_check_texture_format_support(GL_RGB16F);
-        if (R3D.support.TEX_R16G16B16F) TraceLog(LOG_INFO, "R3D: RGB16F is supported");
+        R3D.support.TEX_RGB16F = r3d_check_texture_format_support(GL_RGB16F);
+        if (R3D.support.TEX_RGB16F) TraceLog(LOG_INFO, "R3D: RGB16F is supported");
         else TraceLog(LOG_WARNING, "R3D: RGB16F is NOT supported");
+
+        R3D.support.TEX_RGB32F = r3d_check_texture_format_support(GL_RGB32F);
+        if (R3D.support.TEX_RGB32F) TraceLog(LOG_INFO, "R3D: RGB32F is supported");
+        else TraceLog(LOG_WARNING, "R3D: RGB32F is NOT supported");
 
         R3D.support.TEX_R11G11B10F = r3d_check_texture_format_support(GL_R11F_G11F_B10F);
         if (R3D.support.TEX_R11G11B10F) TraceLog(LOG_INFO, "R3D: R11F_G11F_B10F is supported");

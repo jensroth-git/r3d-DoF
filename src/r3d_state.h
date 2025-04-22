@@ -40,8 +40,9 @@ extern struct R3D_State {
 
     // GPU Supports
     struct {
-        bool TEX_R16G16F;
-        bool TEX_R16G16B16F;
+        bool TEX_RG16F;
+        bool TEX_RGB16F;
+        bool TEX_RGB32F;
         bool TEX_R11G11B10F;
     } support;
 
@@ -52,7 +53,7 @@ extern struct R3D_State {
         struct r3d_fb_gbuffer_t {
             unsigned int id;
             unsigned int albedo;            ///< RGB[8|8|8]
-            unsigned int emission;          ///< RGB[11|11|10] (or) RGB[16|16|16] (depending on the support, otherwise 8-bit)
+            unsigned int emission;          ///< RGB[11|11|10] (if compatible, otherwise 16F || 32F || 8UI)
             unsigned int normal;            ///< RG[16|16] (or) RG[8|8] (R3D_FLAGS_8_BIT_NORMALS or 16F not supported)
             unsigned int orm;               ///< RGB[5|6|5]
             unsigned int depth;             ///< DS[24|8]
@@ -71,8 +72,8 @@ extern struct R3D_State {
         //  - Lit from lights
         struct r3d_fb_deferred_t {
             unsigned int id;
-            unsigned int diffuse;           ///< RGB[11|11|10] (or) RGB[16|16|16] -> Diffuse contribution
-            unsigned int specular;          ///< RGB[11|11|10] (or) RGB[16|16|16] -> Specular contribution
+            unsigned int diffuse;           ///< RGB[11|11|10] (or 16F || 32F || 8UI) -> Diffuse contribution
+            unsigned int specular;          ///< RGB[11|11|10] (or 16F || 32F || 8UI) -> Specular contribution
         } deferred;
 
         // Final scene (before post process)
@@ -83,14 +84,14 @@ extern struct R3D_State {
         struct r3d_fb_scene_t {
             unsigned int id;
             unsigned int color;             ///< RGB[8|8|8] -> Final color
-            unsigned int bright;            ///< RGB[11|11|10] (or) RGB[16|16|16] -> Bright areas only, used for bloom
+            unsigned int bright;            ///< RGB[11|11|10] (or 16F || 32F || 8UI) -> Bright areas only, used for bloom
         } scene;
 
         // Ping-pong buffer for bloom blur processing (half internal resolution)
         struct r3d_fb_pingpong_bloom_t {
             unsigned int id;
-            unsigned int source;            ///< RGB[11|11|10] (or) RGB[16|16|16]
-            unsigned int target;            ///< RGB[11|11|10] (or) RGB[16|16|16]
+            unsigned int source;            ///< RGB[11|11|10] (or 16F || 32F || 8UI)
+            unsigned int target;            ///< RGB[11|11|10] (or 16F || 32F || 8UI)
         } pingPongBloom;
 
         // Post-processing ping-pong buffer
