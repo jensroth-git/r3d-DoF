@@ -173,6 +173,9 @@ void R3D_Init(int resWidth, int resHeight, unsigned int flags)
     r3d_framebuffers_load(resWidth, resHeight);
     r3d_textures_load();
     r3d_shaders_load();
+
+    // Defines suitable clipping plane distances for r3d
+    rlSetClipPlanes(0.05f, 4000.0f);
 }
 
 void R3D_Close(void)
