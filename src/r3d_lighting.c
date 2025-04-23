@@ -186,14 +186,15 @@ void R3D_SetLightDirection(R3D_Light id, Vector3 direction)
     light->direction = Vector3Normalize(direction);
 }
 
-void R3D_SetLightTarget(R3D_Light id, Vector3 target)
+void R3D_LightLookAt(R3D_Light id, Vector3 position, Vector3 target)
 {
     r3d_get_and_check_light(light, id);
-    if (light->type == R3D_LIGHT_OMNI) {
-        TraceLog(LOG_WARNING, "R3D: Can't set target for light [ID %i]; it's omni-directional and doesn't have a direction", id);
-        return;
+    if (light->type != R3D_LIGHT_OMNI) {
+        light->direction = Vector3Normalize(Vector3Subtract(target, position));
     }
-    light->direction = Vector3Normalize(Vector3Subtract(target, light->position));
+    if (light->type != R3D_LIGHT_DIR) {
+        light->position = position;
+    }
 }
 
 float R3D_GetLightEnergy(R3D_Light id)
