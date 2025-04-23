@@ -23,8 +23,6 @@ endif()
 option(R3D_BUILD_EXAMPLES "Build the examples" ${R3D_IS_MAIN})
 option(R3D_RAYLIB_VENDORED "Use vendored raylib from submodule" OFF)
 
-set(R3D_CUSTOM_SHADER_PATH "" CACHE STRING "Path to custom shaders")
-
 # Include standard cmake scripts
 
 include(CheckLibraryExists)
