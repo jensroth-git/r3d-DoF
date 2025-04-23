@@ -93,6 +93,7 @@ R3D requires an OpenGL 3.3+ compatible driver. OpenGL ES support is not yet avai
 
    - R3D is a CMake project, and you can include it in your own CMake-based project via `add_subdirectory()` or by linking directly to the built library.
    - If you're using it as the main project, you can build the examples using the option `R3D_BUILD_EXAMPLES` in CMake.
+   - If you want to build R3D as a shared library, use the CMake option `BUILD_SHARED_LIBS`.
 
 5. **Cross Compilation**:
 
