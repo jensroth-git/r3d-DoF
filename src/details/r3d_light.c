@@ -214,6 +214,9 @@ void r3d_light_get_matrix_vp_dir(r3d_light_t* light, BoundingBox sceneBounds, Ma
     float lightDistance = maxSceneExtent * 2.0f;
     Vector3 lightPos = Vector3Add(sceneCenter, Vector3Scale(Vector3Negate(lightDir), lightDistance));
 
+    // Keeps the calculated position of the light
+    light->position = lightPos;
+
     // Calculating the view matrix with a stable up vector
     Vector3 upVector;
     if (fabsf(lightDir.y) > 0.99f) {

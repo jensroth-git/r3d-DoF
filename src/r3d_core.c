@@ -1314,6 +1314,11 @@ void r3d_pass_deferred_lights(void)
                         r3d_shader_set_float(screen.lighting, uLight.shadowMapTxlSz, light->data->shadow.map.texelSize);
                         r3d_shader_bind_sampler2D(screen.lighting, uLight.shadowMap, light->data->shadow.map.depth);
                         r3d_shader_set_mat4(screen.lighting, uLight.matVP, light->data->shadow.matVP);
+                        if (light->data->type == R3D_LIGHT_DIR) {
+                            // NOTE: The position of the directional lights is automatically calculated
+                            //       in `r3d_light_get_matrix_vp_dir`, and is used for shadows
+                            r3d_shader_set_vec3(screen.lighting, uLight.position, light->data->position);
+                        }
                     }
                     r3d_shader_set_float(screen.lighting, uLight.shadowBias, light->data->shadow.bias);
                     r3d_shader_set_float(screen.lighting, uLight.size, light->data->size);

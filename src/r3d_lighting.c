@@ -163,6 +163,10 @@ Vector3 R3D_GetLightPosition(R3D_Light id)
 void R3D_SetLightPosition(R3D_Light id, Vector3 position)
 {
     r3d_get_and_check_light(light, id);
+    if (light->type == R3D_LIGHT_DIR) {
+        TraceLog(LOG_WARNING, "R3D: Can't set position for light [ID %i]; it's directional and position is set automatically", id);
+        return;
+    }
     light->position = position;
 }
 
@@ -175,12 +179,20 @@ Vector3 R3D_GetLightDirection(R3D_Light id)
 void R3D_SetLightDirection(R3D_Light id, Vector3 direction)
 {
     r3d_get_and_check_light(light, id);
+    if (light->type == R3D_LIGHT_OMNI) {
+        TraceLog(LOG_WARNING, "R3D: Can't set direction for light [ID %i]; it's omni-directional and doesn't have a direction", id);
+        return;
+    }
     light->direction = Vector3Normalize(direction);
 }
 
 void R3D_SetLightTarget(R3D_Light id, Vector3 target)
 {
     r3d_get_and_check_light(light, id);
+    if (light->type == R3D_LIGHT_OMNI) {
+        TraceLog(LOG_WARNING, "R3D: Can't set target for light [ID %i]; it's omni-directional and doesn't have a direction", id);
+        return;
+    }
     light->direction = Vector3Normalize(Vector3Subtract(target, light->position));
 }
 
