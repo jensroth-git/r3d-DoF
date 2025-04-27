@@ -23,7 +23,7 @@ glsl_keywords = {
 
     # Data types
     'void', 'bool', 'uint', 'int', 'float', 
-    'ivec2', 'vec2', 'ivec3', 'vec3', 'ivec4', 'vec4',
+    'ivec2', 'uvec2', 'vec2', 'ivec3', 'uvec3', 'vec3', 'ivec4', 'uvec4', 'vec4',
     'mat2', 'mat3', 'mat4', 'struct', 'double', 'dvec2', 'dvec3', 'dvec4', 
     'dmat2', 'dmat3', 'dmat4',
 
@@ -36,7 +36,7 @@ glsl_keywords = {
     # Programming keywords
     'for', 'while', 'if', 'else', 'return', 'main', 
     'true', 'false', 'break', 'continue', 'discard', 'do',
-    'switch', 'case', 'default'
+    'switch', 'case', 'default', # NOTE: switch case are not supported yet
 
     # Mathematical functions
     'sin', 'cos', 'tan', 'min', 'max', 'mix', 'smoothstep', 'step', 'length', 
