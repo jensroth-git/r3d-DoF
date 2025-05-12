@@ -49,11 +49,11 @@ const char* Init(void)
     R3D_SetSceneBounds(sceneBounds);
 
     for (int i = 0; i < 2; i++) {
-        lights[i] = R3D_CreateLight(R3D_LIGHT_DIR);
+        lights[i] = R3D_CreateLight(R3D_LIGHT_SPOT);
 
         R3D_LightLookAt(lights[i], (Vector3) { i ? -10 : 10, 20, 0 }, Vector3Zero());
         R3D_SetLightActive(lights[i], true);
-        R3D_SetLightEnergy(lights[i], 10.0f);
+        R3D_SetLightEnergy(lights[i], 1.0f);
 
         R3D_SetShadowUpdateMode(lights[i], R3D_SHADOW_UPDATE_MANUAL);
         R3D_EnableShadow(lights[i], 4096);
