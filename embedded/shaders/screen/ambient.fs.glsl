@@ -139,29 +139,24 @@ void main()
     float NdotV = dot(N, V);
     float cNdotV = max(NdotV, 1e-4); // Clamped to avoid division by zero
 
-    /* Compute ambient - (IBL diffuse) */
+    /* Compute ambient - IBL diffuse */
 
     vec3 kS = F0 + (1.0 - F0) * SchlickFresnel(cNdotV);
     vec3 kD = (1.0 - kS) * (1.0 - metalness);
 
     vec3 Nr = RotateWithQuat(N, uQuatSkybox);
-
     FragDiffuse = kD * texture(uCubeIrradiance, Nr).rgb;
     FragDiffuse *= occlusion;
 
-    /* Skybox reflection - (IBL specular) */
+    /* Skybox reflection - IBL specular */
 
     vec3 R = RotateWithQuat(reflect(-V, N), uQuatSkybox);
 
     const float MAX_REFLECTION_LOD = 7.0;
     vec3 prefilteredColor = textureLod(uCubePrefilter, R, roughness * MAX_REFLECTION_LOD).rgb;
 
-    float fresnelTerm = SchlickFresnel(cNdotV);
-    vec3 F = F0 + (max(vec3(1.0 - roughness), F0) - F0) * fresnelTerm;
-
     vec2 brdf = texture(uTexBrdfLut, vec2(cNdotV, roughness)).rg;
-    vec3 specularReflection = prefilteredColor * (F * brdf.x + brdf.y);
-
+    vec3 specularReflection = prefilteredColor * (F0 * brdf.x + brdf.y); // LUT handles fresnel
     FragSpecular = specularReflection;
 }
 
