@@ -412,7 +412,7 @@ R3DAPI void R3D_UpdateResolution(int width, int height);
  * 
  * @param target The custom render target (can be NULL to revert to the default framebuffer).
  */
-R3DAPI void R3D_SetRenderTarget(RenderTexture* target);
+R3DAPI void R3D_SetRenderTarget(const RenderTexture* target);
 
 /**
  * @brief Defines the bounds of the scene for directional light calculations.

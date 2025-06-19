@@ -257,7 +257,7 @@ void R3D_UpdateResolution(int width, int height)
     R3D.state.resolution.texelY = 1.0f / height;
 }
 
-void R3D_SetRenderTarget(RenderTexture* target)
+void R3D_SetRenderTarget(const RenderTexture* target)
 {
     if (target == NULL) {
         memset(&R3D.framebuffer.customTarget, 0, sizeof(RenderTexture));
