@@ -1,4 +1,5 @@
 #include "./common.h"
+#include "raylib.h"
 
 /* === Resources === */
 
@@ -73,8 +74,6 @@ void Draw(void)
         R3D_DrawMeshInstanced(sphere, material, transforms, 100 * 100);
     R3D_End();
 
-    DrawFPS(10, 10);
-
     if (IsKeyDown(KEY_SPACE)) {
         BeginMode3D(camera);
         for (int i = 0; i < 100; i++) {
@@ -82,6 +81,9 @@ void Draw(void)
         }
         EndMode3D();
     }
+
+    DrawFPS(10, 10);
+    DrawText("Press SPACE to show the lights", 10, GetScreenHeight() - 34, 24, BLACK);
 }
 
 void Close(void)
