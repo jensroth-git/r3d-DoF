@@ -46,25 +46,7 @@ R3D_Light R3D_CreateLight(R3D_LightType type)
     R3D_Light id = r3d_registry_add(&R3D.container.rLights, NULL);
     r3d_light_t* light = r3d_registry_get(&R3D.container.rLights, id);
 
-    r3d_light_init(light);
-    light->type = type;
-
-    // Set default shadow map config
-    light->shadow.updateConf.mode = R3D_SHADOW_UPDATE_INTERVAL;
-    light->shadow.updateConf.frequencySec = 0.016f;
-    light->shadow.updateConf.timerSec = 0.0f;
-    light->shadow.updateConf.shoudlUpdate = true;
-
-    // Set default shadow bias
-    switch (type) {
-    case R3D_LIGHT_DIR:
-    case R3D_LIGHT_SPOT:
-        light->shadow.bias = 0.0002f;
-        break;
-    case R3D_LIGHT_OMNI:
-        light->shadow.bias = 0.05f;
-        break;
-    }
+    r3d_light_init(light, type);
 
     return id;
 }

@@ -161,17 +161,23 @@ vec3 ComputeF0(float metallic, float specular, vec3 albedo)
 
 float ShadowOmni(int i, float cNdotL)
 {
+    /* --- Calculate vector and distance from light to fragment --- */
+
     vec3 lightToFrag = vPosition - uLights[i].position;
     float currentDepth = length(lightToFrag);
     vec3 direction = normalize(lightToFrag);
-    
+
+    /* --- Calculate bias to reduce shadow acne based on normal --- */
+
     float bias = max(uLights[i].shadowBias * (1.0 - cNdotL), 0.05);
-    currentDepth = currentDepth - bias;
-    
-    // Adaptation du rayon selon la distance
-    float adaptiveRadius = uLights[i].shadowSoftness / max(currentDepth, 1.0);
-    
-    // Système de coordonnées local
+    currentDepth -= bias;
+
+    /* --- Calculate adaptive sampling radius based on distance --- */
+
+    float adaptiveRadius = uLights[i].shadowSoftness / max(currentDepth, 0.1);
+
+    /* --- Build tangent and bitangent vectors for sampling pattern --- */
+
     vec3 tangent, bitangent;
     if (abs(direction.y) < 0.99) {
         tangent = normalize(cross(vec3(0.0, 1.0, 0.0), direction));
@@ -179,80 +185,98 @@ float ShadowOmni(int i, float cNdotL)
         tangent = normalize(cross(vec3(1.0, 0.0, 0.0), direction));
     }
     bitangent = normalize(cross(direction, tangent));
-    
-    // Pattern de samples simple
-    const vec2 offsets[8] = vec2[](
-        vec2(-1.0, -1.0), vec2( 0.0, -1.0), vec2( 1.0, -1.0),
-        vec2(-1.0,  0.0),                    vec2( 1.0,  0.0),
-        vec2(-1.0,  1.0), vec2( 0.0,  1.0), vec2( 1.0,  1.0)
-    );
-    
+
+    /* --- Generate random rotation angle to reduce pattern artifacts --- */
+
+    vec4 noiseTexel = texture(uTexNoise, fract(gl_FragCoord.xy / vec2(16.0)));
+    float rotationAngle = noiseTexel.r * 2.0 * PI;
+    float cosRot = cos(rotationAngle);
+    float sinRot = sin(rotationAngle);
+
     float shadow = 0.0;
-    
-    // Sample central
-    shadow += step(currentDepth, texture(uLights[i].shadowCubemap, direction).r * uLights[i].far);
-    
-    // Samples décalés
-    for (int j = 0; j < 8; j++)
+
+    /* --- Sample shadow cubemap center depth --- */
+
+    float centerDepth = texture(uLights[i].shadowCubemap, direction).r * uLights[i].far;
+    shadow += step(currentDepth, centerDepth);
+
+    /* --- Sample shadow cubemap with Poisson Disk offsets --- */
+
+    for (int j = 0; j < 16; ++j)
     {
-        vec3 sampleDir = direction + (tangent * offsets[j].x + bitangent * offsets[j].y) * adaptiveRadius;
+        vec2 rotatedOffset = vec2(
+            POISSON_DISK[j].x * cosRot - POISSON_DISK[j].y * sinRot,
+            POISSON_DISK[j].x * sinRot + POISSON_DISK[j].y * cosRot
+        );
+
+        /* Convert 2D offset to 3D offset in tangent space */
+
+        vec3 sampleDir = direction + (tangent * rotatedOffset.x + bitangent * rotatedOffset.y) * adaptiveRadius;
         sampleDir = normalize(sampleDir);
-        
+
         float closestDepth = texture(uLights[i].shadowCubemap, sampleDir).r * uLights[i].far;
         shadow += step(currentDepth, closestDepth);
     }
-    
-    return shadow / 9.0;
+
+    /* --- Average all samples (1 center + 16 Poisson samples) --- */
+
+    return shadow / 17.0;
 }
 
 float Shadow(int i, float cNdotL)
 {
-    // Version pour lumières directionnelles/spot
+    /* --- Project fragment position into light clip space --- */
+
     vec4 p = vPosLightSpace[i];
     vec3 projCoords = p.xyz / p.w;
     projCoords = projCoords * 0.5 + 0.5;
-    
-    if (projCoords.x < 0.0 || projCoords.x > 1.0 || 
-        projCoords.y < 0.0 || projCoords.y > 1.0 || 
-        projCoords.z < 0.0 || projCoords.z > 1.0) 
-        return 1.0;
-    
+
+    /* --- Check if fragment is inside the shadow map boundaries --- */
+
+    float inside = float(
+        all(greaterThanEqual(projCoords, vec3(0.0))) &&
+        all(lessThanEqual(projCoords, vec3(1.0)))
+    );
+
+    /* --- Calculate bias to prevent shadow acne --- */
+
     float bias = max(uLights[i].shadowBias * (1.0 - cNdotL), 0.00002);
     float currentDepth = projCoords.z - bias;
-    
-    // Adaptation du rayon selon la distance pour maintenir une taille cohérente
+
+    /* --- Calculate adaptive soft shadow radius --- */
+
     float adaptiveRadius = uLights[i].shadowSoftness / max(projCoords.z, 0.1);
-    
-    // Pattern simple en croix + diagonales (8 samples)
-    const vec2 offsets[8] = vec2[](
-        vec2(-1.0, -1.0), vec2( 0.0, -1.0), vec2( 1.0, -1.0),
-        vec2(-1.0,  0.0),                    vec2( 1.0,  0.0),
-        vec2(-1.0,  1.0), vec2( 0.0,  1.0), vec2( 1.0,  1.0)
-    );
-    
-    // Rotation aléatoire simple
+
+    /* --- Generate random rotation angle to vary sample pattern --- */
+
     vec4 noiseTexel = texture(uTexNoise, fract(gl_FragCoord.xy / vec2(16.0)));
-    float angle = noiseTexel.r * 2.0 * PI;
-    float cosA = cos(angle);
-    float sinA = sin(angle);
-    
+    float rotationAngle = noiseTexel.r * 2.0 * PI;
+    float cosRot = cos(rotationAngle);
+    float sinRot = sin(rotationAngle);
+
     float shadow = 0.0;
-    
-    // Sample central
+
+    /* --- Sample shadow map at center --- */
+
     shadow += step(currentDepth, texture(uLights[i].shadowMap, projCoords.xy).r);
-    
-    // Samples décalés
-    for (int j = 0; j < 8; j++)
+
+    /* --- Sample shadow map with Poisson Disk offsets --- */
+
+    for (int j = 0; j < 16; ++j)
     {
         vec2 rotatedOffset = vec2(
-            offsets[j].x * cosA - offsets[j].y * sinA,
-            offsets[j].x * sinA + offsets[j].y * cosA
+            POISSON_DISK[j].x * cosRot - POISSON_DISK[j].y * sinRot,
+            POISSON_DISK[j].x * sinRot + POISSON_DISK[j].y * cosRot
         ) * adaptiveRadius;
-        
+
         shadow += step(currentDepth, texture(uLights[i].shadowMap, projCoords.xy + rotatedOffset).r);
     }
-    
-    return shadow / 9.0; // 1 central + 8 décalés
+
+    /* --- Average samples and mask outside fragments --- */
+
+    shadow /= 17.0;
+
+    return mix(1.0, shadow, inside);
 }
 
 /* === Misc functions === */

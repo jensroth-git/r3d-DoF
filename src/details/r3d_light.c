@@ -2,6 +2,7 @@
 
 #include <raymath.h>
 #include <stddef.h>
+#include <string.h>
 #include <rlgl.h>
 #include <glad.h>
 
@@ -113,21 +114,50 @@ static r3d_shadow_map_t r3d_light_create_shadow_map_omni(int resolution)
 
 /* === Public functions === */
 
-void r3d_light_init(r3d_light_t* light)
+void r3d_light_init(r3d_light_t* light, R3D_LightType type)
 {
-    light->shadow = (r3d_shadow_t){ 0 };
+    memset(light, 0, sizeof(r3d_light_t));
+
+    /* --- Set base light parameters --- */
+
     light->color = (Vector3){ 1, 1, 1 };
     light->position = (Vector3){ 0 };
     light->direction = (Vector3){ 0, 0, -1 };
+
     light->specular = 0.5f;
     light->energy = 1.0f;
     light->range = 100.0f;
-    light->near = 0.05f;
+
     light->attenuation = 1.0f;
     light->innerCutOff = -1.0f;
     light->outerCutOff = -1.0f;
-    light->type = R3D_LIGHT_DIR;
+
+    light->type = type;
     light->enabled = false;
+
+    /* --- Set common shadow config --- */
+
+    light->shadow.updateConf.mode = R3D_SHADOW_UPDATE_INTERVAL;
+    light->shadow.updateConf.frequencySec = 0.016f;
+    light->shadow.updateConf.timerSec = 0.0f;
+    light->shadow.updateConf.shoudlUpdate = true;
+
+    /* --- Set specific shadow config --- */
+
+    switch (type) {
+    case R3D_LIGHT_DIR:
+        light->shadow.softness = 0.0005f;
+        light->shadow.bias = 0.02f;
+        break;
+    case R3D_LIGHT_SPOT:
+        light->shadow.softness = 0.001f;
+        light->shadow.bias = 0.0002f;
+        break;
+    case R3D_LIGHT_OMNI:
+        light->shadow.softness = 0.025f;
+        light->shadow.bias = 0.05f;
+        break;
+    }
 }
 
 void r3d_light_create_shadow_map(r3d_light_t* light, int resolution)
