@@ -52,22 +52,21 @@ layout(location = 3) out vec3 FragORM;
 
 /* === Helper functions === */
 
+vec2 OctahedronWrap(vec2 _val)
+{
+    // Reference(s):
+    // - Octahedron normal vector encoding
+    //   https://web.archive.org/web/20191027010600/https://knarkowicz.wordpress.com/2014/04/16/octahedron-normal-vector-encoding/comment-page-1/
+    return (1.0 - abs(_val.yx) )
+            * mix(vec2(-1.0), vec2(1.0), vec2(greaterThanEqual(_val.xy, vec2(0.0) ) ) );
+}
+
 vec2 EncodeOctahedral(vec3 normal)
 {
-    // Normalize to avoid numerical errors
     normal /= abs(normal.x) + abs(normal.y) + abs(normal.z);
-    
-    // Store X and Y in the plane
-    vec2 encoded = normal.xy;
-    
-    // Fold the negative hemisphere (avoiding the use of boolean vectors)
-    if (normal.z < 0.0) {
-        vec2 signValue = vec2(normal.x >= 0.0 ? 1.0 : -1.0, normal.y >= 0.0 ? 1.0 : -1.0);
-        encoded = (1.0 - abs(encoded.yx)) * signValue;
-    }
-    
-    // Remap from [-1,1] to [0,1] for texture storage
-    return encoded * 0.5 + 0.5;
+    normal.xy = normal.z >= 0.0 ? normal.xy : OctahedronWrap(normal.xy);
+    normal.xy = normal.xy * 0.5 + 0.5;
+    return normal.xy;
 }
 
 
