@@ -42,6 +42,11 @@ uniform float uFar;
 uniform float uRadius;
 uniform float uBias;
 
+/* === Constants === */
+
+const int NOISE_TEXTURE_SIZE = 4;
+const int KERNEL_SIZE = 32;
+
 /* === Fragments === */
 
 out float FragOcclusion;
@@ -101,15 +106,13 @@ void main()
     normal = normalize(mat3(uMatView) * normal);
     
     // Calculate screen-space noise scale
-    vec2 noiseScale = uResolution / 16.0;
+    vec2 noiseScale = uResolution / float(NOISE_TEXTURE_SIZE);
     vec3 randomVec = normalize(texture(uTexNoise, vTexCoord * noiseScale).xyz * 2.0 - 1.0);
     
     // Generate tangent space basis
     vec3 tangent = normalize(randomVec - normal * dot(randomVec, normal));
     vec3 bitangent = cross(normal, tangent);
     mat3 TBN = mat3(tangent, bitangent, normal);
-    
-    const int KERNEL_SIZE = 32;
 
     float occlusion = 0.0;
     for (int i = 0; i < KERNEL_SIZE; i++)

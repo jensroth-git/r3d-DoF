@@ -204,7 +204,8 @@ extern struct R3D_State {
         unsigned int white;
         unsigned int black;
         unsigned int normal;
-        unsigned int randNoise;     //< Used for SSAO and poisson disk during shadow cast
+        unsigned int blueNoise;
+        unsigned int ssaoNoise;
         unsigned int ssaoKernel;
         unsigned int iblBrdfLut;
     } texture;
@@ -334,7 +335,8 @@ void r3d_shader_load_screen_fxaa(void);
 void r3d_texture_load_white(void);
 void r3d_texture_load_black(void);
 void r3d_texture_load_normal(void);
-void r3d_texture_load_rand_noise(void);
+void r3d_texture_load_blue_noise(void);
+void r3d_texture_load_ssao_noise(void);
 void r3d_texture_load_ssao_kernel(void);
 void r3d_texture_load_ibl_brdf_lut(void);
 

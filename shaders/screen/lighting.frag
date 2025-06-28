@@ -64,13 +64,17 @@ uniform sampler2D uTexNormal;
 uniform sampler2D uTexDepth;
 uniform sampler2D uTexORM;
 
-uniform sampler2D uTexNoise;   //< Noise texture (used for poisson disk)
+uniform sampler2D uTexNoise;   //< Noise texture (used for soft shadows)
 
 uniform Light uLight;
 
 uniform vec3 uViewPosition;
 uniform mat4 uMatInvProj;
 uniform mat4 uMatInvView;
+
+/* === Constants === */
+
+const int TEX_NOISE_SIZE = 128;
 
 /* === Fragments === */
 
@@ -165,7 +169,7 @@ float ShadowOmni(vec3 position, float cNdotL)
 
     /* --- Generate random rotation to reduce banding artifacts --- */
 
-    vec4 noiseTexel = texture(uTexNoise, fract(gl_FragCoord.xy / vec2(16.0)));
+    vec4 noiseTexel = texture(uTexNoise, fract(gl_FragCoord.xy / float(TEX_NOISE_SIZE)));
     float rotationAngle = noiseTexel.r * 2.0 * PI;
     float cosRot = cos(rotationAngle);
     float sinRot = sin(rotationAngle);
@@ -229,7 +233,7 @@ float Shadow(vec3 position, float cNdotL)
 
     /* --- Generate random rotation angle for sample offsets --- */
 
-    vec4 noiseTexel = texture(uTexNoise, fract(gl_FragCoord.xy / vec2(16.0)));
+    vec4 noiseTexel = texture(uTexNoise, fract(gl_FragCoord.xy / float(TEX_NOISE_SIZE)));
     float rotationAngle = noiseTexel.r * 2.0 * PI;
     float cosRot = cos(rotationAngle);
     float sinRot = sin(rotationAngle);

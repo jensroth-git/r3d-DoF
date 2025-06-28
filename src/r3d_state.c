@@ -144,10 +144,11 @@ void r3d_textures_load(void)
     r3d_texture_load_white();
     r3d_texture_load_black();
     r3d_texture_load_normal();
-    r3d_texture_load_rand_noise();
+    r3d_texture_load_blue_noise();
     r3d_texture_load_ibl_brdf_lut();
 
     if (R3D.env.ssaoEnabled) {
+        r3d_texture_load_ssao_noise();
         r3d_texture_load_ssao_kernel();
     }
 }
@@ -157,8 +158,12 @@ void r3d_textures_unload(void)
     rlUnloadTexture(R3D.texture.white);
     rlUnloadTexture(R3D.texture.black);
     rlUnloadTexture(R3D.texture.normal);
-    rlUnloadTexture(R3D.texture.randNoise);
+    rlUnloadTexture(R3D.texture.blueNoise);
     rlUnloadTexture(R3D.texture.iblBrdfLut);
+
+    if (R3D.texture.ssaoNoise != 0) {
+        rlUnloadTexture(R3D.texture.ssaoNoise);
+    }
 
     if (R3D.texture.ssaoKernel != 0) {
         rlUnloadTexture(R3D.texture.ssaoKernel);
@@ -1270,9 +1275,15 @@ void r3d_texture_load_normal(void)
     R3D.texture.normal = rlLoadTexture(&DATA, 1, 1, PIXELFORMAT_UNCOMPRESSED_R32G32B32, 1);
 }
 
-void r3d_texture_load_rand_noise(void)
+void r3d_texture_load_blue_noise(void)
 {
-#   define R3D_RAND_NOISE_RESOLUTION 16
+    Image image = LoadImageFromMemory(".png", (unsigned char*)BLUE_NOISE_128_PNG, BLUE_NOISE_128_PNG_SIZE);
+    R3D.texture.blueNoise = rlLoadTexture(image.data, image.width, image.height, image.format, 1);
+}
+
+void r3d_texture_load_ssao_noise(void)
+{
+#   define R3D_RAND_NOISE_RESOLUTION 4
 
     r3d_half_t noise[3 * R3D_RAND_NOISE_RESOLUTION * R3D_RAND_NOISE_RESOLUTION] = { 0 };
 
@@ -1282,7 +1293,7 @@ void r3d_texture_load_rand_noise(void)
         noise[i * 3 + 2] = r3d_cvt_fh((float)GetRandomValue(0, INT16_MAX) / INT16_MAX);
     }
 
-    R3D.texture.randNoise = rlLoadTexture(noise,
+    R3D.texture.ssaoNoise = rlLoadTexture(noise,
         R3D_RAND_NOISE_RESOLUTION,
         R3D_RAND_NOISE_RESOLUTION,
         PIXELFORMAT_UNCOMPRESSED_R16G16B16,
@@ -1335,7 +1346,7 @@ void r3d_texture_load_ibl_brdf_lut(void)
     uint32_t special_format_size = 0; // should be 4 or 8 (RG16F or RG32F)
 
     img.data = r3d_load_dds_from_memory_ext(
-        (unsigned char*)IBL_BRDF_DDS, IBL_BRDF_DDS_SIZE,
+        (unsigned char*)IBL_BRDF_256_DDS, IBL_BRDF_256_DDS_SIZE,
         &width, &height, &special_format_size
     );
 
@@ -1361,7 +1372,7 @@ void r3d_texture_load_ibl_brdf_lut(void)
         RL_FREE(img.data);
     }
     else {
-        img = LoadImageFromMemory(".dds", (unsigned char*)IBL_BRDF_DDS, IBL_BRDF_DDS_SIZE);
+        img = LoadImageFromMemory(".dds", (unsigned char*)IBL_BRDF_256_DDS, IBL_BRDF_256_DDS_SIZE);
         R3D.texture.iblBrdfLut = rlLoadTexture(img.data, img.width, img.height, img.format, img.mipmaps);
         UnloadImage(img);
     }

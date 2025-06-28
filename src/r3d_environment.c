@@ -68,6 +68,9 @@ void R3D_SetSSAO(bool enabled)
 				R3D.state.resolution.height
 			);
 		}
+		if (R3D.texture.ssaoNoise == 0) {
+        	r3d_texture_load_ssao_noise();
+		}
 		if (R3D.texture.ssaoKernel == 0) {
 			r3d_texture_load_ssao_kernel();
 		}

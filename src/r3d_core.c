@@ -1110,7 +1110,7 @@ void r3d_pass_ssao(void)
             r3d_shader_bind_sampler2D(screen.ssao, uTexDepth, R3D.framebuffer.gBuffer.depth);
             r3d_shader_bind_sampler2D(screen.ssao, uTexNormal, R3D.framebuffer.gBuffer.normal);
             r3d_shader_bind_sampler1D(screen.ssao, uTexKernel, R3D.texture.ssaoKernel);
-            r3d_shader_bind_sampler2D(screen.ssao, uTexNoise, R3D.texture.randNoise);
+            r3d_shader_bind_sampler2D(screen.ssao, uTexNoise, R3D.texture.ssaoNoise);
 
             r3d_primitive_draw_screen();
 
@@ -1275,7 +1275,7 @@ void r3d_pass_deferred_lights(void)
             r3d_shader_bind_sampler2D(screen.lighting, uTexNormal, R3D.framebuffer.gBuffer.normal);
             r3d_shader_bind_sampler2D(screen.lighting, uTexDepth, R3D.framebuffer.gBuffer.depth);
             r3d_shader_bind_sampler2D(screen.lighting, uTexORM, R3D.framebuffer.gBuffer.orm);
-            r3d_shader_bind_sampler2D(screen.lighting, uTexNoise, R3D.texture.randNoise);
+            r3d_shader_bind_sampler2D(screen.lighting, uTexNoise, R3D.texture.blueNoise);
 
             for (int i = 0; i < R3D.container.aLightBatch.count; i++) {
                 r3d_light_batched_t* light = r3d_array_at(&R3D.container.aLightBatch, i);
@@ -1713,7 +1713,7 @@ void r3d_pass_scene_forward(void)
         if (R3D.container.aDrawForwardInst.count > 0) {
             r3d_shader_enable(raster.forwardInst);
             {
-                r3d_shader_bind_sampler2D(raster.forwardInst, uTexNoise, R3D.texture.randNoise);
+                r3d_shader_bind_sampler2D(raster.forwardInst, uTexNoise, R3D.texture.blueNoise);
 
                 if (R3D.env.useSky) {
                     r3d_shader_bind_samplerCube(raster.forwardInst, uCubeIrradiance, R3D.env.sky.irradiance.id);
@@ -1757,7 +1757,7 @@ void r3d_pass_scene_forward(void)
         if (R3D.container.aDrawForward.count > 0) {
             r3d_shader_enable(raster.forward);
             {
-                r3d_shader_bind_sampler2D(raster.forward, uTexNoise, R3D.texture.randNoise);
+                r3d_shader_bind_sampler2D(raster.forward, uTexNoise, R3D.texture.blueNoise);
 
                 if (R3D.env.useSky) {
                     r3d_shader_bind_samplerCube(raster.forward, uCubeIrradiance, R3D.env.sky.irradiance.id);
