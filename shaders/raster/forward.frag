@@ -91,14 +91,12 @@ uniform bool uHasSkybox;
 uniform Light uLights[NUM_LIGHTS];
 
 uniform float uAlphaScissorThreshold;
-uniform float uBloomHdrThreshold;
 uniform vec3 uViewPosition;
 uniform float uFar;
 
 /* === Fragments === */
 
 layout(location = 0) out vec4 FragColor;
-layout(location = 1) out vec3 FragBrightness;
 
 /* === Constants === */
 
@@ -287,11 +285,6 @@ vec3 RotateWithQuat(vec3 v, vec4 q)
     return v + q.w * t + cross(q.xyz, t);
 }
 
-float GetBrightness(vec3 color)
-{
-    return length(color);
-}
-
 /* === Main === */
 
 void main()
@@ -477,10 +470,4 @@ void main()
     /* Compute the final fragment color by combining diffuse, specular, and emission contributions */
 
     FragColor = vec4(diffuse + specular + emission, albedo.a);
-
-    /* Handle bright colors for bloom */
-
-    float brightness = GetBrightness(FragColor.rgb);
-    FragBrightness = (brightness > uBloomHdrThreshold)
-        ? vec3(FragColor.rgb) : vec3(0.0);
 }
