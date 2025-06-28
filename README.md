@@ -13,7 +13,7 @@ R3D is ideal for developers who want to add 3D rendering to their raylib project
 - **Hybrid Renderer**: Supports both deferred and forward rendering. You can force a mode globally (always deferred or always forward), or let the engine choose the optimal path based on rendering parameters.
 - **Material System**: Uses raylib’s material system—just load a model and set its material maps, R3D takes care of the rest.
 - **Lighting**: Supports directional, spot, and omni lights, fully integrated with both deferred and forward rendering paths.
-- **Shadow Mapping**: Soft shadows (PCSS) with per-light resolution and dynamic update modes (manual, interval, or per-frame).
+- **Shadow Mapping**: Soft shadows with per-light resolution and dynamic update modes (manual, interval, or per-frame).
 - **Skyboxes**: HDR and non-HDR skybox rendering with IBL (image-based lighting) support.
 - **Post-processing Effects**: Includes SSAO, bloom, fog, tonemapping, color grading, FXAA, and more.
 - **Instanced Rendering**: Render instances with per-instance transform matrices, optional global matrix, and color instances support.
