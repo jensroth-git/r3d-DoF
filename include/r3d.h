@@ -72,7 +72,7 @@ typedef unsigned int R3D_Flags;
  *
  * Each mode has its own advantages depending on the hardware and rendering needs.
  */
-typedef enum {
+typedef enum R3D_RenderMode {
     R3D_RENDER_AUTO_DETECT = 0,         /**< Automatically determines the rendering mode based on the material,
                                              for example, by analyzing the albedo texture formats or the alpha 
                                              value of albedo colors. This is the default mode. */
@@ -86,7 +86,7 @@ typedef enum {
  * Defines common blending modes used in 3D rendering to combine source and destination colors.
  * @note The blend mode is applied only if you are in forward rendering mode or auto-detect mode.
  */
-typedef enum {
+typedef enum R3D_BlendMode {
     R3D_BLEND_OPAQUE,          ///< No blending, the source color fully replaces the destination color.
     R3D_BLEND_ALPHA,           ///< Alpha blending: source color is blended with the destination based on alpha value.
     R3D_BLEND_ADDITIVE,        ///< Additive blending: source color is added to the destination, making bright effects.
@@ -99,7 +99,7 @@ typedef enum {
  * Determines how an object contributes to shadow mapping, which can affect
  * performance and visual accuracy depending on the rendering technique used.
  */
-typedef enum {
+typedef enum R3D_ShadowCastMode {
     R3D_SHADOW_CAST_DISABLED,     ///< The object does not cast shadows.
     R3D_SHADOW_CAST_FRONT_FACES,  ///< Only front-facing polygons cast shadows.
     R3D_SHADOW_CAST_BACK_FACES,   ///< Only back-facing polygons cast shadows.
@@ -112,7 +112,7 @@ typedef enum {
  * This enumeration defines how a 3D object aligns itself relative to the camera.
  * It provides options to disable billboarding or to enable specific modes of alignment.
  */
-typedef enum {
+typedef enum R3D_BillboardMode {
     R3D_BILLBOARD_DISABLED,     ///< Billboarding is disabled; the object retains its original orientation.
     R3D_BILLBOARD_FRONT,        ///< Full billboarding; the object fully faces the camera, rotating on all axes.
     R3D_BILLBOARD_Y_AXIS        /**< Y-axis constrained billboarding; the object rotates only around the Y-axis,
@@ -124,7 +124,7 @@ typedef enum {
  *
  * Each light type has different behaviors and use cases.
  */
-typedef enum {
+typedef enum R3D_LightType {
     R3D_LIGHT_DIR,                      ///< Directional light, affects the entire scene with parallel rays.
     R3D_LIGHT_SPOT,                     ///< Spot light, emits light in a cone shape.
     R3D_LIGHT_OMNI                      ///< Omni light, emits light in all directions from a single point.
@@ -135,7 +135,7 @@ typedef enum {
  *
  * Determines how often the shadow maps are refreshed.
  */
-typedef enum {
+typedef enum R3D_ShadowUpdateMode {
     R3D_SHADOW_UPDATE_MANUAL,           ///< Shadow maps update only when explicitly requested.
     R3D_SHADOW_UPDATE_INTERVAL,         ///< Shadow maps update at defined time intervals.
     R3D_SHADOW_UPDATE_CONTINUOUS        ///< Shadow maps update every frame for real-time accuracy.
@@ -148,7 +148,7 @@ typedef enum {
  * to the rendered scene. Bloom effects enhance the appearance of bright areas
  * by simulating light bleeding, contributing to a more cinematic and realistic look.
  */
- typedef enum {
+ typedef enum R3D_Bloom {
     R3D_BLOOM_DISABLED,     ///< Bloom effect is disabled. The scene is rendered without any glow enhancement.
     R3D_BLOOM_MIX,          ///< Blends the bloom effect with the original scene using linear interpolation (Lerp).
     R3D_BLOOM_ADDITIVE,     ///< Adds the bloom effect additively to the scene, intensifying bright regions.
@@ -160,7 +160,7 @@ typedef enum {
  *
  * Determines how fog is applied to the scene, affecting depth perception and atmosphere.
  */
-typedef enum {
+typedef enum R3D_Fog {
     R3D_FOG_DISABLED, ///< Fog effect is disabled.
     R3D_FOG_LINEAR,   ///< Fog density increases linearly with distance from the camera.
     R3D_FOG_EXP2,     ///< Exponential fog (exp2), where density increases exponentially with distance.
@@ -172,7 +172,7 @@ typedef enum {
  *
  * Controls how high dynamic range (HDR) colors are mapped to low dynamic range (LDR) for display.
  */
-typedef enum {
+typedef enum R3D_Tonemap {
     R3D_TONEMAP_LINEAR,   ///< Simple linear mapping of HDR values.
     R3D_TONEMAP_REINHARD, ///< Reinhard tone mapping, a balanced method for compressing HDR values.
     R3D_TONEMAP_FILMIC,   ///< Filmic tone mapping, mimicking the response of photographic film.
@@ -199,7 +199,7 @@ typedef unsigned int R3D_Light;
  * This structure contains textures used for rendering a skybox, as well as
  * precomputed lighting textures used for image-based lighting (IBL).
  */
-typedef struct {
+typedef struct R3D_Skybox {
     TextureCubemap cubemap;  ///< The skybox cubemap texture for the background and reflections.
     Texture2D irradiance;    ///< The irradiance cubemap for diffuse ambient lighting.
     Texture2D prefilter;     ///< The prefiltered cubemap for specular reflections with mipmaps.
@@ -214,7 +214,7 @@ typedef struct {
  * @warning The shadow mode does not handle transparency. If shadows are enabled, the entire quad will be rendered in the shadow map,
  * potentially causing undesired visual artifacts for semi-transparent sprites.
  */
-typedef struct {
+typedef struct R3D_Sprite {
     Material material;      ///< The material used for rendering the sprite, including its texture and shading properties.
     float currentFrame;     ///< The current animation frame, represented as a floating-point value to allow smooth interpolation.
     Vector2 frameSize;      ///< The size of a single animation frame, in texture coordinates (width and height).
@@ -228,7 +228,7 @@ typedef struct {
  * A keyframe contains two values: the time at which the keyframe occurs and the value of the interpolation at that time.
  * The time is normalized between 0.0 and 1.0, where 0.0 represents the start of the curve and 1.0 represents the end.
  */
-typedef struct {
+typedef struct R3D_Keyframe {
     float time;             ///< Normalized time of the keyframe, ranging from 0.0 to 1.0.
     float value;            ///< The value of the interpolation at this keyframe.
 } R3D_Keyframe;
@@ -240,7 +240,7 @@ typedef struct {
  * and the allocated capacity. The keyframes define a curve that can be used for smooth interpolation between values
  * over a normalized time range (0.0 to 1.0).
  */
-typedef struct {
+typedef struct R3D_InterpolationCurve {
     R3D_Keyframe* keyframes;    ///< Dynamic array of keyframes defining the interpolation curve.
     unsigned int capacity;      ///< Allocated size of the keyframes array.
     unsigned int count;         ///< Current number of keyframes in the array.
@@ -251,7 +251,7 @@ typedef struct {
  * @brief Represents a particle in a 3D particle system, with properties
  *        such as position, velocity, rotation, and color modulation.
  */
-typedef struct {
+typedef struct R3D_Particle {
 
     float lifetime;                 ///< Duration of the particle's existence in seconds.
 
@@ -278,7 +278,7 @@ typedef struct {
  * This structure contains configuration data for a particle system, such as mesh information, initial properties,
  * curves for controlling properties over time, and settings for shadow casting, emission rate, and more.
  */
-typedef struct {
+typedef struct R3D_ParticleSystem {
 
     R3D_Particle* particles;            ///< Pointer to the array of particles in the system.
     int capacity;                       ///< The maximum number of particles the system can manage.
