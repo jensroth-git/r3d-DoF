@@ -17,7 +17,6 @@
  *   3. This notice may not be removed or altered from any source distribution.
  */
 
-#include "embedded/r3d_shaders.h"
 #include "r3d.h"
 
 #include <raylib.h>

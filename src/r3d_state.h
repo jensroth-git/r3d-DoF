@@ -22,12 +22,11 @@
 
 #include "r3d.h"
 
+#include "./details/r3d_shaders.h"
 #include "./details/r3d_frustum.h"
 #include "./details/r3d_primitives.h"
 #include "./details/containers/r3d_array.h"
 #include "./details/containers/r3d_registry.h"
-
-#include "./embedded/r3d_shaders.h"
 
 /* === Defines === */
 

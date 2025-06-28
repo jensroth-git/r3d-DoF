@@ -23,9 +23,15 @@ endif()
 option(R3D_BUILD_EXAMPLES "Build the examples" ${R3D_IS_MAIN})
 option(R3D_RAYLIB_VENDORED "Use vendored raylib from submodule" OFF)
 
-# Include standard cmake scripts
+# Set the cmake module path
+
+set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH}" "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
+# Include cmake scripts
 
 include(CheckLibraryExists)
+include(EmbedShaders)
+include(EmbedAssets)
 
 # Checks for raylib installation
 
@@ -59,20 +65,6 @@ Make sure raylib is installed and discoverable by CMake (e.g. via CMAKE_PREFIX_P
     endif()
 endif()
 
-# Configure r3d library: Include external resources for shaders and textures
-
-include("${R3D_ROOT_PATH}/embedded/shaders/EmbedShaders.cmake")
-include("${R3D_ROOT_PATH}/embedded/textures/EmbedTextures.cmake")
-
-EmbedShaders(R3D_GENERATED_SHADERS_SOURCE
-    "${R3D_ROOT_PATH}/src/embedded/r3d_shaders.c.in"
-    "${R3D_ROOT_PATH}/src/embedded/r3d_shaders.h"
-)
-EmbedTextures(R3D_GENERATED_TEXTURES_SOURCE
-    "${R3D_ROOT_PATH}/src/embedded/r3d_textures.c.in"
-    "${R3D_ROOT_PATH}/src/embedded/r3d_textures.h"
-)
-
 # Create the r3d library by adding all the source files
 
 if(BUILD_SHARED_LIBS)
@@ -98,8 +90,44 @@ add_library(${PROJECT_NAME}
     "${R3D_ROOT_PATH}/src/r3d_utils.c"
     "${R3D_ROOT_PATH}/src/r3d_state.c"
     "${R3D_ROOT_PATH}/src/r3d_core.c"
-    "${R3D_GENERATED_SHADERS_SOURCE}"
-    "${R3D_GENERATED_TEXTURES_SOURCE}"
+)
+
+EmbedShaders(${PROJECT_NAME}
+    "${R3D_ROOT_PATH}/shaders/common/screen.vert"
+    "${R3D_ROOT_PATH}/shaders/common/cubemap.vert"
+    "${R3D_ROOT_PATH}/shaders/generate/gaussian_blur_dual_pass.frag"
+    "${R3D_ROOT_PATH}/shaders/generate/downsampling.frag"
+    "${R3D_ROOT_PATH}/shaders/generate/upsampling.frag"
+    "${R3D_ROOT_PATH}/shaders/generate/cubemap_from_equirectangular.frag"
+    "${R3D_ROOT_PATH}/shaders/generate/irradiance_convolution.frag"
+    "${R3D_ROOT_PATH}/shaders/generate/prefilter.frag"
+    "${R3D_ROOT_PATH}/shaders/raster/geometry.vert"
+    "${R3D_ROOT_PATH}/shaders/raster/geometry_instanced.vert"
+    "${R3D_ROOT_PATH}/shaders/raster/geometry.frag"
+    "${R3D_ROOT_PATH}/shaders/raster/forward.vert"
+    "${R3D_ROOT_PATH}/shaders/raster/forward_instanced.vert"
+    "${R3D_ROOT_PATH}/shaders/raster/forward.frag"
+    "${R3D_ROOT_PATH}/shaders/raster/skybox.vert"
+    "${R3D_ROOT_PATH}/shaders/raster/skybox.frag"
+    "${R3D_ROOT_PATH}/shaders/raster/depth.vert"
+    "${R3D_ROOT_PATH}/shaders/raster/depth_instanced.vert"
+    "${R3D_ROOT_PATH}/shaders/raster/depth.frag"
+    "${R3D_ROOT_PATH}/shaders/raster/depth_cube.vert"
+    "${R3D_ROOT_PATH}/shaders/raster/depth_cube_instanced.vert"
+    "${R3D_ROOT_PATH}/shaders/raster/depth_cube.frag"
+    "${R3D_ROOT_PATH}/shaders/screen/ssao.frag"
+    "${R3D_ROOT_PATH}/shaders/screen/ambient.frag"
+    "${R3D_ROOT_PATH}/shaders/screen/lighting.frag"
+    "${R3D_ROOT_PATH}/shaders/screen/scene.frag"
+    "${R3D_ROOT_PATH}/shaders/screen/bloom.frag"
+    "${R3D_ROOT_PATH}/shaders/screen/fog.frag"
+    "${R3D_ROOT_PATH}/shaders/screen/tonemap.frag"
+    "${R3D_ROOT_PATH}/shaders/screen/adjustment.frag"
+    "${R3D_ROOT_PATH}/shaders/screen/fxaa.frag"
+)
+
+EmbedAssets(${PROJECT_NAME}
+    "${R3D_ROOT_PATH}/assets/luts/ibl_brdf.dds"
 )
 
 # Link project dependencies

@@ -18,8 +18,6 @@
  */
 
 #include "./r3d_drawcall.h"
-
-#include "../embedded/r3d_shaders.h"
 #include "../r3d_state.h"
 
 #include <stdlib.h>

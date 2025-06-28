@@ -26,43 +26,6 @@
 
 #define R3D_SHADER_FORWARD_NUM_LIGHTS 8
 
-/* === Shader code declarations === */
-
-extern const char VS_COMMON_SCREEN[];
-extern const char VS_COMMON_CUBEMAP[];
-
-extern const char FS_GENERATE_GAUSSIAN_BLUR_DUAL_PASS[];
-extern const char FS_GENERATE_DOWNSAMPLING[];
-extern const char FS_GENERATE_UPSAMPLING[];
-extern const char FS_GENERATE_CUBEMAP_FROM_EQUIRECTANGULAR[];
-extern const char FS_GENERATE_IRRADIANCE_CONVOLUTION[];
-extern const char FS_GENERATE_PREFILTER[];
-
-extern const char VS_RASTER_GEOMETRY[];
-extern const char VS_RASTER_GEOMETRY_INST[];
-extern const char FS_RASTER_GEOMETRY[];
-extern const char VS_RASTER_FORWARD[];
-extern const char VS_RASTER_FORWARD_INST[];
-extern const char FS_RASTER_FORWARD[];
-extern const char VS_RASTER_SKYBOX[];
-extern const char FS_RASTER_SKYBOX[];
-extern const char VS_RASTER_DEPTH[];
-extern const char VS_RASTER_DEPTH_INST[];
-extern const char FS_RASTER_DEPTH[];
-extern const char VS_RASTER_DEPTH_CUBE[];
-extern const char VS_RASTER_DEPTH_CUBE_INST[];
-extern const char FS_RASTER_DEPTH_CUBE[];
-
-extern const char FS_SCREEN_SSAO[];
-extern const char FS_SCREEN_AMBIENT[];
-extern const char FS_SCREEN_LIGHTING[];
-extern const char FS_SCREEN_SCENE[];
-extern const char FS_SCREEN_BLOOM[];
-extern const char FS_SCREEN_FOG[];
-extern const char FS_SCREEN_TONEMAP[];
-extern const char FS_SCREEN_ADJUSTMENT[];
-extern const char FS_SCREEN_FXAA[];
-
 /* === Uniform types === */
 
 typedef struct { int slot1D; int loc; } r3d_shader_uniform_sampler1D_t;
@@ -76,7 +39,6 @@ typedef struct { Vector3 val; int loc; } r3d_shader_uniform_vec3_t;
 typedef struct { Vector4 val; int loc; } r3d_shader_uniform_vec4_t;
 
 typedef struct { int loc; } r3d_shader_uniform_mat4_t;
-
 
 /* === Shader struct definitions === */
 
