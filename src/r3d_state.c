@@ -28,7 +28,6 @@
 #include "./details/misc/r3d_dds_loader_ext.h"
 #include "./details/misc/r3d_half.h"
 
-#include "assets/ibl_brdf.dds.h"
 #include "shaders.h"
 #include "assets.h"
 
