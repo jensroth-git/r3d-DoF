@@ -122,7 +122,6 @@ void r3d_light_init(r3d_light_t* light)
     light->specular = 0.5f;
     light->energy = 1.0f;
     light->range = 100.0f;
-    light->size = 0.001f;
     light->near = 0.05f;
     light->attenuation = 1.0f;
     light->innerCutOff = -1.0f;

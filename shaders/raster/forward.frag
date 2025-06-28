@@ -41,12 +41,12 @@ struct Light
     float specular;
     float energy;
     float range;
-    float size;
     float near;
     float far;
     float attenuation;
     float innerCutOff;
     float outerCutOff;
+    float shadowSoftness;
     float shadowMapTxlSz;
     float shadowBias;
     lowp int type;
@@ -161,222 +161,98 @@ vec3 ComputeF0(float metallic, float specular, vec3 albedo)
 
 float ShadowOmni(int i, float cNdotL)
 {
-    // Calculate vector from light to fragment
     vec3 lightToFrag = vPosition - uLights[i].position;
-    
-    // Calculate current depth (distance from light to fragment)
     float currentDepth = length(lightToFrag);
-    
-    // Normalize direction for cubemap lookup
     vec3 direction = normalize(lightToFrag);
     
-    // Calculate bias based on surface orientation
-    // Steeper surfaces need larger bias to avoid shadow acne
     float bias = max(uLights[i].shadowBias * (1.0 - cNdotL), 0.05);
     currentDepth = currentDepth - bias;
     
-    // Constants for PCSS algorithm
-    const int BLOCKER_SEARCH_NUM_SAMPLES = 16;  // Number of samples for blocker search
-    const int PCF_NUM_SAMPLES = 16;             // Number of samples for PCF filtering
-    const float MIN_PENUMBRA_SIZE = 0.002;      // Minimum penumbra size to ensure some softness
-    const float MAX_PENUMBRA_SIZE = 0.02;       // Maximum penumbra size to limit blur
+    // Adaptation du rayon selon la distance
+    float adaptiveRadius = uLights[i].shadowSoftness / max(currentDepth, 1.0);
     
-    // Use noise texture to randomize rotation for each fragment
-    // This helps reduce banding artifacts
-    vec4 noiseTexel = texture(uTexNoise, fract(gl_FragCoord.xy / vec2(16.0)));
-    float rotationAngle1 = noiseTexel.r * 2.0 * PI;     // For blocker search
-    float rotationAngle2 = noiseTexel.g * 2.0 * PI;     // For PCF sampling
-    
-    // Compute tangent and bitangent vectors to create a local coordinate system
-    // These are used to generate offset directions around the main direction
+    // Système de coordonnées local
     vec3 tangent, bitangent;
-    if (abs(direction.y) < 0.99) tangent = normalize(cross(vec3(0.0, 1.0, 0.0), direction));
-    else tangent = normalize(cross(vec3(1.0, 0.0, 0.0), direction));
+    if (abs(direction.y) < 0.99) {
+        tangent = normalize(cross(vec3(0.0, 1.0, 0.0), direction));
+    } else {
+        tangent = normalize(cross(vec3(1.0, 0.0, 0.0), direction));
+    }
     bitangent = normalize(cross(direction, tangent));
     
-    // Create rotation matrix for blocker search
-    mat2 rotMat1 = mat2(
-        cos(rotationAngle1), -sin(rotationAngle1),
-        sin(rotationAngle1), cos(rotationAngle1)
+    // Pattern de samples simple
+    const vec2 offsets[8] = vec2[](
+        vec2(-1.0, -1.0), vec2( 0.0, -1.0), vec2( 1.0, -1.0),
+        vec2(-1.0,  0.0),                    vec2( 1.0,  0.0),
+        vec2(-1.0,  1.0), vec2( 0.0,  1.0), vec2( 1.0,  1.0)
     );
     
-    // 1. BLOCKER SEARCH PHASE
-    // Find average depth of occluders (blockers)
-    float blockerSum = 0.0;
-    float numBlockers = 0.0;
-    float searchWidth = uLights[i].size / currentDepth;  // Search width depends on light size and depth
-    
-    for (int j = 0; j < BLOCKER_SEARCH_NUM_SAMPLES; j++)
-    {
-        // Rotate Poisson disk sample using the rotation matrix
-        vec2 rotatedOffset = rotMat1 * POISSON_DISK[j] * searchWidth;
-        
-        // Convert 2D offset to 3D direction in cubemap space
-        // Use tangent and bitangent as basis vectors for the local plane
-        vec3 sampleDir = direction + (tangent * rotatedOffset.x + bitangent * rotatedOffset.y);
-        sampleDir = normalize(sampleDir);
-        
-        // Sample depth from cubemap (multiply by far plane to get actual depth)
-        float shadowMapDepth = texture(uLights[i].shadowCubemap, sampleDir).r * uLights[i].far;
-        
-        // Count only samples that are blockers (closer to light than current fragment)
-        if (shadowMapDepth < currentDepth) {
-            blockerSum += shadowMapDepth;
-            numBlockers++;
-        }
-    }
-    
-    // If no blockers found, the point is fully lit
-    if (numBlockers < 1.0) {
-        return 1.0;
-    }
-    
-    // 2. PENUMBRA ESTIMATION
-    // Calculate average blocker depth and penumbra size
-    float avgBlockerDepth = blockerSum / numBlockers;
-    
-    // Penumbra ratio based on similar triangles principle in PCSS
-    float penumbraRatio = (currentDepth - avgBlockerDepth) / avgBlockerDepth;
-    
-    // Calculate filter radius based on penumbra size
-    // This approximates the effect of larger shadows for objects further from the occluder
-    float filterRadius = penumbraRatio * uLights[i].size * uLights[i].near / currentDepth;
-    filterRadius = clamp(filterRadius, MIN_PENUMBRA_SIZE, MAX_PENUMBRA_SIZE);
-    
-    // Create different rotation matrix for PCF phase
-    // Using different rotations helps further reduce pattern artifacts
-    mat2 rotMat2 = mat2(
-        cos(rotationAngle2), -sin(rotationAngle2),
-        sin(rotationAngle2), cos(rotationAngle2)
-    );
-    
-    // 3. PERCENTAGE CLOSER FILTERING (PCF) PHASE
-    // Apply PCF with the estimated filter radius
     float shadow = 0.0;
     
-    for (int k = 0; k < PCF_NUM_SAMPLES; k++)
+    // Sample central
+    shadow += step(currentDepth, texture(uLights[i].shadowCubemap, direction).r * uLights[i].far);
+    
+    // Samples décalés
+    for (int j = 0; j < 8; j++)
     {
-        // Apply rotation to the sample and scale by filter radius
-        vec2 rotatedOffset = rotMat2 * POISSON_DISK[k] * filterRadius;
-        
-        // Convert 2D offset to 3D direction in cubemap space
-        vec3 sampleDir = direction + (tangent * rotatedOffset.x + bitangent * rotatedOffset.y);
+        vec3 sampleDir = direction + (tangent * offsets[j].x + bitangent * offsets[j].y) * adaptiveRadius;
         sampleDir = normalize(sampleDir);
         
-        // Sample depth from cubemap and convert to world units
         float closestDepth = texture(uLights[i].shadowCubemap, sampleDir).r * uLights[i].far;
-        
-        // step(a,b) returns 1.0 if b >= a, otherwise 0.0
-        // If closestDepth >= currentDepth, the fragment is lit for this sample
         shadow += step(currentDepth, closestDepth);
     }
     
-    // Average the results of all samples
-    return shadow / float(PCF_NUM_SAMPLES);
+    return shadow / 9.0;
 }
 
 float Shadow(int i, float cNdotL)
 {
-    // Transform position from light space
+    // Version pour lumières directionnelles/spot
     vec4 p = vPosLightSpace[i];
-
-    // Convert to NDC space [-1,1], then map to texture coordinates [0,1]
     vec3 projCoords = p.xyz / p.w;
     projCoords = projCoords * 0.5 + 0.5;
-
-    // Early out if outside the shadow map bounds
+    
     if (projCoords.x < 0.0 || projCoords.x > 1.0 || 
         projCoords.y < 0.0 || projCoords.y > 1.0 || 
         projCoords.z < 0.0 || projCoords.z > 1.0) 
         return 1.0;
     
-    // Calculate depth bias based on surface orientation
-    // Steeper surfaces need a larger bias to avoid shadow acne
     float bias = max(uLights[i].shadowBias * (1.0 - cNdotL), 0.00002);
     float currentDepth = projCoords.z - bias;
     
-    // Constants for PCSS algorithm
-    const int BLOCKER_SEARCH_NUM_SAMPLES = 16;  // Number of samples for blocker search
-    const int PCF_NUM_SAMPLES = 16;             // Number of samples for PCF filtering
-    const float MIN_PENUMBRA_SIZE = 0.001;      // Minimum penumbra size to ensure some softness
-    const float MAX_PENUMBRA_SIZE = 0.01;       // Maximum penumbra size to limit blur
+    // Adaptation du rayon selon la distance pour maintenir une taille cohérente
+    float adaptiveRadius = uLights[i].shadowSoftness / max(projCoords.z, 0.1);
     
-    // Use noise texture to randomize rotation for each fragment
-    // This helps reduce banding artifacts
+    // Pattern simple en croix + diagonales (8 samples)
+    const vec2 offsets[8] = vec2[](
+        vec2(-1.0, -1.0), vec2( 0.0, -1.0), vec2( 1.0, -1.0),
+        vec2(-1.0,  0.0),                    vec2( 1.0,  0.0),
+        vec2(-1.0,  1.0), vec2( 0.0,  1.0), vec2( 1.0,  1.0)
+    );
+    
+    // Rotation aléatoire simple
     vec4 noiseTexel = texture(uTexNoise, fract(gl_FragCoord.xy / vec2(16.0)));
-    float rotationAngle1 = noiseTexel.r * 2.0 * PI;     // For blocker search
-    float rotationAngle2 = noiseTexel.g * 2.0 * PI;     // For PCF sampling
+    float angle = noiseTexel.r * 2.0 * PI;
+    float cosA = cos(angle);
+    float sinA = sin(angle);
     
-    // Precalculate rotation matrix for blocker search
-    float cosRot = cos(rotationAngle1);
-    float sinRot = sin(rotationAngle1);
-    
-    // 1. BLOCKER SEARCH PHASE
-    // Find average depth of occluders (blockers)
-    float blockerSum = 0.0;
-    float numBlockers = 0.0;
-    float searchWidth = uLights[i].size / projCoords.z;  // Search width depends on light size and depth
-    
-    for (int j = 0; j < BLOCKER_SEARCH_NUM_SAMPLES; j++)
-    {
-        // Rotate Poisson disk sample to reduce banding
-        vec2 poissonRotated = vec2(
-            POISSON_DISK[j].x * cosRot - POISSON_DISK[j].y * sinRot,
-            POISSON_DISK[j].x * sinRot + POISSON_DISK[j].y * cosRot
-        );
-        
-        // Apply offset to current position
-        vec2 offset = poissonRotated * searchWidth;
-        float shadowMapDepth = texture(uLights[i].shadowMap, projCoords.xy + offset).r;
-        
-        // Count only samples that are blockers (closer to light than current fragment)
-        if (shadowMapDepth < currentDepth) {
-            blockerSum += shadowMapDepth;
-            numBlockers++;
-        }
-    }
-    
-    // If no blockers found, the point is fully lit
-    if (numBlockers < 1.0) {
-        return 1.0;
-    }
-    
-    // 2. PENUMBRA ESTIMATION
-    // Calculate average blocker depth and penumbra size
-    float avgBlockerDepth = blockerSum / numBlockers;
-    
-    // Penumbra ratio based on similar triangles principle in PCSS
-    float penumbraRatio = (currentDepth - avgBlockerDepth) / avgBlockerDepth;
-    
-    // Calculate filter radius based on penumbra size
-    // This approximates the effect of larger shadows for objects further from the occluder
-    float filterRadius = penumbraRatio * uLights[i].size * uLights[i].near / currentDepth;
-    filterRadius = clamp(filterRadius, MIN_PENUMBRA_SIZE, MAX_PENUMBRA_SIZE);
-    
-    // 3. PERCENTAGE CLOSER FILTERING (PCF) PHASE
-    // Apply PCF with the estimated filter radius
     float shadow = 0.0;
-    float cosRotPCF = cos(rotationAngle2);
-    float sinRotPCF = sin(rotationAngle2);
     
-    for (int k = 0; k < PCF_NUM_SAMPLES; k++)
+    // Sample central
+    shadow += step(currentDepth, texture(uLights[i].shadowMap, projCoords.xy).r);
+    
+    // Samples décalés
+    for (int j = 0; j < 8; j++)
     {
-        // Use different rotation for PCF to further reduce pattern artifacts
-        vec2 poissonRotated = vec2(
-            POISSON_DISK[k].x * cosRotPCF - POISSON_DISK[k].y * sinRotPCF,
-            POISSON_DISK[k].x * sinRotPCF + POISSON_DISK[k].y * cosRotPCF
-        );
+        vec2 rotatedOffset = vec2(
+            offsets[j].x * cosA - offsets[j].y * sinA,
+            offsets[j].x * sinA + offsets[j].y * cosA
+        ) * adaptiveRadius;
         
-        vec2 offset = poissonRotated * filterRadius;
-        float closestDepth = texture(uLights[i].shadowMap, projCoords.xy + offset).r;
-        
-        // step(a,b) returns 1.0 if b >= a, otherwise 0.0
-        // If closestDepth >= currentDepth, the fragment is lit for this sample
-        shadow += step(currentDepth, closestDepth);
+        shadow += step(currentDepth, texture(uLights[i].shadowMap, projCoords.xy + rotatedOffset).r);
     }
     
-    // Average the results of all samples
-    return shadow / float(PCF_NUM_SAMPLES);
+    return shadow / 9.0; // 1 central + 8 décalés
 }
 
 /* === Misc functions === */

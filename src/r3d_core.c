@@ -1319,8 +1319,8 @@ void r3d_pass_deferred_lights(void)
                             r3d_shader_set_vec3(screen.lighting, uLight.position, light->data->position);
                         }
                     }
+                    r3d_shader_set_float(screen.lighting, uLight.shadowSoftness, light->data->shadow.softness);
                     r3d_shader_set_float(screen.lighting, uLight.shadowBias, light->data->shadow.bias);
-                    r3d_shader_set_float(screen.lighting, uLight.size, light->data->size);
                     r3d_shader_set_float(screen.lighting, uLight.near, light->data->near);
                     r3d_shader_set_float(screen.lighting, uLight.far, light->data->far);
                     r3d_shader_set_int(screen.lighting, uLight.shadow, true);
@@ -1534,8 +1534,8 @@ static void r3d_pass_scene_forward_filter_and_send_lights(const r3d_drawcall_t* 
                 r3d_shader_bind_sampler2D(raster.forward, uLights[i].shadowMap, light->data->shadow.map.depth);
                 r3d_shader_set_mat4(raster.forward, uMatLightVP[i], light->data->shadow.matVP);
             }
+            r3d_shader_set_float(raster.forward, uLights[i].shadowSoftness, light->data->shadow.softness);
             r3d_shader_set_float(raster.forward, uLights[i].shadowBias, light->data->shadow.bias);
-            r3d_shader_set_float(raster.forward, uLights[i].size, light->data->size);
             r3d_shader_set_float(raster.forward, uLights[i].near, light->data->near);
             r3d_shader_set_float(raster.forward, uLights[i].far, light->data->far);
             r3d_shader_set_int(raster.forward, uLights[i].shadow, true);
@@ -1604,8 +1604,8 @@ static void r3d_pass_scene_forward_inst_filter_and_send_lights(const r3d_drawcal
                 r3d_shader_bind_sampler2D(raster.forwardInst, uLights[i].shadowMap, light->data->shadow.map.depth);
                 r3d_shader_set_mat4(raster.forwardInst, uMatLightVP[i], light->data->shadow.matVP);
             }
+            r3d_shader_set_float(raster.forwardInst, uLights[i].shadowSoftness, light->data->shadow.softness);
             r3d_shader_set_float(raster.forwardInst, uLights[i].shadowBias, light->data->shadow.bias);
-            r3d_shader_set_float(raster.forwardInst, uLights[i].size, light->data->size);
             r3d_shader_set_float(raster.forwardInst, uLights[i].near, light->data->near);
             r3d_shader_set_float(raster.forwardInst, uLights[i].far, light->data->far);
             r3d_shader_set_int(raster.forwardInst, uLights[i].shadow, true);

@@ -926,28 +926,6 @@ R3DAPI float R3D_GetLightRange(R3D_Light id);
 R3DAPI void R3D_SetLightRange(R3D_Light id, float range);
 
 /**
- * @brief Gets the size of a light source.
- *
- * This function retrieves the size of the specified light source, which is used for PCSS.
- * The size affects how shadows are computed and how soft or sharp they appear.
- *
- * @param id The ID of the light.
- * @return The size of the light.
- */
-R3DAPI float R3D_GetLightSize(R3D_Light id);
-
-/**
- * @brief Sets the size of a light source.
- *
- * This function sets the size of the specified light source.
- * The size influences how shadows are rendered, with larger sizes creating softer shadows.
- *
- * @param id The ID of the light.
- * @param size The new size to set for the light.
- */
-R3DAPI void R3D_SetLightSize(R3D_Light id, float size);
-
-/**
  * @brief Gets the attenuation factor of a light.
  *
  * This function retrieves the attenuation factor of the specified light.
@@ -1122,6 +1100,29 @@ R3DAPI void R3D_SetShadowUpdateFrequency(R3D_Light id, int msec);
  * @param id The ID of the light.
  */
 R3DAPI void R3D_UpdateShadowMap(R3D_Light id);
+
+/**
+ * @brief Retrieves the softness factor used to simulate penumbra in shadows.
+ *
+ * This function returns the current softness factor for the specified light's shadow map.
+ * A higher softness value will produce softer shadow edges, simulating a broader penumbra,
+ * while a lower value results in sharper shadows.
+ *
+ * @param id The ID of the light.
+ * @return The softness factor currently set for the shadow (typically in the range [0.0, 1.0]).
+ */
+R3DAPI float R3D_GetShadowSoftness(R3D_Light id);
+
+/**
+ * @brief Sets the softness factor used to simulate penumbra in shadows.
+ *
+ * This function adjusts the softness of the shadow edges for the specified light.
+ * Increasing the softness value creates more diffuse, penumbra-like shadows.
+ *
+ * @param id The ID of the light.
+ * @param softness The softness factor to apply (typically in the range [0.0, 1.0]).
+ */
+R3DAPI void R3D_SetShadowSoftness(R3D_Light id, float softness);
 
 /**
  * @brief Gets the shadow bias of a light.

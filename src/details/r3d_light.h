@@ -43,6 +43,7 @@ typedef struct {
     r3d_shadow_update_conf_t updateConf;
     r3d_shadow_map_t map;
     Matrix matVP;
+    float softness;
     float bias;
     bool enabled;
 } r3d_shadow_t;
@@ -55,7 +56,6 @@ typedef struct {
     float specular;
     float energy;
     float range;
-    float size;
     float near;
     float far;
     float attenuation;
