@@ -363,7 +363,7 @@ void R3D_DrawLightShape(R3D_Light id)
         100
     };
 
-    DrawSphereEx(light->position, light->range * 0.5f, 4, 8, color);
+    DrawSphereEx(light->position, 0.25f, 4, 8, color);
 
     if (light->type == R3D_LIGHT_SPOT)
     {
