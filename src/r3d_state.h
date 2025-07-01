@@ -182,6 +182,8 @@ extern struct R3D_State {
         R3D_Bloom bloomMode;        // (post pass)
         float bloomIntensity;       // (post pass)
         int bloomFilterRadius;      // (gen pass)
+        float bloomThreshold;       // (gen pass)
+        float bloomSoftThreshold;   // (gen pass)
 
         R3D_Fog fogMode;            // (post pass)
         Vector3 fogColor;           // (post pass)

@@ -16,6 +16,7 @@ in vec2 vTexCoord;
 uniform sampler2D uTexture;
 uniform vec2 uResolution;
 uniform int uMipLevel;           //< Which mip we are writing to, used for Karis average
+uniform vec4 uPrefilter;
 
 /* === Fragments === */
 
@@ -43,6 +44,17 @@ float KarisAverage(vec3 col)
     // Formula is 1 / (1 + luma)
     float luma = sRGBToLuma(LinearToSRGB(col)) * 0.25f;
     return 1.0f / (1.0f + luma);
+}
+
+vec3 Prefilter (vec3 col)
+{
+	float brightness = max(col.r, max(col.g, col.b));
+	float soft = brightness - uPrefilter.y;
+	soft = clamp(soft, 0, uPrefilter.z);
+	soft = soft * soft * uPrefilter.w;
+	float contribution = max(soft, brightness - uPrefilter.x);
+	contribution /= max(brightness, 0.00001);
+	return col * contribution;
 }
 
 /* === Main Function === */
@@ -112,6 +124,7 @@ void main()
         groups[4] *= KarisAverage(groups[4]);
         FragDownSample = groups[0]+groups[1]+groups[2]+groups[3]+groups[4];
         FragDownSample = max(FragDownSample, 0.0001);
+        FragDownSample = Prefilter(FragDownSample);
     }
     else
     {

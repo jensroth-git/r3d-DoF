@@ -125,6 +125,8 @@ void R3D_Init(int resWidth, int resHeight, unsigned int flags)
     R3D.env.bloomMode = R3D_BLOOM_DISABLED;
     R3D.env.bloomIntensity = 0.05f;
     R3D.env.bloomFilterRadius = 0;
+    R3D.env.bloomThreshold = 0.0f;
+    R3D.env.bloomSoftThreshold = 0.5f;
     R3D.env.fogMode = R3D_FOG_DISABLED;
     R3D.env.fogColor = (Vector3) { 1.0f, 1.0f, 1.0f };
     R3D.env.fogStart = 1.0f;
@@ -1843,6 +1845,15 @@ void r3d_pass_post_bloom(void)
                 (Vector2) { R3D.state.resolution.width, R3D.state.resolution.height }
             ))
             r3d_shader_set_int(generate.downsampling, uMipLevel, 0);
+
+            // Set prefilter cutoff values
+            float knee = R3D.env.bloomThreshold * R3D.env.bloomSoftThreshold;
+            Vector4 bloomPrefilter;
+            bloomPrefilter.x = R3D.env.bloomThreshold;
+            bloomPrefilter.y = bloomPrefilter.x - knee;
+            bloomPrefilter.z = 2.0f * knee;
+            bloomPrefilter.w = 0.25f / (knee + 0.00001f);
+            r3d_shader_set_vec4(generate.downsampling, uPrefilter, bloomPrefilter);
 
             // Bind scene color (HDR color buffer) as initial texture input
             r3d_shader_bind_sampler2D(generate.downsampling, uTexture, R3D.framebuffer.scene.color);

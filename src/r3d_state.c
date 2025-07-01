@@ -651,6 +651,7 @@ void r3d_shader_load_generate_downsampling(void)
     r3d_shader_get_location(generate.downsampling, uTexture);
     r3d_shader_get_location(generate.downsampling, uResolution);
     r3d_shader_get_location(generate.downsampling, uMipLevel);
+    r3d_shader_get_location(generate.downsampling, uPrefilter);
 
     r3d_shader_enable(generate.downsampling);
     r3d_shader_set_sampler2D_slot(generate.downsampling, uTexture, 0);
