@@ -1272,8 +1272,8 @@ void r3d_texture_load_black(void)
 
 void r3d_texture_load_normal(void)
 {
-    static const Vector3 DATA = { 0.5f, 0.5f, 1.0f };
-    R3D.texture.normal = rlLoadTexture(&DATA, 1, 1, PIXELFORMAT_UNCOMPRESSED_R32G32B32, 1);
+    static const unsigned char DATA[3] = { 127, 127, 255 };
+    R3D.texture.normal = rlLoadTexture(&DATA, 1, 1, PIXELFORMAT_UNCOMPRESSED_R8G8B8, 1);
 }
 
 void r3d_texture_load_blue_noise(void)
