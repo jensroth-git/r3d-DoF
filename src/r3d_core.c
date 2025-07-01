@@ -1259,6 +1259,11 @@ void r3d_pass_deferred_lights(void)
         rlEnableColorBlend();
         rlSetBlendMode(RL_BLEND_ADDITIVE);
 
+        // NOTE: The specular output might have been disabled during
+        //       the previous ambient pass if no skybox was present.
+        //       Re-enable it by activating draw buffer 2.
+        rlActiveDrawBuffers(2);
+
         // Enable gbuffer stencil test (render on geometry)
         if (R3D.state.flags & R3D_FLAG_STENCIL_TEST) {
             r3d_gbuffer_enable_stencil_test(true);
