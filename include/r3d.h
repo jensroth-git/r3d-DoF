@@ -23,9 +23,9 @@
 #include <raylib.h>
 
 
- // --------------------------------------------
- //                   DEFINES
- // --------------------------------------------
+// --------------------------------------------
+//                   DEFINES
+// --------------------------------------------
 
 #if defined(_WIN32)
 #   if defined(__TINYC__)
@@ -48,9 +48,9 @@
 
 
 
- // --------------------------------------------
- //                   ENUMS
- // --------------------------------------------
+// --------------------------------------------
+//                   ENUMS
+// --------------------------------------------
 
 /**
  * @brief Flags to configure the rendering engine behavior.
@@ -92,6 +92,12 @@ typedef enum R3D_BlendMode {
     R3D_BLEND_ADDITIVE,        ///< Additive blending: source color is added to the destination, making bright effects.
     R3D_BLEND_MULTIPLY         ///< Multiply blending: source color is multiplied with the destination, darkening the image.
 } R3D_BlendMode;
+
+typedef enum R3D_CullMode {
+    R3D_CULL_NONE,
+    R3D_CULL_BACK,
+    R3D_CULL_FRONT
+} R3D_CullMode;
 
 /**
  * @brief Defines the shadow casting mode for objects in the scene.
@@ -185,6 +191,83 @@ typedef enum R3D_Tonemap {
 // --------------------------------------------
 //                   TYPES
 // --------------------------------------------
+
+typedef struct R3D_Vertex {
+    Vector3 position;
+    Vector2 texcoord;
+    Vector3 normal;
+    Vector4 color;
+    Vector4 tangent;
+} R3D_Vertex;
+
+typedef struct R3D_Mesh {
+
+    R3D_Vertex* vertices;
+    unsigned int* indices;
+
+    int vertexCount;
+    int indexCount;
+
+    unsigned int vbo;
+    unsigned int ebo;
+    unsigned int vao;
+
+    BoundingBox aabb;
+
+    int reserved0;
+
+} R3D_Mesh;
+
+typedef struct R3D_Material {
+
+    struct R3D_MapAlbedo {
+        Texture2D texture;
+        Color color;
+    } albedo;
+
+    struct R3D_MapEmission {
+        Texture2D texture;
+        Color color;
+        float multiplier;
+    } emission;
+
+    struct R3D_MapNormal {
+        Texture2D texture;
+    } normal;
+
+    struct R3D_MapORM {
+        Texture2D texture;
+        float occlusion;
+        float roughness;
+        float metalness;
+    } orm;
+
+    R3D_BlendMode blendMode;
+    R3D_CullMode cullMode;
+
+    R3D_ShadowCastMode shadowCastMode;
+    R3D_BillboardMode billboardMode;
+
+    int reserved0;
+    int reserved1;
+
+} R3D_Material;
+
+typedef struct R3D_Model {
+
+    R3D_Mesh* meshes;
+    R3D_Material* materials;
+    int* meshMaterials;
+
+    int meshCount;
+    int materialCount;
+
+    BoundingBox aabb;
+
+    int reserved0;
+    int reserved1;
+
+} R3D_Model;
 
 /**
  * @brief Represents a unique identifier for a light in R3D.
@@ -669,6 +752,74 @@ R3DAPI void R3D_DrawParticleSystem(const R3D_ParticleSystem* system, Mesh mesh, 
  * @param transform A transformation matrix applied to all particles.
  */
 R3DAPI void R3D_DrawParticleSystemEx(const R3D_ParticleSystem* system, Mesh mesh, Material material, Matrix transform);
+
+
+
+// --------------------------------------------
+// MODEL: Mesh Functions
+// --------------------------------------------
+
+R3DAPI R3D_Mesh R3D_GenMeshPoly(int sides, float radius, bool upload);
+R3DAPI R3D_Mesh R3D_GenMeshPlane(float width, float length, int resX, int resZ, bool upload);
+R3DAPI R3D_Mesh R3D_GenMeshCube(float width, float height, float length, bool upload);
+R3DAPI R3D_Mesh R3D_GenMeshSphere(float radius, int rings, int slices, bool upload);
+R3DAPI R3D_Mesh R3D_GenMeshHemiSphere(float radius, int rings, int slices, bool upload);
+R3DAPI R3D_Mesh R3D_GenMeshCylinder(float radius, float height, int slices, bool upload);
+R3DAPI R3D_Mesh R3D_GenMeshCone(float radius, float height, int slices, bool upload);
+R3DAPI R3D_Mesh R3D_GenMeshTorus(float radius, float size, int radSeg, int sides, bool upload);
+R3DAPI R3D_Mesh R3D_GenMeshKnot(float radius, float size, int radSeg, int sides, bool upload);
+R3DAPI R3D_Mesh R3D_GenMeshHeightmap(Image heightmap, Vector3 size, bool upload);
+R3DAPI R3D_Mesh R3D_GenMeshCubicmap(Image cubicmap, Vector3 cubeSize, bool upload);
+
+/**
+ * @brief Upload a mesh to GPU memory.
+ *
+ * This function uploads a mesh's vertex and (optional) index data to the GPU.
+ * It creates and configures a VAO, VBO, and optionally an EBO if indices are provided.
+ * All vertex attributes are interleaved in a single VBO.
+ *
+ * This function must only be called once per mesh. For updates, use R3D_UpdateMesh().
+ *
+ * @param mesh Pointer to the mesh structure containing vertex and index data.
+ * @param dynamic If true, allocates buffers with GL_DYNAMIC_DRAW for later updates.
+ *                If false, uses GL_STATIC_DRAW for optimized static meshes.
+ *
+ * @return true if upload succeeded, false on error (e.g. invalid input or already uploaded).
+ */
+R3DAPI bool R3D_UploadMesh(R3D_Mesh* mesh, bool dynamic);
+
+/**
+ * @brief Update an already uploaded mesh on the GPU.
+ *
+ * This function updates the GPU-side data of a mesh previously uploaded with R3D_UploadMesh().
+ * It replaces the vertex buffer contents using glBufferSubData.
+ * If index data is present, it also updates or creates the index buffer (EBO).
+ *
+ * This function assumes the mesh was uploaded with the `dynamic` flag set to true.
+ *
+ * @param mesh Pointer to the mesh structure with updated vertex and/or index data.
+ *
+ * @return true if update succeeded, false on error (e.g. mesh not uploaded or invalid data).
+ */
+R3DAPI bool R3D_UpdateMesh(R3D_Mesh* mesh);
+
+
+
+// --------------------------------------------
+// MODEL: Material Functions
+// --------------------------------------------
+
+R3DAPI R3D_Material R3D_GetDefaultMaterial(void);
+
+
+
+// --------------------------------------------
+// MODEL: Model Functions
+// --------------------------------------------
+
+R3DAPI R3D_Model R3D_LoadModel(const char* filePath, bool upload);
+R3DAPI R3D_Model R3D_LoadModelFromMemory(const void* data, unsigned int size, bool upload);
+R3DAPI R3D_Model R3D_LoadModelFromMesh(const R3D_Mesh* mesh);
 
 
 
@@ -1933,77 +2084,6 @@ R3DAPI bool R3D_IsSphereInFrustum(Vector3 position, float radius);
  * @return `true` if any part of the bounding box is inside the frustum, `false` otherwise.
  */
 R3DAPI bool R3D_IsBoundingBoxInFrustum(BoundingBox aabb);
-
-
-
-// --------------------------------------------
-// UTILS: Material Configuration Functions
-// --------------------------------------------
-
-/**
- * @brief Sets the albedo (diffuse color) properties of a material.
- *
- * This function assigns an albedo texture and color to a material.
- * If a texture is provided, it is used as the albedo map. The color is multiplied
- * with the texture if both are set.
- *
- * @param material Pointer to the material to modify.
- * @param texture Optional albedo texture (set to NULL for none).
- * @param color Albedo color to apply.
- */
-R3DAPI void R3D_SetMaterialAlbedo(Material* material, Texture2D* texture, Color color);
-
-/**
- * @brief Sets the ambient occlusion properties of a material.
- *
- * This function assigns an ambient occlusion (AO) texture and intensity value to a material.
- * If a texture is provided, it is used as the AO map. The intensity controls the effect strength.
- *
- * @param material Pointer to the material to modify.
- * @param texture Optional occlusion texture (set to NULL for none).
- * @param value Occlusion strength (0.0 to 1.0).
- */
-R3DAPI void R3D_SetMaterialOcclusion(Material* material, Texture2D* texture, float value);
-
-/**
- * @brief Sets the roughness properties of a material.
- *
- * This function assigns a roughness texture and scalar value to a material.
- * If a texture is provided, it is used as the roughness map. The scalar value is multiplied
- * with the texture if both are set.
- *
- * @param material Pointer to the material to modify.
- * @param texture Optional roughness texture (set to NULL for none).
- * @param value Roughness factor (0.0 = smooth, 1.0 = rough).
- */
-R3DAPI void R3D_SetMaterialRoughness(Material* material, Texture2D* texture, float value);
-
-/**
- * @brief Sets the metalness properties of a material.
- *
- * This function assigns a metalness texture and scalar value to a material.
- * If a texture is provided, it is used as the metalness map. The scalar value is multiplied
- * with the texture if both are set.
- *
- * @param material Pointer to the material to modify.
- * @param texture Optional metalness texture (set to NULL for none).
- * @param value Metalness factor (0.0 = non-metallic, 1.0 = metallic).
- */
-R3DAPI void R3D_SetMaterialMetalness(Material* material, Texture2D* texture, float value);
-
-/**
- * @brief Sets the emission properties of a material.
- *
- * This function assigns an emission texture, emission color, and intensity to a material.
- * If a texture is provided, it is used as the emission map. The color and intensity control
- * the final emission effect.
- *
- * @param material Pointer to the material to modify.
- * @param texture Optional emission texture (set to NULL for none).
- * @param color Emission color.
- * @param value Emission intensity.
- */
-R3DAPI void R3D_SetMaterialEmission(Material* material, Texture2D* texture, Color color, float value);
 
 
 
