@@ -1569,6 +1569,49 @@ R3DAPI float R3D_GetBloomIntensity(void);
   */
  R3DAPI int R3D_GetBloomFilterRadius(void);
 
+/**
+ * @brief Sets the bloom brightness threshold.
+ *
+ * Controls the brightness cutoff used during the downsampling stage of the
+ * bloom effect. If the color channel with the brightest value is below the
+ * set threshold the pixel will not be included in the bloom effect.
+ *
+ * @param value The lowest value to be included the bloom effect (in color value depending on implementation).
+ */
+R3DAPI void R3D_SetBloomThreshold(float value);
+
+/**
+ * @brief Gets the bloom brightness threshold.
+ *
+ * Retrieves the current brightness cutoff used for the bloom effect. This value
+ * determines if a pixel will be included in the bloom effect based on it's brightness.
+ *
+ * @return The current bloom brightness cutoff threshold.
+ */
+R3DAPI float R3D_GetBloomThreshold(void);
+
+/**
+ * @brief Sets the bloom brightness softness threshold.
+ *
+ * Controls the softness of the cutoff between being include or excluded in the
+ * bloom effect. A value of 0 will result in a hard transition between being
+ * included or excluded, while values up to 1 will give a softer transition
+ * as the value increases.
+ *
+ * @param value The value of of the soft threshold (in the range [0.0, 1.0).
+ */
+R3DAPI void R3D_SetBloomSoftThreshold(float value);
+
+/**
+ * @brief Gets the current bloom brightness softness threshold.
+ *
+ * Retrieves the softness of the brightness cutoff for the bloom effect.
+ * This value determines the softness of the transition between being
+ * included or excluded in the bloom effect
+ *
+ * @return The current bloom brightness soft threshold.
+ */
+R3DAPI float R3D_GetBloomSoftThreshold(void);
 
 // --------------------------------------------
 // ENVIRONMENT: Fog Config Functions

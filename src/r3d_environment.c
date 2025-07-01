@@ -166,6 +166,26 @@ int R3D_GetBloomFilterRadius(void)
 	return R3D.env.bloomFilterRadius;
 }
 
+void R3D_SetBloomThreshold(float value)
+{
+	R3D.env.bloomThreshold = value;
+}
+
+float R3D_GetBloomThreshold(void)
+{
+	return R3D.env.bloomThreshold;
+}
+
+void R3D_SetBloomSoftThreshold(float value)
+{
+	R3D.env.bloomSoftThreshold = value;
+}
+
+float R3D_GetBloomSoftThreshold(void)
+{
+	return R3D.env.bloomSoftThreshold;
+}
+
 void R3D_SetFogMode(R3D_Fog mode)
 {
 	R3D.env.fogMode = mode;
