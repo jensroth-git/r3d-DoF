@@ -157,6 +157,32 @@ vec3 ComputeF0(float metallic, float specular, vec3 albedo)
     return mix(vec3(dielectric), albedo, vec3(metallic));
 }
 
+/* === Lighting functions === */
+
+float Diffuse(float cLdotH, float cNdotV, float cNdotL, float roughness)
+{
+    float FD90_minus_1 = 2.0 * cLdotH * cLdotH * roughness - 0.5;
+    float FdV = 1.0 + FD90_minus_1 * SchlickFresnel(cNdotV);
+    float FdL = 1.0 + FD90_minus_1 * SchlickFresnel(cNdotL);
+
+    return (1.0 / PI) * (FdV * FdL * cNdotL); // Diffuse BRDF (Burley)
+}
+
+vec3 Specular(vec3 F0, float cLdotH, float cNdotH, float cNdotV, float cNdotL, float roughness)
+{
+    roughness = max(roughness, 1e-3);
+
+    float alphaGGX = roughness * roughness;
+    float D = DistributionGGX(cNdotH, alphaGGX);
+    float G = GeometryGGX(cNdotL, cNdotV, alphaGGX);
+
+    float cLdotH5 = SchlickFresnel(cLdotH);
+    float F90 = clamp(50.0 * F0.g, 0.0, 1.0);
+    vec3 F = F0 + (F90 - F0) * cLdotH5;
+
+    return cNdotL * D * F * G; // Specular BRDF (Schlick GGX)
+}
+
 /* === Shadow functions === */
 
 float ShadowOmni(int i, float cNdotL)
@@ -360,37 +386,13 @@ void main()
 
             /* Compute diffuse lighting */
 
-            vec3 diffLight = vec3(0.0);
-
-            if (metalness < 1.0)
-            {
-                float FD90_minus_1 = 2.0 * cLdotH * cLdotH * roughness - 0.5;
-                float FdV = 1.0 + FD90_minus_1 * SchlickFresnel(cNdotV);
-                float FdL = 1.0 + FD90_minus_1 * SchlickFresnel(cNdotL);
-
-                float diffBRDF = (1.0 / PI) * (FdV * FdL * cNdotL);
-                diffLight = diffBRDF * lightColE;
-            }
+            float diffuseStrength = 1.0 - metalness;  // 0.0 for pure metal, 1.0 for dielectric
+            vec3 diffLight = lightColE * Diffuse(cLdotH, cNdotV, cNdotL, roughness) * diffuseStrength;
 
             /* Compute specular lighting */
 
-            vec3 specLight = vec3(0.0);
-
-            // NOTE: When roughness is 0, specular light should not be entirely disabled.
-
-            if (roughness > 0.0)
-            {
-                float alphaGGX = roughness * roughness;
-                float D = DistributionGGX(cNdotH, alphaGGX);
-                float G = GeometryGGX(cNdotL, cNdotV, alphaGGX);
-
-                float cLdotH5 = SchlickFresnel(cLdotH);
-                float F90 = clamp(50.0 * F0.g, 0.0, 1.0);
-                vec3 F = F0 + (F90 - F0) * cLdotH5;
-
-                vec3 specBRDF = cNdotL * D * F * G;
-                specLight = specBRDF * lightColE * uLights[i].specular;
-            }
+            vec3 specLight =  Specular(F0, cLdotH, cNdotH, cNdotV, cNdotL, roughness);
+            specLight *= lightColE * uLights[i].specular;
 
             /* Apply shadow factor if the light casts shadows */
 
