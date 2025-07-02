@@ -436,25 +436,22 @@ R3D_Mesh R3D_GenMeshSphere(float radius, int rings, int slices, bool upload)
 
 R3D_Mesh R3D_GenMeshHemiSphere(float radius, int rings, int slices, bool upload)
 {
-    R3D_Mesh mesh = {0};
+    R3D_Mesh mesh = { 0 };
 
-    // Validation des paramètres
+    // Parameter validation
     if (radius <= 0.0f || rings < 1 || slices < 3) return mesh;
 
-    // Calcul des dimensions
-    // rings+1 lignes de vertices pour l'hémisphère (de 0 à PI/2)
-    // +1 ligne supplémentaire pour la base (y=0)
-    // slices+1 vertices par ligne pour fermer la texture
+    // Calculate vertex counts for hemisphere and base
     const int hemisphereVertexCount = (rings + 1) * (slices + 1);
-    const int baseVertexCount = slices + 1; // Base circulaire
+    const int baseVertexCount = slices + 1; // Circular base includes center + points on edge
     mesh.vertexCount = hemisphereVertexCount + baseVertexCount;
 
-    // Indices: hémisphère + base
-    const int hemisphereIndexCount = rings * slices * 6; // 2 triangles par quad
-    const int baseIndexCount = slices * 3; // 1 triangle par slice pour la base
+    // Calculate index counts for hemisphere and base
+    const int hemisphereIndexCount = rings * slices * 6; // 2 triangles per quad
+    const int baseIndexCount = slices * 3;               // 1 triangle per slice for the base
     mesh.indexCount = hemisphereIndexCount + baseIndexCount;
 
-    // Allocation mémoire
+    // Allocate memory
     mesh.vertices = (R3D_Vertex*)malloc(mesh.vertexCount * sizeof(R3D_Vertex));
     mesh.indices = (unsigned int*)malloc(mesh.indexCount * sizeof(unsigned int));
 
@@ -464,129 +461,138 @@ R3D_Mesh R3D_GenMeshHemiSphere(float radius, int rings, int slices, bool upload)
         return mesh;
     }
 
-    // Pre-compute some values
-    const float ringStep = (PI * 0.5f) / rings;  // Angle vertical (0 à PI/2)
-    const float sliceStep = 2.0f * PI / slices;   // Angle horizontal (0 à 2PI)
+    // Pre-compute angles and default color
+    const float ringStep = (PI * 0.5f) / rings;   // Vertical angle increment (phi: 0 to PI/2 for hemisphere)
+    const float sliceStep = 2.0f * PI / slices;   // Horizontal angle increment (theta: 0 to 2PI)
     const Vector4 defaultColor = {255, 255, 255, 255};
 
-    // Génération des vertices de l'hémisphère
+    // Generate hemisphere vertices
     int vertexIndex = 0;
     for (int ring = 0; ring <= rings; ring++) {
-        const float phi = ring * ringStep;          // Angle vertical (0 à PI/2)
+        const float phi = ring * ringStep;          // Vertical angle (0 at +Y, PI/2 at Y=0)
         const float sinPhi = sinf(phi);
         const float cosPhi = cosf(phi);
-        const float y = radius * cosPhi;            // Position Y (radius à 0)
-        const float ringRadius = radius * sinPhi;   // Rayon de l'anneau
-        const float v = (float)ring / rings;        // Coordonnée V texture (0 à 1)
+        const float y = radius * cosPhi;            // Y-position (radius down to 0)
+        const float ringRadius = radius * sinPhi;   // Radius of the current ring
+
+        const float v = (float)ring / rings;        // V texture coordinate
     
         for (int slice = 0; slice <= slices; slice++) {
-            const float theta = slice * sliceStep;   // Angle horizontal
+            const float theta = slice * sliceStep;   // Horizontal angle
             const float sinTheta = sinf(theta);
             const float cosTheta = cosf(theta);
         
-            // Position sur l'hémisphère
+            // Position for right-handed, -Z forward, +Y up
             const float x = ringRadius * cosTheta;
-            const float z = ringRadius * sinTheta;
+            const float z = ringRadius * -sinTheta; // Invert Z for -Z forward
         
-            // Normale (normalisée par construction)
+            // Normal (points outwards from the sphere center)
             const Vector3 normal = {x / radius, y / radius, z / radius};
         
-            // Coordonnées UV
+            // UV coordinates
             const float u = (float)slice / slices;
         
-            // Tangente (dérivée par rapport à theta)
-            const Vector4 tangent = {-sinTheta, 0.0f, cosTheta, 1.0f};
+            // Tangent: adjusted for -Z forward (derivative of position wrt theta)
+            const Vector3 tangentDir = {-sinTheta, 0.0f, -cosTheta};
+            const Vector4 tangent = {tangentDir.x, tangentDir.y, tangentDir.z, 1.0f};
         
-            mesh.vertices[vertexIndex] = (R3D_Vertex){
+            mesh.vertices[vertexIndex++] = (R3D_Vertex){
                 .position = {x, y, z},
                 .texcoord = {u, v},
                 .normal = normal,
                 .color = defaultColor,
                 .tangent = tangent
             };
-            vertexIndex++;
         }
     }
 
-    // Génération des vertices de la base (y = 0)
-    const Vector3 baseNormal = {0.0f, -1.0f, 0.0f}; // Normale vers le bas
-    const Vector4 baseTangent = {1.0f, 0.0f, 0.0f, 1.0f};
+    // Generate base vertices (at y = 0)
+    // The base needs a central vertex and vertices around the edge.
+    // Let's make the first vertex of the base ring the center.
+    const int baseCenterVertexIndex = vertexIndex;
+    mesh.vertices[vertexIndex++] = (R3D_Vertex){
+        .position = {0.0f, 0.0f, 0.0f},
+        .texcoord = {0.5f, 0.5f}, // Center of UV map
+        .normal = {0.0f, -1.0f, 0.0f}, // Normal pointing downwards
+        .color = defaultColor,
+        .tangent = {1.0f, 0.0f, 0.0f, 1.0f} // Arbitrary tangent for a flat surface
+    };
 
+    // Then, the perimeter vertices for the base
     for (int slice = 0; slice <= slices; slice++) {
         const float theta = slice * sliceStep;
         const float sinTheta = sinf(theta);
         const float cosTheta = cosf(theta);
     
         const float x = radius * cosTheta;
-        const float z = radius * sinTheta;
+        const float z = radius * -sinTheta; // Invert Z for consistency
     
-        // UV mapping circulaire pour la base
+        // Circular UV mapping for the base
         const float u = 0.5f + 0.5f * cosTheta;
-        const float v = 0.5f + 0.5f * sinTheta;
+        const float v = 0.5f + 0.5f * -sinTheta; // Invert V based on Z inversion if desired
+                                                 // Or keep it standard for circular mapping: 0.5f + 0.5f * sinTheta;
+                                                 // Let's assume standard circular mapping (no direct link to -Z)
     
-        mesh.vertices[vertexIndex] = (R3D_Vertex){
+        mesh.vertices[vertexIndex++] = (R3D_Vertex) {
             .position = {x, 0.0f, z},
             .texcoord = {u, v},
-            .normal = baseNormal,
+            .normal = {0.0f, -1.0f, 0.0f}, // Normal pointing downwards
             .color = defaultColor,
-            .tangent = baseTangent
+            .tangent = {1.0f, 0.0f, 0.0f, 1.0f} // Tangent for flat base
         };
-        vertexIndex++;
     }
 
-    // Génération des indices pour l'hémisphère
+    // Generate indices for the hemisphere
     int indexOffset = 0;
     const int verticesPerRing = slices + 1;
 
     for (int ring = 0; ring < rings; ring++) {
-        const int currentRing = ring * verticesPerRing;
-        const int nextRing = (ring + 1) * verticesPerRing;
+        const int currentRingStartIdx = ring * verticesPerRing;
+        const int nextRingStartIdx = (ring + 1) * verticesPerRing;
     
         for (int slice = 0; slice < slices; slice++) {
-            const unsigned int current = currentRing + slice;
-            const unsigned int next = currentRing + slice + 1;
-            const unsigned int currentNext = nextRing + slice;
-            const unsigned int nextNext = nextRing + slice + 1;
+            const unsigned int current = currentRingStartIdx + slice;
+            const unsigned int next = currentRingStartIdx + slice + 1;
+            const unsigned int currentNext = nextRingStartIdx + slice;
+            const unsigned int nextNext = nextRingStartIdx + slice + 1;
         
-            if (ring == 0) {
-                // Pôle nord - un seul triangle par slice
-                mesh.indices[indexOffset++] = current;
-                mesh.indices[indexOffset++] = nextNext;
-                mesh.indices[indexOffset++] = currentNext;
-            } else {
-                // Quad normal - 2 triangles
-                mesh.indices[indexOffset++] = current;
-                mesh.indices[indexOffset++] = currentNext;
-                mesh.indices[indexOffset++] = next;
-            
-                mesh.indices[indexOffset++] = next;
-                mesh.indices[indexOffset++] = currentNext;
-                mesh.indices[indexOffset++] = nextNext;
-            }
+            // Triangles with clockwise winding for back-face culling (right-handed system)
+            // First triangle of the quad
+            mesh.indices[indexOffset++] = current;
+            mesh.indices[indexOffset++] = currentNext;
+            mesh.indices[indexOffset++] = nextNext;
+
+            // Second triangle of the quad
+            mesh.indices[indexOffset++] = current;
+            mesh.indices[indexOffset++] = nextNext;
+            mesh.indices[indexOffset++] = next;
         }
     }
 
-    // Génération des indices pour la base
-    const int baseVertexStart = hemisphereVertexCount;
-    const int centerVertexIndex = baseVertexStart; // Premier vertex de la base (centre)
-
+    // Generate indices for the base
+    // The first vertex of the base section (baseCenterVertexIndex) is the center point.
+    // The subsequent vertices form the perimeter.
     for (int slice = 0; slice < slices; slice++) {
-        const unsigned int current = baseVertexStart + slice;
-        const unsigned int next = baseVertexStart + slice + 1;
+        // Base vertices start after hemisphere vertices and the center vertex
+        const unsigned int currentPerimeter = hemisphereVertexCount + 1 + slice; // +1 to skip center vertex
+        const unsigned int nextPerimeter = hemisphereVertexCount + 1 + slice + 1;
     
-        // Triangle de la base (ordre clockwise car normale vers le bas)
-        mesh.indices[indexOffset++] = current;
-        mesh.indices[indexOffset++] = next;
-        mesh.indices[indexOffset++] = centerVertexIndex;
+        // Triangle for the base (clockwise winding when viewed from below, i.e., normal direction)
+        mesh.indices[indexOffset++] = currentPerimeter;
+        mesh.indices[indexOffset++] = baseCenterVertexIndex; // Center vertex
+        mesh.indices[indexOffset++] = nextPerimeter;
     }
 
-    // Calcul AABB
-    mesh.aabb = (BoundingBox){
-        .min = {-radius, 0.0f, -radius},
+    // Set final total index count
+    mesh.indexCount = indexOffset;
+
+    // Calculate AABB for the hemisphere
+    mesh.aabb = (BoundingBox) {
+        .min = {-radius, 0.0f, -radius}, // Y starts at 0 for hemisphere base
         .max = {radius, radius, radius}
     };
 
-    // Upload optionnel vers GPU
+    // Optional GPU upload
     if (upload) {
         R3D_UploadMesh(&mesh, false);
     }
