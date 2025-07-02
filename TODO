@@ -1,5 +1,6 @@
 - PBR ambient lighting (without skybox)
 - Automatic frustum culling (can be disabled with a flag)
+- Adding texcoord scale/offset and normal scale to R3D_Material
 
 - Apply the alpha scissor test directly in the depth shaders (this will work for both forward rendering and shadow maps).  
 - Create an internal inclusion system for shaders to reduce GLSL code duplication.
