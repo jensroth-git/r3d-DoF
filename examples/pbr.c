@@ -32,6 +32,7 @@ const char* Init(void)
 		for (int i = 0; i < model.materialCount; i++) {
 			SetTextureFilter(model.materials[i].albedo.texture, TEXTURE_FILTER_BILINEAR);
 			SetTextureFilter(model.materials[i].orm.texture, TEXTURE_FILTER_BILINEAR);
+			model.materials[i].blendMode = R3D_BLEND_OPAQUE;
 		}
 	}
 
@@ -41,7 +42,7 @@ const char* Init(void)
 	R3D_EnableSkybox(skybox);
 
 	camera = (Camera3D){
-		.position = (Vector3) { 0, 0, 50 },
+		.position = (Vector3) { 0, 0, 0.5f },
 		.target = (Vector3) { 0, 0, 0 },
 		.up = (Vector3) { 0, 1, 0 },
 		.fovy = 60,
