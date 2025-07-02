@@ -34,38 +34,6 @@ include(CheckLibraryExists)
 include(EmbedShaders)
 include(EmbedAssets)
 
-# Checks for raylib installation
-
-# TODO: Add a version check for raylib, currently compatible with 5.6 dev
-#       Do this for the next release
-
-if(R3D_RAYLIB_VENDORED)
-    set(R3D_RAYLIB_SUBMODULE_PATH "${R3D_ROOT_PATH}/external/raylib")
-    set(R3D_RAYLIB_CMAKELISTS "${R3D_RAYLIB_SUBMODULE_PATH}/CMakeLists.txt")
-
-    if(EXISTS "${R3D_RAYLIB_CMAKELISTS}")
-        message(STATUS "Using vendored raylib from: ${R3D_RAYLIB_SUBMODULE_PATH}")
-        add_subdirectory("${R3D_RAYLIB_SUBMODULE_PATH}")
-        set(R3D_RAYLIB_INC_PATH "${R3D_RAYLIB_SUBMODULE_PATH}/src" CACHE STRING "Path to raylib includes" FORCE)
-    else()
-        message(FATAL_ERROR "Vendored raylib not found!
-Missing: ${R3D_RAYLIB_CMAKELISTS}
-Please initialize the submodule with:
-    git submodule update --init --recursive")
-    endif()
-else()
-    find_package(raylib QUIET)
-
-    if(TARGET raylib)
-        message(STATUS "Using system-installed raylib")
-        get_target_property(RAYLIB_INCLUDE_DIR raylib INTERFACE_INCLUDE_DIRECTORIES)
-        set(R3D_RAYLIB_INC_PATH "${RAYLIB_INCLUDE_DIR}" CACHE STRING "Path to raylib includes" FORCE)
-    else()
-        message(FATAL_ERROR "System raylib not found.
-Make sure raylib is installed and discoverable by CMake (e.g. via CMAKE_PREFIX_PATH or pkg-config).")
-    endif()
-endif()
-
 # Checks for assimp installation
 
 if(R3D_ASSIMP_VENDORED)
@@ -155,6 +123,54 @@ Make sure assimp is installed and discoverable by CMake (e.g. via CMAKE_PREFIX_P
     endif()
 endif()
 
+# Checks for raylib installation
+
+# TODO: Add a version check for raylib, currently compatible with 5.6 dev
+#       Do this for the next release
+
+if(R3D_RAYLIB_VENDORED)
+    set(R3D_RAYLIB_SUBMODULE_PATH "${R3D_ROOT_PATH}/external/raylib")
+    set(R3D_RAYLIB_CMAKELISTS "${R3D_RAYLIB_SUBMODULE_PATH}/CMakeLists.txt")
+
+    # Vendored assimp configuration here!
+    if(EXISTS "${R3D_RAYLIB_CMAKELISTS}")
+        message(STATUS "Using vendored raylib from: ${R3D_RAYLIB_SUBMODULE_PATH}")
+
+        # Disable model loading and mesh generation support
+        # to avoid symbol redefinition errors with Assimp,
+        # and because it's not needed with r3d
+
+        set(CUSTOMIZE_BUILD ON CACHE BOOL "" FORCE)
+        set(SUPPORT_FILEFORMAT_OBJ OFF CACHE BOOL "" FORCE)
+        set(SUPPORT_FILEFORMAT_MTL OFF CACHE BOOL "" FORCE)
+        set(SUPPORT_FILEFORMAT_IQM OFF CACHE BOOL "" FORCE)
+        set(SUPPORT_FILEFORMAT_GLTF OFF CACHE BOOL "" FORCE)
+        set(SUPPORT_FILEFORMAT_VOX OFF CACHE BOOL "" FORCE)
+        set(SUPPORT_FILEFORMAT_M3D OFF CACHE BOOL "" FORCE)
+        set(SUPPORT_MESH_GENERATION OFF CACHE BOOL "" FORCE)
+
+        add_subdirectory("${R3D_RAYLIB_SUBMODULE_PATH}")
+
+        set(R3D_RAYLIB_INC_PATH "${R3D_RAYLIB_SUBMODULE_PATH}/src" CACHE STRING "Path to raylib includes" FORCE)
+    else()
+        message(FATAL_ERROR "Vendored raylib not found!
+Missing: ${R3D_RAYLIB_CMAKELISTS}
+Please initialize the submodule with:
+    git submodule update --init --recursive")
+    endif()
+else()
+    find_package(raylib QUIET)
+
+    if(TARGET raylib)
+        message(STATUS "Using system-installed raylib")
+        get_target_property(RAYLIB_INCLUDE_DIR raylib INTERFACE_INCLUDE_DIRECTORIES)
+        set(R3D_RAYLIB_INC_PATH "${RAYLIB_INCLUDE_DIR}" CACHE STRING "Path to raylib includes" FORCE)
+    else()
+        message(FATAL_ERROR "System raylib not found.
+Make sure raylib is installed and discoverable by CMake (e.g. via CMAKE_PREFIX_PATH or pkg-config).")
+    endif()
+endif()
+
 # Create the r3d library by adding all the source files
 
 if(BUILD_SHARED_LIBS)
@@ -177,6 +193,7 @@ add_library(${PROJECT_NAME}
     "${R3D_ROOT_PATH}/src/r3d_skybox.c"
     "${R3D_ROOT_PATH}/src/r3d_curves.c"
     "${R3D_ROOT_PATH}/src/r3d_sprite.c"
+    "${R3D_ROOT_PATH}/src/r3d_model.c"
     "${R3D_ROOT_PATH}/src/r3d_utils.c"
     "${R3D_ROOT_PATH}/src/r3d_state.c"
     "${R3D_ROOT_PATH}/src/r3d_core.c"
