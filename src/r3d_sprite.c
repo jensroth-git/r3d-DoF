@@ -7,7 +7,9 @@ R3D_Sprite R3D_LoadSprite(Texture2D texture, int xFrameCount, int yFrameCount)
     R3D_Sprite sprite = { 0 };
 
     sprite.material = R3D_GetDefaultMaterial();
+
     sprite.material.albedo.texture = texture;
+    sprite.material.billboardMode = R3D_BILLBOARD_Y_AXIS;
 
     sprite.frameSize.x = (float)texture.width / xFrameCount;
     sprite.frameSize.y = (float)texture.height / yFrameCount;
