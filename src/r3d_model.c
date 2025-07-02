@@ -45,7 +45,7 @@ R3D_Mesh R3D_GenMeshPoly(int sides, float radius, bool upload)
     // Pre-compute some values
     const float angleStep = 2.0f * PI / sides;
     const Vector3 normal = {0.0f, 0.0f, 1.0f}; // Normal up (XY plane)
-    const Vector4 defaultColor = {255, 255, 255, 255}; // Opaque white
+    const Vector4 defaultColor = { 1.0f, 1.0f, 1.0f, 1.0f }; // Opaque white
 
     // Central vertex (index 0)
     mesh.vertices[0] = (R3D_Vertex){
@@ -138,9 +138,9 @@ R3D_Mesh R3D_GenMeshPlane(float width, float length, int resX, int resZ, bool up
     const float uvStepX = 1.0f / resX;
     const float uvStepZ = 1.0f / resZ;
 
-    const Vector3 normal = {0.0f, 1.0f, 0.0f}; // Normal to Y+ (horizontal plane)
-    const Vector4 defaultColor = {255, 255, 255, 255};
-    const Vector4 tangent = {1.0f, 0.0f, 0.0f, 1.0f}; // Tangent to X+
+    const Vector3 normal = { 0.0f, 1.0f, 0.0f }; // Normal to Y+ (horizontal plane)
+    const Vector4 defaultColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+    const Vector4 tangent = { 1.0f, 0.0f, 0.0f, 1.0f }; // Tangent to X+
 
     // Vertex generation
     int vertexIndex = 0;
@@ -227,7 +227,7 @@ R3D_Mesh R3D_GenMeshCube(float width, float height, float length, bool upload)
     const float halfW = width * 0.5f;
     const float halfH = height * 0.5f;
     const float halfL = length * 0.5f;
-    const Vector4 defaultColor = {255, 255, 255, 255};
+    const Vector4 defaultColor = { 1.0f, 1.0f, 1.0f, 1.0f };
 
     // Standard UV coordinates for each face
     const Vector2 uvs[4] = {
@@ -345,7 +345,7 @@ R3D_Mesh R3D_GenMeshSphere(float radius, int rings, int slices, bool upload)
     // Pre-calculate angular steps and default color
     const float ringStep = PI / rings;        // Vertical angle increment (phi: 0 to PI)
     const float sliceStep = 2.0f * PI / slices; // Horizontal angle increment (theta: 0 to 2PI)
-    const Vector4 defaultColor = { 255, 255, 255, 255 };
+    const Vector4 defaultColor = { 1.0f, 1.0f, 1.0f, 1.0f };
 
     // Generate vertices
     int vertexIndex = 0;
@@ -464,7 +464,7 @@ R3D_Mesh R3D_GenMeshHemiSphere(float radius, int rings, int slices, bool upload)
     // Pre-compute angles and default color
     const float ringStep = (PI * 0.5f) / rings;   // Vertical angle increment (phi: 0 to PI/2 for hemisphere)
     const float sliceStep = 2.0f * PI / slices;   // Horizontal angle increment (theta: 0 to 2PI)
-    const Vector4 defaultColor = {255, 255, 255, 255};
+    const Vector4 defaultColor = { 1.0f, 1.0f, 1.0f, 1.0f };
 
     // Generate hemisphere vertices
     int vertexIndex = 0;
@@ -633,7 +633,7 @@ R3D_Mesh R3D_GenMeshCylinder(float radius, float height, int slices, bool upload
     const float halfHeight = height * 0.5f;
     // For -Z forward, +Y up: theta starts at +X and increases toward -Z (clockwise when viewed from above)
     const float sliceStep = 2.0f * PI / slices;
-    const Vector4 defaultColor = {255, 255, 255, 255}; // White
+    const Vector4 defaultColor = { 1.0f, 1.0f, 1.0f, 1.0f }; // White
 
     // Generate body vertices
     int vertexIndex = 0;
@@ -863,7 +863,7 @@ R3D_Mesh R3D_GenMeshCone(float radius, float height, int slices, bool upload)
 
     const float halfHeight = height * 0.5f;
     const float sliceStep = 2.0f * PI / slices;
-    const Vector4 defaultColor = {255, 255, 255, 255}; // White
+    const Vector4 defaultColor = { 1.0f, 1.0f, 1.0f, 1.0f }; // White
 
     int vertexIndex = 0;
 
@@ -991,7 +991,7 @@ R3D_Mesh R3D_GenMeshTorus(float radius, float size, int radSeg, int sides, bool 
 
     const float ringStep = 2.0f * PI / radSeg;
     const float sideStep = 2.0f * PI / sides;
-    const Vector4 defaultColor = {255, 255, 255, 255};
+    const Vector4 defaultColor = { 1.0f, 1.0f, 1.0f, 1.0f };
 
     int vertexIndex = 0;
 
@@ -1103,7 +1103,7 @@ R3D_Mesh R3D_GenMeshKnot(float radius, float tubeRadius, int segments, int sides
 
     const float segmentStep = 2.0f * PI / segments;
     const float sideStep = 2.0f * PI / sides;
-    const Vector4 defaultColor = {255, 255, 255, 255};
+    const Vector4 defaultColor = { 1.0f, 1.0f, 1.0f, 1.0f };
 
     int vertexIndex = 0;
 
@@ -1272,7 +1272,7 @@ R3D_Mesh R3D_GenMeshHeightmap(Image heightmap, Vector3 size, bool upload)
     const float stepZ = size.z / (mapHeight - 1);
     const float stepU = 1.0f / (mapWidth - 1);
     const float stepV = 1.0f / (mapHeight - 1);
-    const Vector4 defaultColor = {255, 255, 255, 255};
+    const Vector4 defaultColor = { 1.0f, 1.0f, 1.0f, 1.0f };
 
     // Macro to extract height from a pixel
     #define GET_HEIGHT_VALUE(x, y) \
@@ -1405,7 +1405,7 @@ R3D_Mesh R3D_GenMeshCubicmap(Image cubicmap, Vector3 cubeSize, bool upload)
     const float halfW = cubeSize.x * 0.5f;
     const float halfH = cubeSize.y * 0.5f;  // height
     const float halfL = cubeSize.z * 0.5f;
-    const Vector4 defaultColor = {255, 255, 255, 255};
+    const Vector4 defaultColor = { 1.0f, 1.0f, 1.0f, 1.0f };
 
     // Normals of the 6 faces of the cube
     const Vector3 normals[6] = {
