@@ -29,7 +29,6 @@
 #include <stdlib.h>
 #include <assert.h>
 
-
 /* === Internal functions === */
 
 // Functions applying OpenGL states defined by the material but unrelated to shaders
@@ -38,13 +37,12 @@ static void r3d_drawcall_apply_blend_mode(R3D_BlendMode mode);
 static void r3d_drawcall_apply_shadow_cast_mode(R3D_ShadowCastMode mode);
 
 // This function supports instanced rendering when necessary
-static void r3d_draw_vertex_arrays(const r3d_drawcall_t* call);
-static void r3d_draw_vertex_arrays_inst(const r3d_drawcall_t* call, int locInstanceModel, int locInstanceColor);
+static void r3d_drawcall(const r3d_drawcall_t* call);
+static void r3d_drawcall_instanced(const r3d_drawcall_t* call, int locInstanceModel, int locInstanceColor);
 
 // Comparison functions for sorting draw calls in the arrays
 static int r3d_drawcall_compare_front_to_back(const void* a, const void* b);
 static int r3d_drawcall_compare_back_to_front(const void* a, const void* b);
-
 
 /* === Function definitions === */
 
@@ -75,18 +73,6 @@ void r3d_drawcall_raster_depth(const r3d_drawcall_t* call, bool shadow)
     r3d_shader_set_float(raster.depth, uAlpha, ((float)call->material->albedo.color.a / 255));
     r3d_shader_bind_sampler2D_opt(raster.depth, uTexAlbedo, call->material->albedo.texture.id, white);
 
-    // Bind GPU buffers
-    if (!rlEnableVertexArray(call->geometry.mesh->vao)) {
-        // Bind vertex buffer
-        rlEnableVertexBuffer(call->geometry.mesh->vbo);
-        rlSetVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION, 3, RL_FLOAT, 0, 0, 0);
-        rlEnableVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION);
-        // Bind index buffer
-        if (call->geometry.mesh->ebo > 0) {
-            rlEnableVertexBufferElement(call->geometry.mesh->ebo);
-        }
-    }
-
     // Applying material parameters that are independent of shaders
     if (shadow) {
         r3d_drawcall_apply_shadow_cast_mode(call->material->shadowCastMode);
@@ -95,8 +81,8 @@ void r3d_drawcall_raster_depth(const r3d_drawcall_t* call, bool shadow)
         r3d_drawcall_apply_cull_mode(call->material->cullMode);
     }
 
-    // Draw vertex buffers
-    r3d_draw_vertex_arrays(call);
+    // Rendering the object corresponding to the draw call
+    r3d_drawcall(call);
 
     // Unbind vertex buffers
     rlDisableVertexArray();
@@ -130,18 +116,6 @@ void r3d_drawcall_raster_depth_inst(const r3d_drawcall_t* call, bool shadow)
     r3d_shader_set_float(raster.depthInst, uAlpha, ((float)call->material->albedo.color.a / 255));
     r3d_shader_bind_sampler2D_opt(raster.depthInst, uTexAlbedo, call->material->albedo.texture.id, white);
 
-    // Bind GPU buffers
-    if (!rlEnableVertexArray(call->geometry.mesh->vao)) {
-        // Bind vertex buffer
-        rlEnableVertexBuffer(call->geometry.mesh->vbo);
-        rlSetVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION, 3, RL_FLOAT, 0, 0, 0);
-        rlEnableVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION);
-        // Bind index buffer
-        if (call->geometry.mesh->ebo > 0) {
-            rlEnableVertexBufferElement(call->geometry.mesh->ebo);
-        }
-    }
-
     // Applying material parameters that are independent of shaders
     if (shadow) {
         r3d_drawcall_apply_shadow_cast_mode(call->material->shadowCastMode);
@@ -150,8 +124,8 @@ void r3d_drawcall_raster_depth_inst(const r3d_drawcall_t* call, bool shadow)
         r3d_drawcall_apply_cull_mode(call->material->cullMode);
     }
 
-    // Draw vertex buffers
-    r3d_draw_vertex_arrays_inst(call, 10, -1);
+    // Rendering the objects corresponding to the draw call
+    r3d_drawcall_instanced(call, 10, -1);
 
     // Unbind vertex buffers
     rlDisableVertexArray();
@@ -180,18 +154,6 @@ void r3d_drawcall_raster_depth_cube(const r3d_drawcall_t* call, bool shadow)
     r3d_shader_set_float(raster.depthCube, uAlpha, ((float)call->material->albedo.color.a / 255));
     r3d_shader_bind_sampler2D_opt(raster.depthCube, uTexAlbedo, call->material->albedo.texture.id, white);
 
-    // Bind GPU buffers
-    if (!rlEnableVertexArray(call->geometry.mesh->vao)) {
-        // Bind vertex buffer
-        rlEnableVertexBuffer(call->geometry.mesh->vbo);
-        rlSetVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION, 3, RL_FLOAT, 0, 0, 0);
-        rlEnableVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION);
-        // Bind index buffer
-        if (call->geometry.mesh->ebo > 0) {
-            rlEnableVertexBufferElement(call->geometry.mesh->ebo);
-        }
-    }
-
     // Applying material parameters that are independent of shaders
     if (shadow) {
         r3d_drawcall_apply_shadow_cast_mode(call->material->shadowCastMode);
@@ -200,8 +162,8 @@ void r3d_drawcall_raster_depth_cube(const r3d_drawcall_t* call, bool shadow)
         r3d_drawcall_apply_cull_mode(call->material->cullMode);
     }
 
-    // Draw vertex buffers
-    r3d_draw_vertex_arrays(call);
+    // Rendering the object corresponding to the draw call
+    r3d_drawcall(call);
 
     // Unbind vertex buffers
     rlDisableVertexArray();
@@ -235,18 +197,6 @@ void r3d_drawcall_raster_depth_cube_inst(const r3d_drawcall_t* call, bool shadow
     r3d_shader_set_float(raster.depthCubeInst, uAlpha, ((float)call->material->albedo.color.a / 255));
     r3d_shader_bind_sampler2D_opt(raster.depthCubeInst, uTexAlbedo, call->material->albedo.texture.id, white);
 
-    // Bind GPU buffers
-    if (!rlEnableVertexArray(call->geometry.mesh->vao)) {
-        // Bind vertex buffer
-        rlEnableVertexBuffer(call->geometry.mesh->vbo);
-        rlSetVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION, 3, RL_FLOAT, 0, 0, 0);
-        rlEnableVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION);
-        // Bind index buffer
-        if (call->geometry.mesh->ebo > 0) {
-            rlEnableVertexBufferElement(call->geometry.mesh->ebo);
-        }
-    }
-
     // Applying material parameters that are independent of shaders
     if (shadow) {
         r3d_drawcall_apply_shadow_cast_mode(call->material->shadowCastMode);
@@ -255,8 +205,8 @@ void r3d_drawcall_raster_depth_cube_inst(const r3d_drawcall_t* call, bool shadow
         r3d_drawcall_apply_cull_mode(call->material->cullMode);
     }
 
-    // Draw vertex buffers
-    r3d_draw_vertex_arrays_inst(call, 10, -1);
+    // Rendering the objects corresponding to the draw call
+    r3d_drawcall_instanced(call, 10, -1);
 
     // Unbind vertex buffers
     rlDisableVertexArray();
@@ -269,18 +219,15 @@ void r3d_drawcall_raster_depth_cube_inst(const r3d_drawcall_t* call, bool shadow
 
 void r3d_drawcall_raster_geometry(const r3d_drawcall_t* call)
 {
-    Matrix matModel = MatrixIdentity();
-    Matrix matView = rlGetMatrixModelview();
-    Matrix matModelView = MatrixIdentity();
-    Matrix matProjection = rlGetMatrixProjection();
-
-    // Compute model and model/view matrices
-    matModel = MatrixMultiply(call->transform, rlGetMatrixTransform());
-    matModelView = MatrixMultiply(matModel, matView);
+    // Compute model/view/projection matrices
+    Matrix matModel = MatrixMultiply(call->transform, rlGetMatrixTransform());
+    Matrix matModelView = MatrixMultiply(matModel, rlGetMatrixModelview());
+    Matrix matMVP = MatrixMultiply(matModelView, rlGetMatrixProjection());
 
     // Set additional matrix uniforms
     r3d_shader_set_mat4(raster.geometry, uMatNormal, MatrixTranspose(MatrixInvert(matModel)));
     r3d_shader_set_mat4(raster.geometry, uMatModel, matModel);
+    r3d_shader_set_mat4(raster.geometry, uMatMVP, matMVP);
 
     // Set factor material maps
     r3d_shader_set_float(raster.geometry, uValEmission, call->material->emission.multiplier);
@@ -308,58 +255,17 @@ void r3d_drawcall_raster_geometry(const r3d_drawcall_t* call)
         r3d_shader_set_vec2(raster.geometry, uTexCoordScale, ((Vector2) { 1, 1 }));
     }
 
-    // Bind GPU buffers
-    if (!rlEnableVertexArray(call->geometry.mesh->vao)) {
-        // Bind vertex buffer
-        rlEnableVertexBuffer(call->geometry.mesh->vbo);
-        rlSetVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION, 3, RL_FLOAT, 0, 0, 0);
-        rlEnableVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION);
-        // Bind index buffer
-        if (call->geometry.mesh->ebo > 0) {
-            rlEnableVertexBufferElement(call->geometry.mesh->ebo);
-        }
-    }
-
     // Applying material parameters that are independent of shaders
     r3d_drawcall_apply_cull_mode(call->material->cullMode);
 
-    // Rendering taking account to stereo rendering
-    // TODO: Review and test stereo rendering
-    int eyeCount = 1;
-    if (rlIsStereoRenderEnabled()) eyeCount = 2;
-    for (int eye = 0; eye < eyeCount; eye++) {
-        // Calculate model-view-projection matrix (MVP)
-        Matrix matModelViewProjection = MatrixIdentity();
-        if (eyeCount == 1) {
-            matModelViewProjection = MatrixMultiply(matModelView, matProjection);
-        }
-        else {
-            // Setup current eye viewport (half screen width)
-            rlViewport(eye * rlGetFramebufferWidth() / 2, 0, rlGetFramebufferWidth() / 2, rlGetFramebufferHeight());
-            matModelViewProjection = MatrixMultiply(MatrixMultiply(matModelView, rlGetMatrixViewOffsetStereo(eye)), rlGetMatrixProjectionStereo(eye));
-        }
-
-        // Send combined model-view-projection matrix to shader
-        r3d_shader_set_mat4(raster.geometry, uMatMVP, matModelViewProjection);
-
-        // Mesh rasterization
-        r3d_draw_vertex_arrays(call);
-    }
+    // Rendering the object corresponding to the draw call
+    r3d_drawcall(call);
 
     // Unbind all bound texture maps
     r3d_shader_unbind_sampler2D(raster.geometry, uTexAlbedo);
     r3d_shader_unbind_sampler2D(raster.geometry, uTexNormal);
     r3d_shader_unbind_sampler2D(raster.geometry, uTexEmission);
     r3d_shader_unbind_sampler2D(raster.geometry, uTexORM);
-
-    // Disable all possible vertex array objects (or VBOs)
-    rlDisableVertexArray();
-    rlDisableVertexBuffer();
-    rlDisableVertexBufferElement();
-
-    // Restore rlgl internal modelview and projection matrices
-    rlSetMatrixModelview(matView);
-    rlSetMatrixProjection(matProjection);
 }
 
 void r3d_drawcall_raster_geometry_inst(const r3d_drawcall_t* call)
@@ -368,15 +274,13 @@ void r3d_drawcall_raster_geometry_inst(const r3d_drawcall_t* call)
         return;
     }
 
-    // Get current view / projection matrices
-    Matrix matView = rlGetMatrixModelview();
-    Matrix matProjection = rlGetMatrixProjection();
-
-    // Compute model matrix
+    // Compute model/view/projection matrix
     Matrix matModel = MatrixMultiply(call->transform, rlGetMatrixTransform());
+    Matrix matVP = MatrixMultiply(rlGetMatrixModelview(), rlGetMatrixProjection());
 
     // Set additional matrix uniforms
     r3d_shader_set_mat4(raster.geometryInst, uMatModel, matModel);
+    r3d_shader_set_mat4(raster.geometryInst, uMatVP, matVP);
 
     // Set factor material maps
     r3d_shader_set_float(raster.geometryInst, uValEmission, call->material->emission.multiplier);
@@ -390,7 +294,6 @@ void r3d_drawcall_raster_geometry_inst(const r3d_drawcall_t* call)
 
     // Setup billboard mode
     r3d_shader_set_int(raster.geometryInst, uBillboardMode, call->instanced.billboardMode);
-
     if (call->instanced.billboardMode != R3D_BILLBOARD_DISABLED) {
         r3d_shader_set_mat4(raster.geometryInst, uMatInvView, R3D.state.transform.invView);
     }
@@ -411,74 +314,30 @@ void r3d_drawcall_raster_geometry_inst(const r3d_drawcall_t* call)
         r3d_shader_set_vec2(raster.geometryInst, uTexCoordScale, ((Vector2) { 1, 1 }));
     }
 
-    // Bind GPU buffers
-    if (!rlEnableVertexArray(call->geometry.mesh->vao)) {
-        // Bind vertex buffer
-        rlEnableVertexBuffer(call->geometry.mesh->vbo);
-        rlSetVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION, 3, RL_FLOAT, 0, 0, 0);
-        rlEnableVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION);
-        // Bind index buffer
-        if (call->geometry.mesh->ebo > 0) {
-            rlEnableVertexBufferElement(call->geometry.mesh->ebo);
-        }
-    }
-
     // Applying material parameters that are independent of shaders
     r3d_drawcall_apply_cull_mode(call->material->cullMode);
 
-    // Rendering taking account to stereo rendering
-    // TODO: Review and test stereo rendering
-    int eyeCount = 1;
-    if (rlIsStereoRenderEnabled()) eyeCount = 2;
-    for (int eye = 0; eye < eyeCount; eye++) {
-        // Calculate model-view-projection matrix (MVP)
-        Matrix matVP = MatrixIdentity();
-        if (eyeCount == 1) {
-            matVP = MatrixMultiply(matView, matProjection);
-        }
-        else {
-            // Setup current eye viewport (half screen width)
-            rlViewport(eye * rlGetFramebufferWidth() / 2, 0, rlGetFramebufferWidth() / 2, rlGetFramebufferHeight());
-            matVP = MatrixMultiply(MatrixMultiply(matView, rlGetMatrixViewOffsetStereo(eye)), rlGetMatrixProjectionStereo(eye));
-        }
-
-        // Send combined model-view-projection matrix to shader
-        r3d_shader_set_mat4(raster.geometryInst, uMatVP, matVP);
-
-        // Meshes rasterization
-        r3d_draw_vertex_arrays_inst(call, 10, 14);
-    }
+    // Rendering the objects corresponding to the draw call
+    r3d_drawcall_instanced(call, 10, 14);
 
     // Unbind all bound texture maps
     r3d_shader_unbind_sampler2D(raster.geometryInst, uTexAlbedo);
     r3d_shader_unbind_sampler2D(raster.geometryInst, uTexNormal);
     r3d_shader_unbind_sampler2D(raster.geometryInst, uTexEmission);
     r3d_shader_unbind_sampler2D(raster.geometryInst, uTexORM);
-
-    // Disable all possible vertex array objects (or VBOs)
-    rlDisableVertexArray();
-    rlDisableVertexBuffer();
-    rlDisableVertexBufferElement();
-
-    // Restore rlgl internal modelview and projection matrices
-    rlSetMatrixModelview(matView);
-    rlSetMatrixProjection(matProjection);
 }
 
 void r3d_drawcall_raster_forward(const r3d_drawcall_t* call)
 {
-    Matrix matModel = MatrixIdentity();
-    Matrix matView = rlGetMatrixModelview();
-    Matrix matModelView = MatrixIdentity();
-    Matrix matProjection = rlGetMatrixProjection();
-
-    // Compute model and model/view matrices
-    matModel = MatrixMultiply(call->transform, rlGetMatrixTransform());
-    matModelView = MatrixMultiply(matModel, matView);
+    // Compute model/view/projection matrices
+    Matrix matModel = MatrixMultiply(call->transform, rlGetMatrixTransform());
+    Matrix matModelView = MatrixMultiply(matModel, rlGetMatrixModelview());
+    Matrix matMVP = MatrixMultiply(matModelView, rlGetMatrixProjection());
 
     // Set additional matrix uniforms
     r3d_shader_set_mat4(raster.forward, uMatNormal, MatrixTranspose(MatrixInvert(matModel)));
     r3d_shader_set_mat4(raster.forward, uMatModel, matModel);
+    r3d_shader_set_mat4(raster.forward, uMatMVP, matMVP);
 
     // Set factor material maps
     r3d_shader_set_float(raster.forward, uValEmission, call->material->emission.multiplier);
@@ -509,59 +368,18 @@ void r3d_drawcall_raster_forward(const r3d_drawcall_t* call)
         r3d_shader_set_vec2(raster.forward, uTexCoordScale, ((Vector2) { 1, 1 }));
     }
 
-    // Bind GPU buffers
-    if (!rlEnableVertexArray(call->geometry.mesh->vao)) {
-        // Bind vertex buffer
-        rlEnableVertexBuffer(call->geometry.mesh->vbo);
-        rlSetVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION, 3, RL_FLOAT, 0, 0, 0);
-        rlEnableVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION);
-        // Bind index buffer
-        if (call->geometry.mesh->ebo > 0) {
-            rlEnableVertexBufferElement(call->geometry.mesh->ebo);
-        }
-    }
-
     // Applying material parameters that are independent of shaders
     r3d_drawcall_apply_cull_mode(call->material->cullMode);
     r3d_drawcall_apply_blend_mode(call->material->blendMode);
 
-    // Rendering taking account to stereo rendering
-    // TODO: Review and test stereo rendering
-    int eyeCount = 1;
-    if (rlIsStereoRenderEnabled()) eyeCount = 2;
-    for (int eye = 0; eye < eyeCount; eye++) {
-        // Calculate model-view-projection matrix (MVP)
-        Matrix matModelViewProjection = MatrixIdentity();
-        if (eyeCount == 1) {
-            matModelViewProjection = MatrixMultiply(matModelView, matProjection);
-        }
-        else {
-            // Setup current eye viewport (half screen width)
-            rlViewport(eye * rlGetFramebufferWidth() / 2, 0, rlGetFramebufferWidth() / 2, rlGetFramebufferHeight());
-            matModelViewProjection = MatrixMultiply(MatrixMultiply(matModelView, rlGetMatrixViewOffsetStereo(eye)), rlGetMatrixProjectionStereo(eye));
-        }
-
-        // Send combined model-view-projection matrix to shader
-        r3d_shader_set_mat4(raster.forward, uMatMVP, matModelViewProjection);
-
-        // Mesh rasterization
-        r3d_draw_vertex_arrays(call);
-    }
+    // Rendering the object corresponding to the draw call
+    r3d_drawcall(call);
 
     // Unbind all bound texture maps
     r3d_shader_unbind_sampler2D(raster.forward, uTexAlbedo);
     r3d_shader_unbind_sampler2D(raster.forward, uTexNormal);
     r3d_shader_unbind_sampler2D(raster.forward, uTexEmission);
     r3d_shader_unbind_sampler2D(raster.forward, uTexORM);
-
-    // Disable all possible vertex array objects (or VBOs)
-    rlDisableVertexArray();
-    rlDisableVertexBuffer();
-    rlDisableVertexBufferElement();
-
-    // Restore rlgl internal modelview and projection matrices
-    rlSetMatrixModelview(matView);
-    rlSetMatrixProjection(matProjection);
 }
 
 void r3d_drawcall_raster_forward_inst(const r3d_drawcall_t* call)
@@ -570,15 +388,13 @@ void r3d_drawcall_raster_forward_inst(const r3d_drawcall_t* call)
         return;
     }
 
-    // Get current view / projection matrices
-    Matrix matView = rlGetMatrixModelview();
-    Matrix matProjection = rlGetMatrixProjection();
-
-    // Compute model matrix
+    // Compute model/view/projection matrix
     Matrix matModel = MatrixMultiply(call->transform, rlGetMatrixTransform());
+    Matrix matVP = MatrixMultiply(rlGetMatrixModelview(), rlGetMatrixProjection());
 
     // Set additional matrix uniforms
     r3d_shader_set_mat4(raster.forwardInst, uMatModel, matModel);
+    r3d_shader_set_mat4(raster.forwardInst, uMatVP, matVP);
 
     // Set factor material maps
     r3d_shader_set_float(raster.forwardInst, uValEmission, call->material->emission.multiplier);
@@ -595,7 +411,6 @@ void r3d_drawcall_raster_forward_inst(const r3d_drawcall_t* call)
 
     // Setup billboard mode
     r3d_shader_set_int(raster.forwardInst, uBillboardMode, call->instanced.billboardMode);
-
     if (call->instanced.billboardMode != R3D_BILLBOARD_DISABLED) {
         r3d_shader_set_mat4(raster.forwardInst, uMatInvView, R3D.state.transform.invView);
     }
@@ -616,61 +431,19 @@ void r3d_drawcall_raster_forward_inst(const r3d_drawcall_t* call)
         r3d_shader_set_vec2(raster.forwardInst, uTexCoordScale, ((Vector2) { 1, 1 }));
     }
 
-    // Bind GPU buffers
-    if (!rlEnableVertexArray(call->geometry.mesh->vao)) {
-        // Bind vertex buffer
-        rlEnableVertexBuffer(call->geometry.mesh->vbo);
-        rlSetVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION, 3, RL_FLOAT, 0, 0, 0);
-        rlEnableVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION);
-        // Bind index buffer
-        if (call->geometry.mesh->ebo > 0) {
-            rlEnableVertexBufferElement(call->geometry.mesh->ebo);
-        }
-    }
-
     // Applying material parameters that are independent of shaders
     r3d_drawcall_apply_cull_mode(call->material->cullMode);
     r3d_drawcall_apply_blend_mode(call->material->blendMode);
 
-    // Rendering taking account to stereo rendering
-    // TODO: Review and test stereo rendering
-    int eyeCount = 1;
-    if (rlIsStereoRenderEnabled()) eyeCount = 2;
-    for (int eye = 0; eye < eyeCount; eye++) {
-        // Calculate model-view-projection matrix (MVP)
-        Matrix matVP = MatrixIdentity();
-        if (eyeCount == 1) {
-            matVP = MatrixMultiply(matView, matProjection);
-        }
-        else {
-            // Setup current eye viewport (half screen width)
-            rlViewport(eye * rlGetFramebufferWidth() / 2, 0, rlGetFramebufferWidth() / 2, rlGetFramebufferHeight());
-            matVP = MatrixMultiply(MatrixMultiply(matView, rlGetMatrixViewOffsetStereo(eye)), rlGetMatrixProjectionStereo(eye));
-        }
-
-        // Send combined model-view-projection matrix to shader
-        r3d_shader_set_mat4(raster.forwardInst, uMatVP, matVP);
-
-        // Meshes rasterization
-        r3d_draw_vertex_arrays_inst(call, 10, 14);
-    }
+    // Rendering the objects corresponding to the draw call
+    r3d_drawcall_instanced(call, 10, 14);
 
     // Unbind all bound texture maps
     r3d_shader_unbind_sampler2D(raster.forwardInst, uTexAlbedo);
     r3d_shader_unbind_sampler2D(raster.forwardInst, uTexNormal);
     r3d_shader_unbind_sampler2D(raster.forwardInst, uTexEmission);
     r3d_shader_unbind_sampler2D(raster.forwardInst, uTexORM);
-
-    // Disable all possible vertex array objects (or VBOs)
-    rlDisableVertexArray();
-    rlDisableVertexBuffer();
-    rlDisableVertexBufferElement();
-
-    // Restore rlgl internal modelview and projection matrices
-    rlSetMatrixModelview(matView);
-    rlSetMatrixProjection(matProjection);
 }
-
 
 /* === Internal functions === */
 
@@ -720,7 +493,6 @@ static void r3d_drawcall_apply_shadow_cast_mode(R3D_ShadowCastMode mode)
 {
     switch (mode)
     {
-
     case R3D_SHADOW_CAST_ALL_FACES:
         glDisable(GL_CULL_FACE);
         break;
@@ -740,22 +512,67 @@ static void r3d_drawcall_apply_shadow_cast_mode(R3D_ShadowCastMode mode)
     }
 }
 
-void r3d_draw_vertex_arrays(const r3d_drawcall_t* call)
+// Mesh binding function, called by 'r3d_drawcall' functions only for geometry mode
+static void r3d_drawcall_bind_mesh(const R3D_Mesh* mesh)
 {
-    if (call->geometryType == R3D_DRAWCALL_GEOMETRY_MESH) {
+    if (rlEnableVertexArray(mesh->vao)) {
+        return;
+    }
+
+    // Enable the vertex buffer (fallback if vao is not available)
+    rlEnableVertexBuffer(mesh->vbo);
+
+    // Bind positions
+    rlSetVertexAttribute(0, 3, RL_FLOAT, false, sizeof(R3D_Vertex), offsetof(R3D_Vertex, position));
+    rlEnableVertexAttribute(0);
+
+    // Bind texcoords
+    rlSetVertexAttribute(1, 2, RL_FLOAT, false, sizeof(R3D_Vertex), offsetof(R3D_Vertex, texcoord));
+    rlEnableVertexAttribute(1);
+
+    // Bind normals
+    rlSetVertexAttribute(2, 3, RL_FLOAT, false, sizeof(R3D_Vertex), offsetof(R3D_Vertex, normal));
+    rlEnableVertexAttribute(2);
+
+    // Bind colors
+    rlSetVertexAttribute(3, 4, RL_FLOAT, false, sizeof(R3D_Vertex), offsetof(R3D_Vertex, color));
+    rlEnableVertexAttribute(3);
+
+    // Bind tangents
+    rlSetVertexAttribute(4, 4, RL_FLOAT, false, sizeof(R3D_Vertex), offsetof(R3D_Vertex, tangent));
+    rlEnableVertexAttribute(4);
+
+    // Bind index buffer
+    if (mesh->ebo > 0) {
+        rlEnableVertexBufferElement(mesh->ebo);
+    }
+}
+
+void r3d_drawcall(const r3d_drawcall_t* call)
+{
+    if (call->geometryType == R3D_DRAWCALL_GEOMETRY_MESH)
+    {
+        r3d_drawcall_bind_mesh(call->geometry.mesh);
+
         if (call->geometry.mesh->indices == NULL) {
             glDrawArrays(GL_TRIANGLES, 0, call->geometry.mesh->vertexCount);
         }
         else {
             glDrawElements(GL_TRIANGLES, call->geometry.mesh->indexCount, GL_UNSIGNED_INT, NULL);
         }
+
+        rlDisableVertexArray();
+        rlDisableVertexBuffer();
+        rlDisableVertexBufferElement();
     }
+
+    // Sprite mode only requires to render a generic quad
     else if (call->geometryType == R3D_DRAWCALL_GEOMETRY_SPRITE) {
         r3d_primitive_draw_quad();
     }
 }
 
-void r3d_draw_vertex_arrays_inst(const r3d_drawcall_t* call, int locInstanceModel, int locInstanceColor)
+void r3d_drawcall_instanced(const r3d_drawcall_t* call, int locInstanceModel, int locInstanceColor)
 {
     // WARNING: Always use the same attribute locations in shaders for instance matrices and colors.
     // If attribute locations differ between shaders (e.g., between the depth shader and the geometry shader),
@@ -807,18 +624,23 @@ void r3d_draw_vertex_arrays_inst(const r3d_drawcall_t* call, int locInstanceMode
     }
 
     // Draw instances or a single object depending on the case
-    if (call->geometryType == R3D_DRAWCALL_GEOMETRY_MESH) {
-        if (call->geometry.mesh->indices != NULL) {
-            rlDrawVertexArrayElementsInstanced(
-                0, call->geometry.mesh->indexCount, 0, (int)call->instanced.count
-            );
+    if (call->geometryType == R3D_DRAWCALL_GEOMETRY_MESH)
+    {
+        r3d_drawcall_bind_mesh(call->geometry.mesh);
+
+        if (call->geometry.mesh->indices == NULL) {
+            glDrawArrays(GL_TRIANGLES, 0, call->geometry.mesh->vertexCount);
         }
         else {
-            rlDrawVertexArrayInstanced(
-                0, call->geometry.mesh->vertexCount, (int)call->instanced.count
-            );
+            glDrawElements(GL_TRIANGLES, call->geometry.mesh->indexCount, GL_UNSIGNED_INT, NULL);
         }
+
+        rlDisableVertexArray();
+        rlDisableVertexBuffer();
+        rlDisableVertexBufferElement();
     }
+
+    // Sprite mode only requires to render a generic quad
     else if (call->geometryType == R3D_DRAWCALL_GEOMETRY_SPRITE) {
         r3d_primitive_draw_quad();
     }
