@@ -19,15 +19,23 @@
 
 #include "./r3d_drawcall.h"
 #include "../r3d_state.h"
+#include "r3d.h"
 
-#include <stdlib.h>
 #include <raylib.h>
 #include <raymath.h>
 #include <rlgl.h>
 #include <glad.h>
 
+#include <stdlib.h>
+#include <assert.h>
+
 
 /* === Internal functions === */
+
+// Functions applying OpenGL states defined by the material but unrelated to shaders
+static void r3d_drawcall_apply_cull_mode(R3D_CullMode mode);
+static void r3d_drawcall_apply_blend_mode(R3D_BlendMode mode);
+static void r3d_drawcall_apply_shadow_cast_mode(R3D_ShadowCastMode mode);
 
 // This function supports instanced rendering when necessary
 static void r3d_draw_vertex_arrays(const r3d_drawcall_t* call);
@@ -50,7 +58,7 @@ void r3d_drawcall_sort_back_to_front(r3d_drawcall_t* calls, size_t count)
     qsort(calls, count, sizeof(r3d_drawcall_t), r3d_drawcall_compare_back_to_front);
 }
 
-void r3d_drawcall_raster_depth(const r3d_drawcall_t* call)
+void r3d_drawcall_raster_depth(const r3d_drawcall_t* call, bool shadow)
 {
     if (call->geometryType != R3D_DRAWCALL_GEOMETRY_MESH) {
         return;
@@ -79,6 +87,14 @@ void r3d_drawcall_raster_depth(const r3d_drawcall_t* call)
         }
     }
 
+    // Applying material parameters that are independent of shaders
+    if (shadow) {
+        r3d_drawcall_apply_shadow_cast_mode(call->material->shadowCastMode);
+    }
+    else {
+        r3d_drawcall_apply_cull_mode(call->material->cullMode);
+    }
+
     // Draw vertex buffers
     r3d_draw_vertex_arrays(call);
 
@@ -91,7 +107,7 @@ void r3d_drawcall_raster_depth(const r3d_drawcall_t* call)
     r3d_shader_unbind_sampler2D(raster.depth, uTexAlbedo);
 }
 
-void r3d_drawcall_raster_depth_inst(const r3d_drawcall_t* call)
+void r3d_drawcall_raster_depth_inst(const r3d_drawcall_t* call, bool shadow)
 {
     if (call->geometryType != R3D_DRAWCALL_GEOMETRY_MESH) {
         return;
@@ -126,6 +142,14 @@ void r3d_drawcall_raster_depth_inst(const r3d_drawcall_t* call)
         }
     }
 
+    // Applying material parameters that are independent of shaders
+    if (shadow) {
+        r3d_drawcall_apply_shadow_cast_mode(call->material->shadowCastMode);
+    }
+    else {
+        r3d_drawcall_apply_cull_mode(call->material->cullMode);
+    }
+
     // Draw vertex buffers
     r3d_draw_vertex_arrays_inst(call, 10, -1);
 
@@ -138,7 +162,7 @@ void r3d_drawcall_raster_depth_inst(const r3d_drawcall_t* call)
     r3d_shader_unbind_sampler2D(raster.depthInst, uTexAlbedo);
 }
 
-void r3d_drawcall_raster_depth_cube(const r3d_drawcall_t* call)
+void r3d_drawcall_raster_depth_cube(const r3d_drawcall_t* call, bool shadow)
 {
     if (call->geometryType != R3D_DRAWCALL_GEOMETRY_MESH) {
         return;
@@ -168,6 +192,14 @@ void r3d_drawcall_raster_depth_cube(const r3d_drawcall_t* call)
         }
     }
 
+    // Applying material parameters that are independent of shaders
+    if (shadow) {
+        r3d_drawcall_apply_shadow_cast_mode(call->material->shadowCastMode);
+    }
+    else {
+        r3d_drawcall_apply_cull_mode(call->material->cullMode);
+    }
+
     // Draw vertex buffers
     r3d_draw_vertex_arrays(call);
 
@@ -180,7 +212,7 @@ void r3d_drawcall_raster_depth_cube(const r3d_drawcall_t* call)
     r3d_shader_unbind_sampler2D(raster.depthCube, uTexAlbedo);
 }
 
-void r3d_drawcall_raster_depth_cube_inst(const r3d_drawcall_t* call)
+void r3d_drawcall_raster_depth_cube_inst(const r3d_drawcall_t* call, bool shadow)
 {
     if (call->geometryType != R3D_DRAWCALL_GEOMETRY_MESH) {
         return;
@@ -213,6 +245,14 @@ void r3d_drawcall_raster_depth_cube_inst(const r3d_drawcall_t* call)
         if (call->geometry.mesh->ebo > 0) {
             rlEnableVertexBufferElement(call->geometry.mesh->ebo);
         }
+    }
+
+    // Applying material parameters that are independent of shaders
+    if (shadow) {
+        r3d_drawcall_apply_shadow_cast_mode(call->material->shadowCastMode);
+    }
+    else {
+        r3d_drawcall_apply_cull_mode(call->material->cullMode);
     }
 
     // Draw vertex buffers
@@ -280,9 +320,13 @@ void r3d_drawcall_raster_geometry(const r3d_drawcall_t* call)
         }
     }
 
+    // Applying material parameters that are independent of shaders
+    r3d_drawcall_apply_cull_mode(call->material->cullMode);
+
+    // Rendering taking account to stereo rendering
+    // TODO: Review and test stereo rendering
     int eyeCount = 1;
     if (rlIsStereoRenderEnabled()) eyeCount = 2;
-
     for (int eye = 0; eye < eyeCount; eye++) {
         // Calculate model-view-projection matrix (MVP)
         Matrix matModelViewProjection = MatrixIdentity();
@@ -298,7 +342,7 @@ void r3d_drawcall_raster_geometry(const r3d_drawcall_t* call)
         // Send combined model-view-projection matrix to shader
         r3d_shader_set_mat4(raster.geometry, uMatMVP, matModelViewProjection);
 
-        // Rasterisation du mesh en tenant compte du rendu instanci� si besoin
+        // Mesh rasterization
         r3d_draw_vertex_arrays(call);
     }
 
@@ -379,9 +423,13 @@ void r3d_drawcall_raster_geometry_inst(const r3d_drawcall_t* call)
         }
     }
 
+    // Applying material parameters that are independent of shaders
+    r3d_drawcall_apply_cull_mode(call->material->cullMode);
+
+    // Rendering taking account to stereo rendering
+    // TODO: Review and test stereo rendering
     int eyeCount = 1;
     if (rlIsStereoRenderEnabled()) eyeCount = 2;
-
     for (int eye = 0; eye < eyeCount; eye++) {
         // Calculate model-view-projection matrix (MVP)
         Matrix matVP = MatrixIdentity();
@@ -397,7 +445,7 @@ void r3d_drawcall_raster_geometry_inst(const r3d_drawcall_t* call)
         // Send combined model-view-projection matrix to shader
         r3d_shader_set_mat4(raster.geometryInst, uMatVP, matVP);
 
-        // Rasterisation du mesh en tenant compte du rendu instanci� si besoin
+        // Meshes rasterization
         r3d_draw_vertex_arrays_inst(call, 10, 14);
     }
 
@@ -473,9 +521,14 @@ void r3d_drawcall_raster_forward(const r3d_drawcall_t* call)
         }
     }
 
+    // Applying material parameters that are independent of shaders
+    r3d_drawcall_apply_cull_mode(call->material->cullMode);
+    r3d_drawcall_apply_blend_mode(call->material->blendMode);
+
+    // Rendering taking account to stereo rendering
+    // TODO: Review and test stereo rendering
     int eyeCount = 1;
     if (rlIsStereoRenderEnabled()) eyeCount = 2;
-
     for (int eye = 0; eye < eyeCount; eye++) {
         // Calculate model-view-projection matrix (MVP)
         Matrix matModelViewProjection = MatrixIdentity();
@@ -491,7 +544,7 @@ void r3d_drawcall_raster_forward(const r3d_drawcall_t* call)
         // Send combined model-view-projection matrix to shader
         r3d_shader_set_mat4(raster.forward, uMatMVP, matModelViewProjection);
 
-        // Rasterisation du mesh en tenant compte du rendu instanci� si besoin
+        // Mesh rasterization
         r3d_draw_vertex_arrays(call);
     }
 
@@ -575,9 +628,14 @@ void r3d_drawcall_raster_forward_inst(const r3d_drawcall_t* call)
         }
     }
 
+    // Applying material parameters that are independent of shaders
+    r3d_drawcall_apply_cull_mode(call->material->cullMode);
+    r3d_drawcall_apply_blend_mode(call->material->blendMode);
+
+    // Rendering taking account to stereo rendering
+    // TODO: Review and test stereo rendering
     int eyeCount = 1;
     if (rlIsStereoRenderEnabled()) eyeCount = 2;
-
     for (int eye = 0; eye < eyeCount; eye++) {
         // Calculate model-view-projection matrix (MVP)
         Matrix matVP = MatrixIdentity();
@@ -593,7 +651,7 @@ void r3d_drawcall_raster_forward_inst(const r3d_drawcall_t* call)
         // Send combined model-view-projection matrix to shader
         r3d_shader_set_mat4(raster.forwardInst, uMatVP, matVP);
 
-        // Raterization of the instantiated mesh
+        // Meshes rasterization
         r3d_draw_vertex_arrays_inst(call, 10, 14);
     }
 
@@ -615,6 +673,72 @@ void r3d_drawcall_raster_forward_inst(const r3d_drawcall_t* call)
 
 
 /* === Internal functions === */
+
+void r3d_drawcall_apply_cull_mode(R3D_CullMode mode)
+{
+    switch (mode)
+    {
+    case R3D_CULL_NONE:
+        glDisable(GL_CULL_FACE);
+        break;
+    case R3D_CULL_BACK:
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_BACK);
+        break;
+    case R3D_CULL_FRONT:
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_FRONT);
+        break;
+    }
+}
+
+void r3d_drawcall_apply_blend_mode(R3D_BlendMode mode)
+{
+    switch (mode)
+    {
+    case R3D_BLEND_OPAQUE:
+        glDisable(GL_BLEND);
+        break;
+    case R3D_BLEND_ALPHA:
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        break;
+    case R3D_BLEND_ADDITIVE:
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+        break;
+    case R3D_BLEND_MULTIPLY:
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_DST_COLOR, GL_ZERO);
+        break;
+    default:
+        break;
+    }
+}
+
+static void r3d_drawcall_apply_shadow_cast_mode(R3D_ShadowCastMode mode)
+{
+    switch (mode)
+    {
+
+    case R3D_SHADOW_CAST_ALL_FACES:
+        glDisable(GL_CULL_FACE);
+        break;
+    case R3D_SHADOW_CAST_FRONT_FACES:
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_BACK);
+        break;
+    case R3D_SHADOW_CAST_BACK_FACES:
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_FRONT);
+        break;
+
+    case R3D_SHADOW_CAST_DISABLED:
+    default:
+        assert("This shouldn't happen" && false);
+        break;
+    }
+}
 
 void r3d_draw_vertex_arrays(const r3d_drawcall_t* call)
 {

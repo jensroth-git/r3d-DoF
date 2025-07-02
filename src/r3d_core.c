@@ -42,9 +42,6 @@ static bool r3d_has_deferred_calls(void);
 static bool r3d_has_forward_calls(void);
 
 static void r3d_sprite_get_uv_scale_offset(const R3D_Sprite* sprite, Vector2* uvScale, Vector2* uvOffset, float sgnX, float sgnY);
-static void r3d_shadow_apply_cast_mode(R3D_ShadowCastMode mode);
-
-static void r3d_render_apply_blend_mode(R3D_BlendMode mode);
 
 static void r3d_gbuffer_enable_stencil_write(void);
 static void r3d_gbuffer_enable_stencil_test(bool passOnGeometry);
@@ -589,50 +586,6 @@ void r3d_sprite_get_uv_scale_offset(const R3D_Sprite* sprite, Vector2* uvScale, 
     uvOffset->y = frameY * uvScale->y;
 }
 
-void r3d_shadow_apply_cast_mode(R3D_ShadowCastMode mode)
-{
-    switch (mode)
-    {
-    case R3D_SHADOW_CAST_FRONT_FACES:
-        rlEnableBackfaceCulling();
-        rlSetCullFace(RL_CULL_FACE_BACK);
-        break;
-    case R3D_SHADOW_CAST_BACK_FACES:
-        rlEnableBackfaceCulling();
-        rlSetCullFace(RL_CULL_FACE_FRONT);
-        break;
-    case R3D_SHADOW_CAST_ALL_FACES:
-        rlDisableBackfaceCulling();
-        break;
-    default:
-        break;
-    }
-}
-
-void r3d_render_apply_blend_mode(R3D_BlendMode mode)
-{
-    switch (mode)
-    {
-    case R3D_BLEND_OPAQUE:
-        glDisable(GL_BLEND);
-        break;
-    case R3D_BLEND_ALPHA:
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        break;
-    case R3D_BLEND_ADDITIVE:
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-        break;
-    case R3D_BLEND_MULTIPLY:
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_DST_COLOR, GL_ZERO);
-        break;
-    default:
-        break;
-    }
-}
-
 void r3d_gbuffer_enable_stencil_write(void)
 {
     // Re-attach the depth/stencil buffer to the framebuffer
@@ -804,8 +757,7 @@ void r3d_pass_shadow_maps(void)
                             r3d_drawcall_t* call = (r3d_drawcall_t*)R3D.container.aDrawDeferredInst.data + k;
                             if (call->material->shadowCastMode != R3D_SHADOW_CAST_DISABLED) {
                                 r3d_shader_set_float(raster.depthCubeInst, uAlphaScissorThreshold, call->material->alphaScissorThreshold);
-                                r3d_shadow_apply_cast_mode(call->material->shadowCastMode);
-                                r3d_drawcall_raster_depth_cube_inst(call);
+                                r3d_drawcall_raster_depth_cube_inst(call, true);
                             }
                         }
 
@@ -813,8 +765,7 @@ void r3d_pass_shadow_maps(void)
                             r3d_drawcall_t* call = (r3d_drawcall_t*)R3D.container.aDrawForwardInst.data + k;
                             if (call->material->shadowCastMode != R3D_SHADOW_CAST_DISABLED) {
                                 r3d_shader_set_float(raster.depthCubeInst, uAlphaScissorThreshold, call->material->alphaScissorThreshold);
-                                r3d_shadow_apply_cast_mode(call->material->shadowCastMode);
-                                r3d_drawcall_raster_depth_cube_inst(call);
+                                r3d_drawcall_raster_depth_cube_inst(call, true);
                             }
                         }
                     }
@@ -827,8 +778,7 @@ void r3d_pass_shadow_maps(void)
                             r3d_drawcall_t* call = (r3d_drawcall_t*)R3D.container.aDrawDeferred.data + k;
                             if (call->material->shadowCastMode != R3D_SHADOW_CAST_DISABLED) {
                                 r3d_shader_set_float(raster.depthCube, uAlphaScissorThreshold, call->material->alphaScissorThreshold);
-                                r3d_shadow_apply_cast_mode(call->material->shadowCastMode);
-                                r3d_drawcall_raster_depth_cube(call);
+                                r3d_drawcall_raster_depth_cube(call, true);
                             }
                         }
 
@@ -836,8 +786,7 @@ void r3d_pass_shadow_maps(void)
                             r3d_drawcall_t* call = (r3d_drawcall_t*)R3D.container.aDrawForward.data + k;
                             if (call->material->shadowCastMode != R3D_SHADOW_CAST_DISABLED) {
                                 r3d_shader_set_float(raster.depthCube, uAlphaScissorThreshold, call->material->alphaScissorThreshold);
-                                r3d_shadow_apply_cast_mode(call->material->shadowCastMode);
-                                r3d_drawcall_raster_depth_cube(call);
+                                r3d_drawcall_raster_depth_cube(call, true);
                             }
                         }
                     }
@@ -877,16 +826,14 @@ void r3d_pass_shadow_maps(void)
                         r3d_drawcall_t* call = (r3d_drawcall_t*)R3D.container.aDrawDeferredInst.data + j;
                         if (call->material->shadowCastMode != R3D_SHADOW_CAST_DISABLED) {
                             r3d_shader_set_float(raster.depthInst, uAlphaScissorThreshold, call->material->alphaScissorThreshold);
-                            r3d_shadow_apply_cast_mode(call->material->shadowCastMode);
-                            r3d_drawcall_raster_depth_inst(call);
+                            r3d_drawcall_raster_depth_inst(call, true);
                         }
                     }
                     for (size_t j = 0; j < R3D.container.aDrawForwardInst.count; j++) {
                         r3d_drawcall_t* call = (r3d_drawcall_t*)R3D.container.aDrawForwardInst.data + j;
                         if (call->material->shadowCastMode != R3D_SHADOW_CAST_DISABLED) {
                             r3d_shader_set_float(raster.depthInst, uAlphaScissorThreshold, call->material->alphaScissorThreshold);
-                            r3d_shadow_apply_cast_mode(call->material->shadowCastMode);
-                            r3d_drawcall_raster_depth_inst(call);
+                            r3d_drawcall_raster_depth_inst(call, true);
                         }
                     }
                 }
@@ -896,16 +843,14 @@ void r3d_pass_shadow_maps(void)
                         r3d_drawcall_t* call = (r3d_drawcall_t*)R3D.container.aDrawDeferred.data + j;
                         if (call->material->shadowCastMode != R3D_SHADOW_CAST_DISABLED) {
                             r3d_shader_set_float(raster.depth, uAlphaScissorThreshold, call->material->alphaScissorThreshold);
-                            r3d_shadow_apply_cast_mode(call->material->shadowCastMode);
-                            r3d_drawcall_raster_depth(call);
+                            r3d_drawcall_raster_depth(call, true);
                         }
                     }
                     for (size_t j = 0; j < R3D.container.aDrawForward.count; j++) {
                         r3d_drawcall_t* call = (r3d_drawcall_t*)R3D.container.aDrawForward.data + j;
                         if (call->material->shadowCastMode != R3D_SHADOW_CAST_DISABLED) {
                             r3d_shader_set_float(raster.depth, uAlphaScissorThreshold, call->material->alphaScissorThreshold);
-                            r3d_shadow_apply_cast_mode(call->material->shadowCastMode);
-                            r3d_drawcall_raster_depth(call);
+                            r3d_drawcall_raster_depth(call, true);
                         }
                     }
                 }
@@ -1572,7 +1517,7 @@ void r3d_pass_scene_forward_depth_prepass(void)
             {
                 for (int i = 0; i < R3D.container.aDrawForwardInst.count; i++) {
                     r3d_drawcall_t* call = r3d_array_at(&R3D.container.aDrawForwardInst, i);
-                    r3d_drawcall_raster_depth_inst(call);
+                    r3d_drawcall_raster_depth_inst(call, false);
                 }
             }
             r3d_shader_disable();
@@ -1586,7 +1531,7 @@ void r3d_pass_scene_forward_depth_prepass(void)
                 // objects first, in order to optimize early depth testing.
                 for (int i = R3D.container.aDrawForward.count - 1; i >= 0; i--) {
                     r3d_drawcall_t* call = r3d_array_at(&R3D.container.aDrawForward, i);
-                    r3d_drawcall_raster_depth(call);
+                    r3d_drawcall_raster_depth(call, false);
                 }
             }
             r3d_shader_disable();
@@ -1654,7 +1599,6 @@ void r3d_pass_scene_forward(void)
                 for (int i = 0; i < R3D.container.aDrawForwardInst.count; i++) {
                     r3d_drawcall_t* call = r3d_array_at(&R3D.container.aDrawForwardInst, i);
                     r3d_pass_scene_forward_inst_filter_and_send_lights(call);
-                    r3d_render_apply_blend_mode(call->material->blendMode);
                     r3d_drawcall_raster_forward_inst(call);
                 }
 
@@ -1698,7 +1642,6 @@ void r3d_pass_scene_forward(void)
                 for (int i = 0; i < R3D.container.aDrawForward.count; i++) {
                     r3d_drawcall_t* call = r3d_array_at(&R3D.container.aDrawForward, i);
                     r3d_pass_scene_forward_filter_and_send_lights(call);
-                    r3d_render_apply_blend_mode(call->material->blendMode);
                     r3d_drawcall_raster_forward(call);
                 }
 
