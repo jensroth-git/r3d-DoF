@@ -1,9 +1,11 @@
 #include "./common.h"
 #include "r3d.h"
+#include "raymath.h"
 
 /* === Resources === */
 
 static R3D_Model model = { 0 };
+static Matrix modelMatrix = { 0 };
 static R3D_Skybox skybox = { 0 };
 static Camera3D camera = { 0 };
 
@@ -33,6 +35,8 @@ const char* Init(void)
 		}
 	}
 
+	modelMatrix = MatrixIdentity();
+
 	skybox = R3D_LoadSkybox(RESOURCES_PATH "sky/skybox2.png", CUBEMAP_LAYOUT_AUTO_DETECT);
 	R3D_EnableSkybox(skybox);
 
@@ -61,14 +65,17 @@ void Update(float delta)
 		float pitch = (GetMouseDelta().y * 0.005f) / modelScale;
 		float yaw = (GetMouseDelta().x * 0.005f) / modelScale;
 
-		Matrix transform = MatrixRotateXYZ((Vector3) { pitch, yaw, 0.0f });
+		Matrix rotate = MatrixRotateXYZ((Vector3) { pitch, yaw, 0.0f });
+		modelMatrix = MatrixMultiply(modelMatrix, rotate);
 	}
 }
 
 void Draw(void)
 {
 	R3D_Begin(camera);
-		R3D_DrawModel(&model, (Vector3) { 0 }, modelScale);
+		Matrix scale = MatrixScale(modelScale, modelScale, modelScale);
+		Matrix transform = MatrixMultiply(modelMatrix, scale);
+		R3D_DrawModelPro(&model, transform);
 	R3D_End();
 
 	DrawFPS(10, 10);
