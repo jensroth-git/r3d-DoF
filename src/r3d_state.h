@@ -272,6 +272,7 @@ extern struct R3D_State {
 /* === Helper functions === */
 
 bool r3d_check_texture_format_support(unsigned int format);
+bool r3d_is_default_texture(unsigned int id);
 
 
 /* === Main loading functions === */

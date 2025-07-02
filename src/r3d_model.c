@@ -1,15 +1,22 @@
 #include "r3d.h"
 
-#include <raylib.h>
+#include "./details/r3d_primitives.h"
+#include "./r3d_state.h"
+
 #include <raymath.h>
 #include <glad.h>
+
+#include <assimp/postprocess.h>
+#include <assimp/cimport.h>
+#include <assimp/scene.h>
 
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 #include <float.h>
 
-/* === Mesh Functions === */
+/* === Public Mesh Functions === */
 
 R3D_Mesh R3D_GenMeshPoly(int sides, float radius, bool upload)
 {
@@ -18,7 +25,7 @@ R3D_Mesh R3D_GenMeshPoly(int sides, float radius, bool upload)
     // Validation of parameters
     if (sides < 3 || radius <= 0.0f) return mesh;
 
-    // Allocation mémoire
+    // Memory allocation
     // For a polygon: 1 central vertex + peripheral vertices
     mesh.vertexCount = sides + 1;
     mesh.indexCount = sides * 3; // sides triangles, 3 indices per triangle
@@ -34,8 +41,8 @@ R3D_Mesh R3D_GenMeshPoly(int sides, float radius, bool upload)
 
     // Pre-compute some values
     const float angleStep = 2.0f * PI / sides;
-    const Vector3 normal = {0.0f, 0.0f, 1.0f}; // Normal vers le haut (plan XY)
-    const Vector4 defaultColor = {255, 255, 255, 255}; // Blanc opaque
+    const Vector3 normal = {0.0f, 0.0f, 1.0f}; // Normal up (XY plane)
+    const Vector4 defaultColor = {255, 255, 255, 255}; // Opaque white
 
     // Central vertex (index 0)
     mesh.vertices[0] = (R3D_Vertex){
@@ -73,7 +80,7 @@ R3D_Mesh R3D_GenMeshPoly(int sides, float radius, bool upload)
             },
             .normal = normal,
             .color = defaultColor,
-            .tangent = {-sinAngle, cosAngle, 0.0f, 1.0f} // Tangente perpendiculaire au rayon
+            .tangent = {-sinAngle, cosAngle, 0.0f, 1.0f} // Tangent perpendicular to the radius
         };
     
         // Indices for the triangle (center, current vertex, next vertex)
@@ -128,9 +135,9 @@ R3D_Mesh R3D_GenMeshPlane(float width, float length, int resX, int resZ, bool up
     const float uvStepX = 1.0f / resX;
     const float uvStepZ = 1.0f / resZ;
 
-    const Vector3 normal = {0.0f, 1.0f, 0.0f}; // Normal vers Y+ (plan horizontal)
+    const Vector3 normal = {0.0f, 1.0f, 0.0f}; // Normal to Y+ (horizontal plane)
     const Vector4 defaultColor = {255, 255, 255, 255};
-    const Vector4 tangent = {1.0f, 0.0f, 0.0f, 1.0f}; // Tangente vers X+
+    const Vector4 tangent = {1.0f, 0.0f, 0.0f, 1.0f}; // Tangent to X+
 
     // Vertex generation
     int vertexIndex = 0;
@@ -1758,6 +1765,24 @@ R3D_Mesh R3D_GenMeshCubicmap(Image cubicmap, Vector3 cubeSize, bool upload)
     return mesh;
 }
 
+void R3D_UnloadMesh(const R3D_Mesh* mesh)
+{
+    if ((mesh)->ebo != 0) {
+        glDeleteBuffers(1, &mesh->ebo);
+    }
+
+    if ((mesh)->vbo != 0) {
+        glDeleteBuffers(1, &mesh->vbo);
+    }
+
+    if ((mesh)->vao != 0) {
+        glDeleteVertexArrays(1, &mesh->vao);
+    }
+
+    free(mesh->indices);
+    free(mesh->vertices);
+}
+
 bool R3D_UploadMesh(R3D_Mesh* mesh, bool dynamic)
 {
     if (!mesh || mesh->vertexCount <= 0 || !mesh->vertices) {
@@ -1867,7 +1892,25 @@ R3DAPI bool R3D_UpdateMesh(R3D_Mesh* mesh)
     return true;
 }
 
-/* === Material Functions === */
+void R3D_UpdateMeshBoundingBox(R3D_Mesh* mesh)
+{
+    if (!mesh || mesh->vertices == NULL) {
+        return;
+    }
+
+    Vector3 minVertex = mesh->vertices[0].position;
+    Vector3 maxVertex = mesh->vertices[0].position;
+
+    for (size_t i = 1; i < mesh->vertexCount; i++) {
+        minVertex = Vector3Min(minVertex, mesh->vertices[i].position);
+        maxVertex = Vector3Max(maxVertex, mesh->vertices[i].position);
+    }
+
+    mesh->aabb.min = minVertex;
+    mesh->aabb.max = maxVertex;
+}
+
+/* === Public Material Functions === */
 
 R3D_Material R3D_GetDefaultMaterial(void)
 {
@@ -1900,19 +1943,672 @@ R3D_Material R3D_GetDefaultMaterial(void)
     return material;
 }
 
-/* === Model Functions === */
+void R3D_UnloadMaterial(const R3D_Material* material)
+{
+#define UNLOAD_TEXTURE_IF_VALID(id) \
+    do { \
+        if ((id) != 0 && !r3d_is_default_texture(id)) { \
+            rlUnloadTexture(id); \
+        } \
+    } while (0)
+
+    UNLOAD_TEXTURE_IF_VALID(material->albedo.texture.id);
+    UNLOAD_TEXTURE_IF_VALID(material->emission.texture.id);
+    UNLOAD_TEXTURE_IF_VALID(material->normal.texture.id);
+    UNLOAD_TEXTURE_IF_VALID(material->orm.texture.id);
+
+#undef UNLOAD_TEXTURE_IF_VALID
+}
+
+/* === Internal Model Functions === */
+
+static inline Vector3 r3d_vec3_from_ai_vec3(const struct aiVector3D* aiVec)
+{
+    return (Vector3) { aiVec->x, aiVec->y, aiVec->z };
+}
+
+static inline Vector2 r3d_vec2_from_ai_vec3(const struct aiVector3D* aiVec)
+{
+    return (Vector2) { aiVec->x, aiVec->y };
+}
+
+static inline Vector2 r3d_vec2_from_ai_vec2(const struct aiVector2D* aiVec)
+{
+    return (Vector2) { aiVec->x, aiVec->y };
+}
+
+static inline Color r3d_color_from_ai_color(const struct aiColor4D* aiCol)
+{
+    return (Color) {
+        Clamp(aiCol->r, 0.0f, 1.0f) * 255,
+        Clamp(aiCol->g, 0.0f, 1.0f) * 255,
+        Clamp(aiCol->b, 0.0f, 1.0f) * 255,
+        Clamp(aiCol->a, 0.0f, 1.0f) * 255
+    };
+}
+
+static bool r3d_process_assimp_mesh(R3D_Model* model, int meshIndex, const struct aiMesh* aiMesh, const struct aiScene* scene, bool upload)
+{
+    /* --- Cleanup macro in case we failed to process mesh --- */
+
+    #define CLEANUP(mesh) do {                      \
+        if ((mesh)->ebo != 0) {                     \
+            glDeleteBuffers(1, &(mesh)->ebo);       \
+        }                                           \
+        if ((mesh)->vbo != 0) {                     \
+            glDeleteBuffers(1, &(mesh)->vbo);       \
+        }                                           \
+        if ((mesh)->vao != 0) {                     \
+            glDeleteVertexArrays(1, &(mesh)->vao);  \
+        }                                           \
+        free((mesh)->indices);                      \
+        free((mesh)->vertices);                     \
+        (mesh)->indices = NULL;                     \
+        (mesh)->vertices = NULL;                    \
+        (mesh)->vertexCount = 0;                    \
+        (mesh)->indexCount = 0;                     \
+    } while(0)
+
+    /* --- Validate input parameters --- */
+
+    if (!aiMesh || !model) {
+        TraceLog(LOG_ERROR, "R3D: Invalid parameters for process_assimp_mesh");
+        return false;
+    }
+
+    R3D_Mesh* mesh = &model->meshes[meshIndex];
+
+    if (!mesh) {
+        TraceLog(LOG_ERROR, "R3D: Invalid mesh for process_assimp_mesh");
+        return false;
+    }
+
+    /* --- Validate mesh data presence --- */
+
+    if (aiMesh->mNumVertices == 0 || aiMesh->mNumFaces == 0) {
+        TraceLog(LOG_ERROR, "R3D: Empty mesh detected");
+        return false;
+    }
+
+    /* --- Initialize mesh metadata --- */
+
+    model->meshMaterials[meshIndex] = aiMesh->mMaterialIndex;
+    mesh->vertexCount = aiMesh->mNumVertices;
+    mesh->indexCount = 3 * aiMesh->mNumFaces;
+
+    /* --- Allocate vertex and index buffers --- */
+
+    mesh->vertices = (R3D_Vertex*)malloc(mesh->vertexCount * sizeof(R3D_Vertex));
+    if (!mesh->vertices) {
+        TraceLog(LOG_ERROR, "R3D: Unable to allocate memory for vertices");
+        return false;
+    }
+
+    mesh->indices = (unsigned int*)malloc(mesh->indexCount * sizeof(unsigned int));
+    if (!mesh->indices) {
+        TraceLog(LOG_ERROR, "R3D: Unable to allocate memory for indices");
+        return false;
+    }
+
+    /* --- Process vertex attributes --- */
+
+    for (size_t i = 0; i < mesh->vertexCount; i++) {
+        R3D_Vertex* vertex = &mesh->vertices[i];
+
+        vertex->position = r3d_vec3_from_ai_vec3(&aiMesh->mVertices[i]);
+
+        if (aiMesh->mTextureCoords[0] && aiMesh->mNumUVComponents[0] >= 2) {
+            vertex->texcoord = r3d_vec2_from_ai_vec3(&aiMesh->mTextureCoords[0][i]);
+        }
+        else {
+            vertex->texcoord = (Vector2) { 0 };
+        }
+
+        if (aiMesh->mNormals) {
+            vertex->normal = r3d_vec3_from_ai_vec3(&aiMesh->mNormals[i]);
+        }
+        else {
+            vertex->normal = (Vector3) { 0, 0, 1 };
+        }
+
+        if (aiMesh->mNormals && aiMesh->mTangents && aiMesh->mBitangents) {
+            vertex->tangent.x = aiMesh->mTangents[i].x;
+            vertex->tangent.y = aiMesh->mTangents[i].y;
+            vertex->tangent.z = aiMesh->mTangents[i].z;
+
+            Vector3 normal = r3d_vec3_from_ai_vec3(&aiMesh->mNormals[i]);
+            Vector3 tangent = r3d_vec3_from_ai_vec3(&aiMesh->mTangents[i]);
+            Vector3 bitangent = r3d_vec3_from_ai_vec3(&aiMesh->mBitangents[i]);
+
+            Vector3 reconstructedBitangent = Vector3CrossProduct(normal, tangent);
+            vertex->tangent.w = (Vector3DotProduct(reconstructedBitangent, bitangent) > 0.0f) ? 1.0f : -1.0f;
+        }
+        else {
+            vertex->tangent = (Vector4) { 1.0f, 0.0f, 0.0f, 1.0f };
+        }
+
+        if (aiMesh->mColors[0]) {
+            vertex->color.x = aiMesh->mColors[0][i].r;
+            vertex->color.y = aiMesh->mColors[0][i].g;
+            vertex->color.z = aiMesh->mColors[0][i].b;
+            vertex->color.w = aiMesh->mColors[0][i].a;
+        }
+        else {
+            vertex->color = (Vector4) { 1.0f, 1.0f, 1.0f, 1.0f };
+        }
+    }
+
+    /* --- Process indices and validate faces --- */
+
+    size_t indexOffset = 0;
+    for (size_t i = 0; i < aiMesh->mNumFaces; i++) {
+        const struct aiFace* face = &aiMesh->mFaces[i];
+
+        if (face->mNumIndices != 3) {
+            TraceLog(LOG_ERROR, "R3D: Non-triangular face detected (indices: %u)", face->mNumIndices);
+            CLEANUP(mesh);
+            return false;
+        }
+
+        for (unsigned int j = 0; j < 3; j++) {
+            if (face->mIndices[j] >= aiMesh->mNumVertices) {
+                TraceLog(LOG_ERROR, "R3D: Invalid vertex index (%u >= %u)", face->mIndices[j], aiMesh->mNumVertices);
+                CLEANUP(mesh);
+                return false;
+            }
+        }
+
+        mesh->indices[indexOffset++] = face->mIndices[0];
+        mesh->indices[indexOffset++] = face->mIndices[1];
+        mesh->indices[indexOffset++] = face->mIndices[2];
+    }
+
+    /* --- Final validation: index count consistency --- */
+
+    if (indexOffset != mesh->indexCount) {
+        TraceLog(LOG_ERROR, "R3D: Inconsistency in the number of indices (%zu != %zu)", indexOffset, mesh->indexCount);
+        CLEANUP(mesh);
+        return false;
+    }
+
+    /* --- Upload optionally mesh to GPU --- */
+
+    if (upload) {
+        if (!R3D_UploadMesh(mesh, false)) {
+            CLEANUP(mesh);
+            return false;
+        }
+    }
+
+    return true;
+
+#undef CLEANUP
+}
+
+static Image r3d_load_assimp_image(
+    const struct aiScene* scene, const struct aiMaterial* aiMat,
+    enum aiTextureType textureType, unsigned int index,
+    const char* basePath, bool* isAllocated)
+{
+    assert(isAllocated != NULL);
+
+    Image image = { 0 };
+    struct aiString texPath;
+
+    *isAllocated = false;
+
+    /* --- Try to retrieve the texture path --- */
+
+    if (aiGetMaterialTexture(aiMat, textureType, index, &texPath, NULL, NULL, NULL, NULL, NULL, NULL) != AI_SUCCESS) {
+        return image; // No texture of this type
+    }
+
+    /* --- Handle embedded texture (starts with '*') --- */
+
+    if (texPath.data[0] == '*')
+    {
+        int textureIndex = atoi(&texPath.data[1]);
+
+        /* --- Validate embedded texture index --- */
+
+        if (textureIndex < 0 || textureIndex >= (int)scene->mNumTextures) {
+            return image;
+        }
+
+        const struct aiTexture* aiTex = scene->mTextures[textureIndex];
+
+        /* --- Handle compressed embedded texture --- */
+
+        if (aiTex->mHeight == 0) {
+            image = LoadImageFromMemory(
+                aiTex->achFormatHint, (const unsigned char*)aiTex->pcData, aiTex->mWidth
+            );
+            *isAllocated = true;
+        }
+
+        /* --- Handle uncompressed (raw RGBA) embedded texture --- */
+
+        else {
+            image.width = aiTex->mWidth;
+            image.height = aiTex->mHeight;
+            image.format = RL_PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
+            // NOTE: No need to copy the data here, the image will be immediately
+            //       uploaded to the GPU without being retained afterward
+            image.data = (unsigned char*)aiTex->pcData;
+        }
+    }
+
+    /* --- Handle external texture from file --- */
+
+    else {
+        if (basePath == NULL) {
+            TraceLog(LOG_ERROR,
+                "R3D: You are trying to load a model from memory that includes external textures;"
+                "The model will be invalid"
+            );
+            return image;
+        }
+        image = LoadImage(TextFormat("%s%s", basePath, texPath.data));
+        *isAllocated = true;
+    }
+
+    return image;
+}
+
+static Texture2D r3d_load_assimp_texture(
+    const struct aiScene* scene, const struct aiMaterial* aiMat,
+    enum aiTextureType textureType, unsigned int index,
+    const char* basePath, bool genMipmaps)
+{
+    Texture2D texture = { 0 };
+
+    bool imgIsAllocted = false;
+    Image image = r3d_load_assimp_image(scene, aiMat, textureType, index, basePath, &imgIsAllocted);
+
+    if (image.data == NULL) {
+        return texture;
+    }
+
+    texture = LoadTextureFromImage(image);
+
+    if (genMipmaps) {
+        GenTextureMipmaps(&texture);
+    }
+
+    if (imgIsAllocted) {
+        UnloadImage(image);
+    }
+
+    return texture;
+}
+
+static Texture2D r3d_load_assimp_orm_texture(const struct aiScene* scene, const struct aiMaterial* aiMat, const char* basePath, bool genMipmaps)
+{
+    Texture2D texture = { 0 };
+
+    /* --- Check if combined ORM texture exists --- */
+
+    struct aiString texPath;
+    if (aiGetMaterialTexture(aiMat, aiTextureType_UNKNOWN, 0, &texPath, NULL, NULL, NULL, NULL, NULL, NULL) == AI_SUCCESS) {
+        if (strstr(texPath.data, "orm") || strstr(texPath.data, "ORM"))
+        {
+            bool ormImageIsAllocated = false;
+            Image ormImage = r3d_load_assimp_image(scene, aiMat, aiTextureType_UNKNOWN, 0, basePath, &ormImageIsAllocated);
+
+            Texture2D ormTexture = LoadTextureFromImage(ormImage);
+
+            if (genMipmaps) {
+                GenTextureMipmaps(&ormTexture);
+            }
+
+            if (ormImageIsAllocated) {
+                UnloadImage(ormImage);
+            }
+
+            return ormTexture;
+        }
+    }
+
+    /* --- Load each ORM texture and generate the combined texture --- */
+
+    bool oImageIsAllocated = false;
+    bool rImageIsAllocated = false;
+    bool mImageIsAllocated = false;
+
+    Image oImage = r3d_load_assimp_image(scene, aiMat, aiTextureType_AMBIENT_OCCLUSION, 0, basePath, &oImageIsAllocated);
+    Image rImage = r3d_load_assimp_image(scene, aiMat, aiTextureType_DIFFUSE_ROUGHNESS, 0, basePath, &rImageIsAllocated);
+    Image mImage = r3d_load_assimp_image(scene, aiMat, aiTextureType_METALNESS, 0, basePath, &mImageIsAllocated);
+
+    if (!rImage.data) {
+        rImage = r3d_load_assimp_image(scene, aiMat, aiTextureType_SHININESS, 0, basePath, &rImageIsAllocated);
+        if (rImage.data) ImageColorInvert(&rImage);
+    }
+
+    if (!oImage.data && !rImage.data && !mImage.data) {
+        return texture; // No ORM texture available
+    }
+
+    Image ormImage = { 0 };
+    ormImage.data = malloc(rImage.width * rImage.height * sizeof(uint16_t));
+    ormImage.format = RL_PIXELFORMAT_UNCOMPRESSED_R5G6B5;
+    ormImage.width = rImage.width;
+    ormImage.height = rImage.height;
+
+    size_t szOrmImage = ormImage.width * ormImage.height;
+
+    for (size_t i = 0; i < szOrmImage; i++) {
+        unsigned char r = oImage.data ? GetPixelColor(oImage.data + i, RL_PIXELFORMAT_UNCOMPRESSED_R5G6B5).r : 255;
+        unsigned char g = rImage.data ? GetPixelColor(rImage.data + i, RL_PIXELFORMAT_UNCOMPRESSED_R5G6B5).g : 255;
+        unsigned char b = mImage.data ? GetPixelColor(mImage.data + i, RL_PIXELFORMAT_UNCOMPRESSED_R5G6B5).b : 255;
+        ((uint16_t*)ormImage.data)[i] = ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3);
+    }
+
+    if (mImageIsAllocated) UnloadImage(mImage);
+    if (rImageIsAllocated) UnloadImage(rImage);
+    if (oImageIsAllocated) UnloadImage(oImage);
+
+    Texture2D ormTexture = LoadTextureFromImage(ormImage);
+    if (genMipmaps) {
+        GenTextureMipmaps(&ormTexture);
+    }
+
+    UnloadImage(ormImage);
+
+    return ormTexture;
+}
+
+bool process_assimp_materials(const struct aiScene* scene, R3D_Material** materials, int* materialCount, const char* modelPath)
+{
+    /* --- Allocate material array --- */
+
+    *materialCount = scene->mNumMaterials;
+    *materials = malloc(*materialCount * sizeof(R3D_Material));
+    if (!*materials) {
+        TraceLog(LOG_ERROR, "R3D: Unable to allocate memory for materials");
+        return false;
+    }
+
+    const char* basePath = NULL;
+
+    if (modelPath != NULL) {
+        basePath = GetDirectoryPath(modelPath);
+    }
+
+    /* --- Process each material --- */
+
+    for (size_t i = 0; i < *materialCount; i++) {
+        const struct aiMaterial* aiMat = scene->mMaterials[i];
+        R3D_Material* mat = &(*materials)[i];
+
+        /* --- Initialize material defaults --- */
+
+        *mat = R3D_GetDefaultMaterial();
+
+        /* --- Load albedo color and map --- */
+
+        struct aiColor4D color;
+        if (aiGetMaterialColor(aiMat, AI_MATKEY_COLOR_DIFFUSE, &color) == AI_SUCCESS) {
+            mat->albedo.color = r3d_color_from_ai_color(&color);
+        }
+
+        mat->albedo.texture = r3d_load_assimp_texture(scene, aiMat, aiTextureType_DIFFUSE, 0, basePath, true);
+
+        if (mat->albedo.texture.id == 0) {
+            mat->albedo.texture = r3d_load_assimp_texture(scene, aiMat, aiTextureType_BASE_COLOR, 0, basePath, true);
+        }
+
+        if (mat->albedo.texture.id == 0) {
+            mat->albedo.texture = R3D_GetWhiteTexture();
+        }
+
+        /* --- Load normal map --- */
+
+        mat->normal.texture = r3d_load_assimp_texture(scene, aiMat, aiTextureType_NORMALS, 0, basePath, true);
+
+        if (mat->normal.texture.id == 0) {
+            mat->normal.texture = R3D_GetNormalTexture();
+        }
+
+        //mat->normal.scale = 1.0f;
+
+        /* --- Load PBR factors (roughness, metalness) --- */
+
+        float value;
+        if (aiGetMaterialFloat(aiMat, AI_MATKEY_ROUGHNESS_FACTOR, &value) == AI_SUCCESS) {
+            mat->orm.roughness = value;
+        }
+        if (aiGetMaterialFloat(aiMat, AI_MATKEY_METALLIC_FACTOR, &value) == AI_SUCCESS) {
+            mat->orm.metalness = value;
+        }
+
+        /* --- Load ORM map --- */
+
+        mat->orm.texture = r3d_load_assimp_orm_texture(scene, aiMat, basePath, true);
+
+        if (mat->orm.texture.id == 0) {
+            mat->orm.texture = R3D_GetWhiteTexture();
+        }
+
+        /* --- Handle cull mode from two-sided property --- */
+
+        int twoSided = 0;
+        if (aiGetMaterialInteger(aiMat, AI_MATKEY_TWOSIDED, &twoSided) == AI_SUCCESS) {
+            if (twoSided) {
+                mat->blendMode = R3D_BLEND_ALPHA;
+                mat->cullMode = R3D_CULL_NONE;
+            }
+        }
+
+        /* --- Adjust blend mode based on alpha --- */
+
+        if (mat->albedo.color.a < 1.0f) {
+            mat->blendMode = R3D_BLEND_ALPHA;
+            mat->cullMode = R3D_CULL_NONE;
+        }
+
+        /* --- Handle blend function override --- */
+
+        int blendFunc = aiBlendMode_Default;
+        if (aiGetMaterialInteger(aiMat, AI_MATKEY_BLEND_FUNC, &blendFunc) == AI_SUCCESS) {
+            switch (blendFunc) {
+            case aiBlendMode_Additive:
+                mat->blendMode = R3D_BLEND_ADDITIVE;
+                mat->cullMode = R3D_CULL_NONE;
+                break;
+            case aiBlendMode_Default:
+            default:
+                mat->blendMode = R3D_BLEND_ALPHA;
+                mat->cullMode = R3D_CULL_NONE;
+                break;
+            }
+        }
+    }
+
+    return true;
+}
+
+/* === Public Model Functions === */
+
+#define R3D_ASSIMP_FLAGS                \
+    aiProcess_Triangulate           |   \
+    aiProcess_FlipUVs               |   \
+    aiProcess_CalcTangentSpace      |   \
+    aiProcess_GenNormals            |   \
+    aiProcess_JoinIdenticalVertices |   \
+    aiProcess_SortByPType
 
 R3D_Model R3D_LoadModel(const char* filePath, bool upload)
 {
+    R3D_Model model = { 0 };
 
+    /* --- Import scene using Assimp --- */
+
+    const struct aiScene* scene = aiImportFile(filePath, R3D_ASSIMP_FLAGS);
+
+    if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
+        TraceLog(LOG_ERROR, "R3D: Assimp error; %s", aiGetErrorString());
+        return model;
+    }
+
+    /* --- Process materials --- */
+
+    if (!process_assimp_materials(scene, &model.materials, &model.materialCount, filePath)) {
+        TraceLog(LOG_ERROR, "R3D: Unable to load materials; The model will be invalid");
+        return model;
+    }
+
+    /* --- Initialize model and allocate meshes --- */
+
+    model.meshCount = scene->mNumMeshes;
+    model.meshes = malloc(model.meshCount * sizeof(R3D_Mesh));
+
+    if (model.meshes == NULL) {
+        TraceLog(LOG_ERROR, "R3D: Unable to allocate memory for meshes; The model will be invalid");
+        R3D_UnloadModel(&model, true);
+        aiReleaseImport(scene);
+        return model;
+    }
+
+    /* --- Process all meshes --- */
+
+    for (uint32_t i = 0; i < model.meshCount; i++) {
+        if (!r3d_process_assimp_mesh(&model, i, scene->mMeshes[i], scene, upload)) {
+            TraceLog(LOG_ERROR, "R3D: Unable to load mesh [%d]; The model will be invalid", i);
+            R3D_UnloadModel(&model, true);
+            aiReleaseImport(scene);
+            return model;
+        }
+    }
+
+    /* --- Calculate model bounding box --- */
+
+    R3D_UpdateModelBoundingBox(&model, true);
+
+    /* --- Clean up and return the model --- */
+
+    aiReleaseImport(scene);
+
+    return model;
 }
 
-R3D_Model R3D_LoadModelFromMemory(const void* data, unsigned int size, bool upload)
+R3D_Model R3D_LoadModelFromMemory(const char* fileType, const void* data, unsigned int size, bool upload)
 {
+    R3D_Model model = { 0 };
 
+    /* --- Import scene using Assimp --- */
+
+    if (fileType != NULL && fileType[0] == '.') {
+        // pHint takes the format without the point, unlike raylib
+        fileType++;
+    }
+
+    const struct aiScene* scene = aiImportFileFromMemory(data, size, R3D_ASSIMP_FLAGS, fileType);
+
+    if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
+        TraceLog(LOG_ERROR, "R3D: Assimp error; %s", aiGetErrorString());
+        return model;
+    }
+
+    /* --- Process materials --- */
+
+    if (!process_assimp_materials(scene, &model.materials, &model.materialCount, NULL)) {
+        TraceLog(LOG_ERROR, "R3D: Unable to load materials; The model will be invalid");
+        return model;
+    }
+
+    /* --- Initialize model and allocate meshes --- */
+
+    model.meshCount = scene->mNumMeshes;
+    model.meshes = malloc(model.meshCount * sizeof(R3D_Mesh));
+
+    if (model.meshes == NULL) {
+        TraceLog(LOG_ERROR, "R3D: Unable to allocate memory for meshes; The model will be invalid");
+        R3D_UnloadModel(&model, true);
+        aiReleaseImport(scene);
+        return model;
+    }
+
+    /* --- Process all meshes --- */
+
+    for (uint32_t i = 0; i < model.meshCount; i++) {
+        if (!r3d_process_assimp_mesh(&model, i, scene->mMeshes[i], scene, upload)) {
+            TraceLog(LOG_ERROR, "R3D: Unable to load mesh [%d]; The model will be invalid", i);
+            R3D_UnloadModel(&model, true);
+            aiReleaseImport(scene);
+            return model;
+        }
+    }
+
+    /* --- Calculate model bounding box --- */
+
+    R3D_UpdateModelBoundingBox(&model, true);
+
+    /* --- Clean up and return the model --- */
+
+    aiReleaseImport(scene);
+
+    return model;
 }
 
 R3D_Model R3D_LoadModelFromMesh(const R3D_Mesh* mesh)
 {
+    R3D_Model model = { 0 };
 
+    if (!mesh) {
+        return model;
+    }
+
+    model.meshes = malloc(sizeof(R3D_Mesh));
+    model.meshes[0] = *mesh;
+    model.meshCount = 1;
+
+    model.materials = malloc(sizeof(R3D_Material));
+    model.materials[0] = R3D_GetDefaultMaterial();
+    model.materialCount = 1;
+
+    model.meshMaterials = malloc(sizeof(int));
+    model.meshMaterials[0] = 0;
+
+    R3D_UpdateModelBoundingBox(&model, false);
+
+    return model;
+}
+
+void R3D_UnloadModel(const R3D_Model* model, bool unloadMaterials)
+{
+    for (int i = 0; i < model->meshCount; i++) {
+        R3D_UnloadMesh(&model->meshes[i]);
+    }
+
+    if (unloadMaterials) {
+        for (int i = 0; i < model->materialCount; i++) {
+            R3D_UnloadMaterial(&model->materials[i]);
+        }
+    }
+
+    free(model->meshMaterials);
+    free(model->materials);
+    free(model->meshes);
+}
+
+void R3D_UpdateModelBoundingBox(R3D_Model* model, bool updateMeshBoundingBoxes)
+{
+    if (!model || !model->meshes) {
+        return;
+    }
+
+    Vector3 minVertex = { +FLT_MAX, +FLT_MAX, +FLT_MAX };
+    Vector3 maxVertex = { -FLT_MAX, -FLT_MAX, -FLT_MAX };
+
+    for (uint32_t i = 0; i < model->meshCount; i++) {
+        R3D_Mesh* mesh = &model->meshes[i];
+        if (updateMeshBoundingBoxes) {
+            R3D_UpdateMeshBoundingBox(mesh);
+        }
+        minVertex = Vector3Min(minVertex, mesh->aabb.min);
+        maxVertex = Vector3Max(maxVertex, mesh->aabb.max);
+    }
+
+    model->aabb.min = minVertex;
+    model->aabb.max = maxVertex;
 }

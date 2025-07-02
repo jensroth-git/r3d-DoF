@@ -104,6 +104,17 @@ bool r3d_check_texture_format_support(unsigned int format)
     return (supported == GL_TRUE);
 }
 
+bool r3d_is_default_texture(unsigned int id)
+{
+    for (int i = 0; i < sizeof(R3D.texture) / sizeof(unsigned int); i++) {
+        if (id == ((unsigned int*)(&R3D.texture))[i]) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 
 /* === Main loading functions === */
 
