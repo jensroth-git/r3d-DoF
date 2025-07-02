@@ -66,19 +66,7 @@ typedef unsigned int R3D_Flags;
 #define R3D_FLAG_STENCIL_TEST   (1 << 3)    /*< Performs a stencil test on each rendering pass affecting geometry */
 #define R3D_FLAG_DEPTH_PREPASS  (1 << 4)    /*< Performs a depth pre-pass before forward rendering, improving desktop GPU performance but unnecessary on mobile */
 #define R3D_FLAG_8_BIT_NORMALS  (1 << 5)    /*< Use 8-bit precision for the normals buffer (deferred); default is 16-bit float */
-
-/**
- * @brief Defines the rendering mode used in the pipeline.
- *
- * Each mode has its own advantages depending on the hardware and rendering needs.
- */
-typedef enum R3D_RenderMode {
-    R3D_RENDER_AUTO_DETECT = 0,         /**< Automatically determines the rendering mode based on the material,
-                                             for example, by analyzing the albedo texture formats or the alpha 
-                                             value of albedo colors. This is the default mode. */
-    R3D_RENDER_DEFERRED = 1,            ///< Optimized for desktop GPUs, but does not support transparency.
-    R3D_RENDER_FORWARD = 2,             ///< Works well on tile-based renderers, supports transparency.
-} R3D_RenderMode;
+#define R3D_FLAG_FORCE_FORWARD  (1 << 6)    /*< Used to force forward rendering for opaque objects, useful for tile-based devices */
 
 /**
  * @brief Blend modes for rendering.
@@ -242,14 +230,13 @@ typedef struct R3D_Material {
         float metalness;
     } orm;
 
-    R3D_BlendMode blendMode;
-    R3D_CullMode cullMode;
+    R3D_BlendMode blendMode;    ///< Indique le blend mode à utilisé pour le material
+    R3D_CullMode cullMode;      ///< Indique le cull mode à utilisé pour le material
 
-    R3D_ShadowCastMode shadowCastMode;
-    R3D_BillboardMode billboardMode;
+    R3D_ShadowCastMode shadowCastMode;  ///< Indique le mode de rendu de l'objet dans les shadow maps
+    R3D_BillboardMode billboardMode;    ///< Indique le mode billboarding de l'objet
 
-    int reserved0;
-    int reserved1;
+    float alphaScissorThreshold;    ///< Seuil alpha en dessous duquel les fragments de la geometrie doivent etre disacarded
 
 } R3D_Material;
 
@@ -298,7 +285,7 @@ typedef struct R3D_Skybox {
  * potentially causing undesired visual artifacts for semi-transparent sprites.
  */
 typedef struct R3D_Sprite {
-    Material material;      ///< The material used for rendering the sprite, including its texture and shading properties.
+    R3D_Material material;  ///< The material used for rendering the sprite, including its texture and shading properties.
     float currentFrame;     ///< The current animation frame, represented as a floating-point value to allow smooth interpolation.
     Vector2 frameSize;      ///< The size of a single animation frame, in texture coordinates (width and height).
     int xFrameCount;        ///< The number of frames along the horizontal (X) axis of the texture.
@@ -511,70 +498,6 @@ R3DAPI void R3D_SetSceneBounds(BoundingBox sceneBounds);
 
 
 // --------------------------------------------
-// CORE: Rendering Config Functions
-// --------------------------------------------
-
-/**
- * @brief Applies a render mode (Deferred or Forward).
- * 
- * This function sets the current render mode to either deferred or forward. It can 
- * be called at any time, including between `R3D_Begin` and `R3D_End`. The set mode 
- * will apply to all subsequent draw calls.
- * 
- * @param mode The render mode to apply.
- */
-R3DAPI void R3D_ApplyRenderMode(R3D_RenderMode mode);
-
-/**
- * @brief Sets the active blend mode for rendering.
- *
- * This function sets the current blend mode, which determines how the colors of
- * the current object are blended with the colors of the background or other objects
- * in the scene. It can be called at any time, including between `R3D_Begin` and `R3D_End`.
- * The set blend mode will apply to all subsequent draw calls.
- * 
- * @note The blend mode is applied only if you are in forward rendering mode or auto-detect mode.
- *
- * @param mode The blend mode to apply.
- */
-R3DAPI void R3D_ApplyBlendMode(R3D_BlendMode mode);
-
-/**
- * @brief Sets the shadow casting mode for meshes.
- *
- * This function controls how meshes cast shadows in the scene. It can be
- * called at any time, including between `R3D_Begin` and `R3D_End`. The selected mode
- * will apply to all subsequent draw calls.
- *
- * @param mode The shadow casting mode to apply.
- */
-R3DAPI void R3D_ApplyShadowCastMode(R3D_ShadowCastMode mode);
-
-/**
- * @brief Applies a billboard mode to sprites or meshes.
- *
- * This function sets the current billboard mode, determining how objects orient
- * themselves relative to the camera. It can be called at any time, including
- * between `R3D_Begin` and `R3D_End`. The set mode will apply to all subsequent
- * draw calls.
- *
- * @param mode The billboard mode to apply.
- */
-R3DAPI void R3D_ApplyBillboardMode(R3D_BillboardMode mode);
-
-/**
- * @brief Sets an alpha threshold for forward rendering.
- *
- * This function defines an alpha scissor threshold, determining the minimum alpha
- * value required for a fragment to be rendered. Fragments with an alpha value below
- * the threshold will be discarded.
- *
- * @param threshold The alpha value threshold (usually from 0.0 to 1.0).
- */
-R3DAPI void R3D_ApplyAlphaScissorThreshold(float threshold);
-
-
-// --------------------------------------------
 // CORE: Drawing Functions
 // --------------------------------------------
 
@@ -602,11 +525,11 @@ R3DAPI void R3D_End(void);
  * 
  * This function renders a mesh with the provided material and transformation matrix.
  * 
- * @param mesh The mesh to render.
- * @param material The material to apply to the mesh.
+ * @param mesh A pointer to the mesh to render.
+ * @param material A pointer to the material to apply to the mesh.
  * @param transform The transformation matrix to apply to the mesh.
  */
-R3DAPI void R3D_DrawMesh(Mesh mesh, Material material, Matrix transform);
+R3DAPI void R3D_DrawMesh(const R3D_Mesh* mesh, const R3D_Material* material, Matrix transform);
 
 /**
  * @brief Draws a mesh with instancing support.
@@ -614,12 +537,12 @@ R3DAPI void R3D_DrawMesh(Mesh mesh, Material material, Matrix transform);
  * This function renders a mesh multiple times with different transformation matrices 
  * for each instance.
  * 
- * @param mesh The mesh to render.
- * @param material The material to apply to the mesh.
+ * @param mesh A pointer to the mesh to render.
+ * @param material A pointer to the material to apply to the mesh.
  * @param instanceTransforms Array of transformation matrices for each instance.
  * @param instanceCount The number of instances to render.
  */
-R3DAPI void R3D_DrawMeshInstanced(Mesh mesh, Material material, Matrix* instanceTransforms, int instanceCount);
+R3DAPI void R3D_DrawMeshInstanced(const R3D_Mesh* mesh, const R3D_Material* material, const Matrix* instanceTransforms, int instanceCount);
 
 /**
  * @brief Draws a mesh with instancing support and different colors per instance.
@@ -627,13 +550,13 @@ R3DAPI void R3D_DrawMeshInstanced(Mesh mesh, Material material, Matrix* instance
  * This function renders a mesh multiple times with different transformation matrices 
  * and different colors for each instance.
  * 
- * @param mesh The mesh to render.
- * @param material The material to apply to the mesh.
+ * @param mesh A pointer to the mesh to render.
+ * @param material A pointer to the material to apply to the mesh.
  * @param instanceTransforms Array of transformation matrices for each instance.
  * @param instanceColors Array of colors for each instance.
  * @param instanceCount The number of instances to render.
  */
-R3DAPI void R3D_DrawMeshInstancedEx(Mesh mesh, Material material, Matrix* instanceTransforms, Color* instanceColors, int instanceCount);
+R3DAPI void R3D_DrawMeshInstancedEx(const R3D_Mesh* mesh, const R3D_Material* material, const Matrix* instanceTransforms, const Color* instanceColors, int instanceCount);
 
 /**
  * @brief Draws a mesh with instancing support, a global transformation, and different colors per instance.
@@ -643,8 +566,8 @@ R3DAPI void R3D_DrawMeshInstancedEx(Mesh mesh, Material material, Matrix* instan
  * Each instance can have its own position, rotation, scale, and color while sharing the same mesh
  * and material.
  *
- * @param mesh The mesh to render.
- * @param material The material to apply to the mesh.
+ * @param mesh A pointer to the mesh to render.
+ * @param material A pointer to the material to apply to the mesh.
  * @param transform The global transformation matrix applied to all instances.
  * @param instanceTransforms Pointer to an array of transformation matrices for each instance, allowing unique transformations.
  * @param transformsStride The stride (in bytes) between consecutive transformation matrices in the array.
@@ -652,9 +575,9 @@ R3DAPI void R3D_DrawMeshInstancedEx(Mesh mesh, Material material, Matrix* instan
  * @param colorsStride The stride (in bytes) between consecutive colors in the array.
  * @param instanceCount The number of instances to render.
  */
-R3DAPI void R3D_DrawMeshInstancedPro(Mesh mesh, Material material, Matrix transform,
-                                     Matrix* instanceTransforms, int transformsStride,
-                                     Color* instanceColors, int colorsStride,
+R3DAPI void R3D_DrawMeshInstancedPro(const R3D_Mesh* mesh, const R3D_Material* material, Matrix transform,
+                                     const Matrix* instanceTransforms, int transformsStride,
+                                     const Color* instanceColors, int colorsStride,
                                      int instanceCount);
 
 /**
@@ -662,11 +585,11 @@ R3DAPI void R3D_DrawMeshInstancedPro(Mesh mesh, Material material, Matrix transf
  * 
  * This function renders a model at the given position with the specified scale factor.
  * 
- * @param model The model to render.
+ * @param model A pointer to the model to render.
  * @param position The position to place the model at.
  * @param scale The scale factor to apply to the model.
  */
-R3DAPI void R3D_DrawModel(Model model, Vector3 position, float scale);
+R3DAPI void R3D_DrawModel(const R3D_Model* model, Vector3 position, float scale);
 
 /**
  * @brief Draws a model with advanced transformation options.
@@ -675,13 +598,25 @@ R3DAPI void R3D_DrawModel(Model model, Vector3 position, float scale);
  * angle, and scale. It provides more control over how the model is transformed before 
  * rendering.
  * 
- * @param model The model to render.
+ * @param model A pointer to the model to render.
  * @param position The position to place the model at.
  * @param rotationAxis The axis of rotation for the model.
  * @param rotationAngle The angle to rotate the model.
  * @param scale The scale factor to apply to the model.
  */
-R3DAPI void R3D_DrawModelEx(Model model, Vector3 position, Vector3 rotationAxis, float rotationAngle, Vector3 scale);
+R3DAPI void R3D_DrawModelEx(const R3D_Model* model, Vector3 position, Vector3 rotationAxis, float rotationAngle, Vector3 scale);
+
+/**
+ * @brief Draws a model using a transformation matrix.
+ * 
+ * This function renders a model using a custom transformation matrix, allowing full control 
+ * over the model's position, rotation, scale, and skew. It is intended for advanced rendering 
+ * scenarios where a single matrix defines the complete transformation.
+ * 
+ * @param model A pointer to the model to render.
+ * @param transform A transformation matrix that defines how to position, rotate, and scale the model.
+ */
+R3DAPI void R3D_DrawModelPro(const R3D_Model* model, Matrix transform);
 
 /**
  * @brief Draws a sprite at a specified position.
@@ -689,10 +624,10 @@ R3DAPI void R3D_DrawModelEx(Model model, Vector3 position, Vector3 rotationAxis,
  * This function renders a sprite in 3D space at the given position.
  * It supports negative scaling to flip the sprite.
  *
- * @param sprite The sprite to render.
+ * @param sprite A pointer to the sprite to render.
  * @param position The position to place the sprite at.
  */
-R3DAPI void R3D_DrawSprite(R3D_Sprite sprite, Vector3 position);
+R3DAPI void R3D_DrawSprite(const R3D_Sprite* sprite, Vector3 position);
 
 /**
  * @brief Draws a sprite with size and rotation options.
@@ -700,12 +635,12 @@ R3DAPI void R3D_DrawSprite(R3D_Sprite sprite, Vector3 position);
  * This function allows rendering a sprite with a specified size and rotation.
  * It supports negative size values for flipping the sprite.
  *
- * @param sprite The sprite to render.
+ * @param sprite A pointer to the sprite to render.
  * @param position The position to place the sprite at.
  * @param size The size of the sprite (negative values flip the sprite).
  * @param rotation The rotation angle in degrees.
  */
-R3DAPI void R3D_DrawSpriteEx(R3D_Sprite sprite, Vector3 position, Vector2 size, float rotation);
+R3DAPI void R3D_DrawSpriteEx(const R3D_Sprite* sprite, Vector3 position, Vector2 size, float rotation);
 
 /**
  * @brief Draws a sprite with full transformation control.
@@ -714,13 +649,13 @@ R3DAPI void R3D_DrawSpriteEx(R3D_Sprite sprite, Vector3 position, Vector2 size, 
  * customization of size, rotation axis, and rotation angle.
  * It supports all billboard modes, or can be drawn without billboarding.
  *
- * @param sprite The sprite to render.
+ * @param sprite A pointer to the sprite to render.
  * @param position The position to place the sprite at.
  * @param size The size of the sprite (negative values flip the sprite).
  * @param rotationAxis The axis around which the sprite rotates.
  * @param rotationAngle The angle to rotate the sprite around the given axis.
  */
-R3DAPI void R3D_DrawSpritePro(R3D_Sprite sprite, Vector3 position, Vector2 size, Vector3 rotationAxis, float rotationAngle);
+R3DAPI void R3D_DrawSpritePro(const R3D_Sprite* sprite, Vector3 position, Vector2 size, Vector3 rotationAxis, float rotationAngle);
 
 /**
  * @brief Renders the current state of a CPU-based particle system.
@@ -732,10 +667,10 @@ R3DAPI void R3D_DrawSpritePro(R3D_Sprite sprite, Vector3 position, Vector2 size,
  * @param system A pointer to the `R3D_ParticleSystem` to be rendered.
  *               The particle system must be properly initialized and updated
  *               to the desired state before calling this function.
- * @param mesh The mesh used to represent each particle.
- * @param material The material applied to the particle mesh.
+ * @param mesh A pointer to the mesh used to represent each particle.
+ * @param material A pointer to the material applied to the particle mesh.
  */
-R3DAPI void R3D_DrawParticleSystem(const R3D_ParticleSystem* system, Mesh mesh, Material material);
+R3DAPI void R3D_DrawParticleSystem(const R3D_ParticleSystem* system, const R3D_Mesh* mesh, const R3D_Material* material);
 
 /**
  * @brief Renders the current state of a CPU-based particle system with a global transformation.
@@ -747,11 +682,11 @@ R3DAPI void R3D_DrawParticleSystem(const R3D_ParticleSystem* system, Mesh mesh, 
  * @param system A pointer to the `R3D_ParticleSystem` to be rendered.
  *               The particle system must be properly initialized and updated
  *               to the desired state before calling this function.
- * @param mesh The mesh used to represent each particle.
- * @param material The material applied to the particle mesh.
+ * @param mesh A pointer to the mesh used to represent each particle.
+ * @param material A pointer to the material applied to the particle mesh.
  * @param transform A transformation matrix applied to all particles.
  */
-R3DAPI void R3D_DrawParticleSystemEx(const R3D_ParticleSystem* system, Mesh mesh, Material material, Matrix transform);
+R3DAPI void R3D_DrawParticleSystemEx(const R3D_ParticleSystem* system, const R3D_Mesh* mesh, const R3D_Material* material, Matrix transform);
 
 
 
@@ -1894,14 +1829,14 @@ R3DAPI R3D_Sprite R3D_LoadSprite(Texture2D texture, int xFrameCount, int yFrameC
  * @brief Unload a sprite and free associated resources.
  *
  * This function releases the resources allocated for a `R3D_Sprite`.
- * It should be called when the sprite is no longer needed to avoid memory leaks.
+ * It should be called when the sprite is no longer needed.
  *
- * @warning This function does not free the texture associated with the sprite.
- * The caller is responsible for managing the texture's lifetime.
+ * @warning This function only unloads non-default textures from the sprite's material,
+ * so make sure these textures are not shared with other material instances elsewhere.
  *
- * @param sprite The `R3D_Sprite` to be unloaded.
+ * @param sprite A pointer to the `R3D_Sprite` to be unloaded.
  */
-R3DAPI void R3D_UnloadSprite(R3D_Sprite sprite);
+R3DAPI void R3D_UnloadSprite(const R3D_Sprite* sprite);
 
 /**
  * @brief Updates the animation of a sprite.

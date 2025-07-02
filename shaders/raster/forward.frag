@@ -68,9 +68,7 @@ in vec4 vPosLightSpace[NUM_LIGHTS];
 uniform sampler2D uTexAlbedo;
 uniform sampler2D uTexEmission;
 uniform sampler2D uTexNormal;
-uniform sampler2D uTexOcclusion;
-uniform sampler2D uTexRoughness;
-uniform sampler2D uTexMetalness;
+uniform sampler2D uTexORM;
 
 uniform sampler2D uTexNoise;   //< Noise texture (used for soft shadows)
 
@@ -306,9 +304,11 @@ void main()
 
     /* Sample ORM texture and extract values */
 
-    float occlusion = uValOcclusion * texture(uTexOcclusion, vTexCoord).r;
-    float roughness = uValRoughness * texture(uTexRoughness, vTexCoord).g;
-    float metalness = uValMetalness * texture(uTexMetalness, vTexCoord).b;
+    vec3 orm = texture(uTexORM, vTexCoord);
+
+    float occlusion = uValOcclusion * orm.x;
+    float roughness = uValRoughness * orm.y;
+    float metalness = uValMetalness * orm.z;
 
     /* Compute F0 (reflectance at normal incidence) based on the metallic factor */
 

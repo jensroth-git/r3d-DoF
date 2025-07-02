@@ -1939,6 +1939,7 @@ R3D_Material R3D_GetDefaultMaterial(void)
     material.cullMode = R3D_CULL_BACK;
     material.shadowCastMode = R3D_SHADOW_CAST_FRONT_FACES;
     material.billboardMode = R3D_BILLBOARD_DISABLED;
+    material.alphaScissorThreshold = 0.01f;
 
     return material;
 }

@@ -2,7 +2,7 @@
 
 #include <raymath.h>
 
-void r3d_billboard_mode_front(Matrix* model, const Matrix* invView)
+void r3d_transform_to_billboard_front(Matrix* model, const Matrix* invView)
 {
     // Extract original scales
     float scaleX = Vector3Length((Vector3) { model->m0, model->m1, model->m2 });
@@ -23,7 +23,7 @@ void r3d_billboard_mode_front(Matrix* model, const Matrix* invView)
     model->m10 = invView->m10 * scaleZ;
 }
 
-void r3d_billboard_mode_y(Matrix* model, const Matrix* invView)
+void r3d_transform_to_billboard_y(Matrix* model, const Matrix* invView)
 {
     // Extract position
     Vector3 position = { model->m12, model->m13, model->m14 };

@@ -94,9 +94,7 @@ typedef struct {
     r3d_shader_uniform_sampler2D_t uTexAlbedo;
     r3d_shader_uniform_sampler2D_t uTexNormal;
     r3d_shader_uniform_sampler2D_t uTexEmission;
-    r3d_shader_uniform_sampler2D_t uTexOcclusion;
-    r3d_shader_uniform_sampler2D_t uTexRoughness;
-    r3d_shader_uniform_sampler2D_t uTexMetalness;
+    r3d_shader_uniform_sampler2D_t uTexORM;
     r3d_shader_uniform_float_t uValEmission;
     r3d_shader_uniform_float_t uValOcclusion;
     r3d_shader_uniform_float_t uValRoughness;
@@ -116,9 +114,7 @@ typedef struct {
     r3d_shader_uniform_sampler2D_t uTexAlbedo;
     r3d_shader_uniform_sampler2D_t uTexNormal;
     r3d_shader_uniform_sampler2D_t uTexEmission;
-    r3d_shader_uniform_sampler2D_t uTexOcclusion;
-    r3d_shader_uniform_sampler2D_t uTexRoughness;
-    r3d_shader_uniform_sampler2D_t uTexMetalness;
+    r3d_shader_uniform_sampler2D_t uTexORM;
     r3d_shader_uniform_float_t uValEmission;
     r3d_shader_uniform_float_t uValOcclusion;
     r3d_shader_uniform_float_t uValRoughness;
@@ -210,9 +206,7 @@ typedef struct {
     r3d_shader_uniform_sampler2D_t uTexAlbedo;
     r3d_shader_uniform_sampler2D_t uTexEmission;
     r3d_shader_uniform_sampler2D_t uTexNormal;
-    r3d_shader_uniform_sampler2D_t uTexOcclusion;
-    r3d_shader_uniform_sampler2D_t uTexRoughness;
-    r3d_shader_uniform_sampler2D_t uTexMetalness;
+    r3d_shader_uniform_sampler2D_t uTexORM;
     r3d_shader_uniform_sampler2D_t uTexNoise;
     r3d_shader_uniform_float_t uValEmission;
     r3d_shader_uniform_float_t uValOcclusion;
@@ -263,9 +257,7 @@ typedef struct {
     r3d_shader_uniform_sampler2D_t uTexAlbedo;
     r3d_shader_uniform_sampler2D_t uTexEmission;
     r3d_shader_uniform_sampler2D_t uTexNormal;
-    r3d_shader_uniform_sampler2D_t uTexOcclusion;
-    r3d_shader_uniform_sampler2D_t uTexRoughness;
-    r3d_shader_uniform_sampler2D_t uTexMetalness;
+    r3d_shader_uniform_sampler2D_t uTexORM;
     r3d_shader_uniform_sampler2D_t uTexNoise;
     r3d_shader_uniform_float_t uValEmission;
     r3d_shader_uniform_float_t uValOcclusion;

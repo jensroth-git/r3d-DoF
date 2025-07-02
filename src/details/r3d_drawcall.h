@@ -32,14 +32,20 @@ typedef enum {
     R3D_DRAWCALL_GEOMETRY_SPRITE
 } r3d_drawcall_geometry_e;
 
+typedef enum {
+    R3D_DRAWCALL_RENDER_DEFERRED,
+    R3D_DRAWCALL_RENDER_FORWARD
+} r3d_drawcall_render_mode_e;
+
 typedef struct {
 
     Matrix transform;
-    Material material;
+
+    const R3D_Material* material;
 
     union {
 
-        Mesh mesh;
+        const R3D_Mesh* mesh;
 
         struct {
             Vector2 uvOffset;
@@ -47,6 +53,9 @@ typedef struct {
         } sprite;
 
     } geometry;
+
+    r3d_drawcall_geometry_e geometryType;
+    r3d_drawcall_render_mode_e renderMode;
 
     struct {
         R3D_BillboardMode billboardMode;
@@ -56,14 +65,6 @@ typedef struct {
         size_t colStride;
         size_t count;
     } instanced;
-
-    struct {
-        R3D_BlendMode blendMode;
-        float alphaScissorThreshold;
-    } forward;
-
-    R3D_ShadowCastMode shadowCastMode;
-    r3d_drawcall_geometry_e geometryType;
 
 } r3d_drawcall_t;
 

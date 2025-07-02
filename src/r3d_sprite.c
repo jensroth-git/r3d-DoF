@@ -6,9 +6,8 @@ R3D_Sprite R3D_LoadSprite(Texture2D texture, int xFrameCount, int yFrameCount)
 {
     R3D_Sprite sprite = { 0 };
 
-    sprite.material = LoadMaterialDefault();
-    sprite.material.maps[MATERIAL_MAP_ALBEDO].texture = texture;
-    sprite.material.maps[MATERIAL_MAP_OCCLUSION].value = 1.0f;
+    sprite.material = R3D_GetDefaultMaterial();
+    sprite.material.albedo.texture = texture;
 
     sprite.frameSize.x = (float)texture.width / xFrameCount;
     sprite.frameSize.y = (float)texture.height / yFrameCount;
@@ -19,11 +18,9 @@ R3D_Sprite R3D_LoadSprite(Texture2D texture, int xFrameCount, int yFrameCount)
     return sprite;
 }
 
-void R3D_UnloadSprite(R3D_Sprite sprite)
+void R3D_UnloadSprite(const R3D_Sprite* sprite)
 {
-    if (IsMaterialValid(sprite.material)) {
-        UnloadMaterial(sprite.material);
-    }
+    R3D_UnloadMaterial(&sprite->material);
 }
 
 void R3D_UpdateSprite(R3D_Sprite* sprite, float speed)

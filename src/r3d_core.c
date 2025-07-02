@@ -44,7 +44,6 @@ static bool r3d_has_forward_calls(void);
 static void r3d_sprite_get_uv_scale_offset(const R3D_Sprite* sprite, Vector2* uvScale, Vector2* uvOffset, float sgnX, float sgnY);
 static void r3d_shadow_apply_cast_mode(R3D_ShadowCastMode mode);
 
-static R3D_RenderMode r3d_render_auto_detect_mode(const Material* material);
 static void r3d_render_apply_blend_mode(R3D_BlendMode mode);
 
 static void r3d_gbuffer_enable_stencil_write(void);
@@ -144,13 +143,6 @@ void R3D_Init(int resWidth, int resHeight, unsigned int flags)
     R3D.state.resolution.height = resHeight;
     R3D.state.resolution.texelX = 1.0f / resWidth;
     R3D.state.resolution.texelY = 1.0f / resHeight;
-
-    // Init rendering mode configs
-    R3D.state.render.mode = R3D_RENDER_AUTO_DETECT;
-    R3D.state.render.blendMode = R3D_BLEND_ALPHA;
-    R3D.state.render.shadowCastMode = R3D_SHADOW_CAST_FRONT_FACES;
-    R3D.state.render.billboardMode = R3D_BILLBOARD_DISABLED;
-    R3D.state.render.alphaScissorThreshold = 0.01f;
 
     // Init scene data
     R3D.state.scene.bounds = (BoundingBox) {
@@ -271,31 +263,6 @@ void R3D_SetRenderTarget(const RenderTexture* target)
 void R3D_SetSceneBounds(BoundingBox sceneBounds)
 {
     R3D.state.scene.bounds = sceneBounds;
-}
-
-void R3D_ApplyRenderMode(R3D_RenderMode mode)
-{
-    R3D.state.render.mode = mode;
-}
-
-void R3D_ApplyBlendMode(R3D_BlendMode mode)
-{
-    R3D.state.render.blendMode = mode;
-}
-
-void R3D_ApplyShadowCastMode(R3D_ShadowCastMode mode)
-{
-    R3D.state.render.shadowCastMode = mode;
-}
-
-void R3D_ApplyBillboardMode(R3D_BillboardMode mode)
-{
-    R3D.state.render.billboardMode = mode;
-}
-
-void R3D_ApplyAlphaScissorThreshold(float threshold)
-{
-    R3D.state.render.alphaScissorThreshold = threshold;
 }
 
 void R3D_Begin(Camera3D camera)
@@ -419,53 +386,50 @@ void R3D_End(void)
     r3d_reset_raylib_state();
 }
 
-void R3D_DrawMesh(Mesh mesh, Material material, Matrix transform)
+void R3D_DrawMesh(const R3D_Mesh* mesh, const R3D_Material* material, Matrix transform)
 {
     r3d_drawcall_t drawCall = { 0 };
 
-    if (R3D.state.render.billboardMode == R3D_BILLBOARD_FRONT) {
-        r3d_billboard_mode_front(&transform, &R3D.state.transform.invView);
-    }
-    else if (R3D.state.render.billboardMode == R3D_BILLBOARD_Y_AXIS) {
-        r3d_billboard_mode_y(&transform, &R3D.state.transform.invView);
+    switch (material->billboardMode) {
+    case R3D_BILLBOARD_FRONT:
+        r3d_transform_to_billboard_front(&transform, &R3D.state.transform.invView);
+        break;
+    case R3D_BILLBOARD_Y_AXIS:
+        r3d_transform_to_billboard_y(&transform, &R3D.state.transform.invView);
+        break;
+    default:
+        break;
     }
 
     drawCall.transform = transform;
     drawCall.material = material;
     drawCall.geometry.mesh = mesh;
     drawCall.geometryType = R3D_DRAWCALL_GEOMETRY_MESH;
-    drawCall.shadowCastMode = R3D.state.render.shadowCastMode;
-
-    R3D_RenderMode mode = R3D.state.render.mode;
-
-    if (mode == R3D_RENDER_AUTO_DETECT) {
-        mode = r3d_render_auto_detect_mode(&material);
-    }
+    drawCall.renderMode = R3D_DRAWCALL_RENDER_DEFERRED;
 
     r3d_array_t* arr = &R3D.container.aDrawDeferred;
 
-    if (mode == R3D_RENDER_FORWARD) {
-        drawCall.forward.alphaScissorThreshold = R3D.state.render.alphaScissorThreshold;
-        drawCall.forward.blendMode = R3D.state.render.blendMode;
+    if (material->blendMode != R3D_BLEND_OPAQUE || R3D.state.flags & R3D_FLAG_FORCE_FORWARD) {
+        drawCall.renderMode = R3D_DRAWCALL_RENDER_FORWARD;
         arr = &R3D.container.aDrawForward;
     }
 
     r3d_array_push_back(arr, &drawCall);
 }
 
-void R3D_DrawMeshInstanced(Mesh mesh, Material material, Matrix* instanceTransforms, int instanceCount)
+void R3D_DrawMeshInstanced(const R3D_Mesh* mesh, const R3D_Material* material, const Matrix* instanceTransforms, int instanceCount)
 {
     R3D_DrawMeshInstancedPro(mesh, material, MatrixIdentity(), instanceTransforms, 0, NULL, 0, instanceCount);
 }
 
-void R3D_DrawMeshInstancedEx(Mesh mesh, Material material, Matrix* instanceTransforms, Color* instanceColors, int instanceCount)
+void R3D_DrawMeshInstancedEx(const R3D_Mesh* mesh, const R3D_Material* material, const Matrix* instanceTransforms, const Color* instanceColors, int instanceCount)
 {
     R3D_DrawMeshInstancedPro(mesh, material, MatrixIdentity(), instanceTransforms, 0, instanceColors, 0, instanceCount);
 }
 
-void R3D_DrawMeshInstancedPro(Mesh mesh, Material material, Matrix transform,
-                              Matrix* instanceTransforms, int transformsStride,
-                              Color* instanceColors, int colorsStride,
+void R3D_DrawMeshInstancedPro(const R3D_Mesh* mesh, const R3D_Material* material, Matrix transform,
+                              const Matrix* instanceTransforms, int transformsStride,
+                              const Color* instanceColors, int colorsStride,
                               int instanceCount)
 {
     r3d_drawcall_t drawCall = { 0 };
@@ -478,64 +442,59 @@ void R3D_DrawMeshInstancedPro(Mesh mesh, Material material, Matrix transform,
     drawCall.material = material;
     drawCall.geometry.mesh = mesh;
     drawCall.geometryType = R3D_DRAWCALL_GEOMETRY_MESH;
-    drawCall.shadowCastMode = R3D.state.render.shadowCastMode;
+    drawCall.renderMode = R3D_DRAWCALL_RENDER_DEFERRED;
 
-    drawCall.instanced.billboardMode = R3D.state.render.billboardMode;
     drawCall.instanced.transforms = instanceTransforms;
     drawCall.instanced.transStride = transformsStride;
     drawCall.instanced.colStride = colorsStride;
     drawCall.instanced.colors = instanceColors;
     drawCall.instanced.count = instanceCount;
 
-    R3D_RenderMode mode = R3D.state.render.mode;
-
-    if (mode == R3D_RENDER_AUTO_DETECT) {
-        mode = r3d_render_auto_detect_mode(&material);
-    }
-
     r3d_array_t* arr = &R3D.container.aDrawDeferredInst;
 
-    if (mode == R3D_RENDER_FORWARD) {
-        drawCall.forward.alphaScissorThreshold = R3D.state.render.alphaScissorThreshold;
-        drawCall.forward.blendMode = R3D.state.render.blendMode;
+    if (material->blendMode != R3D_BLEND_OPAQUE || R3D.state.flags & R3D_FLAG_FORCE_FORWARD) {
+        drawCall.renderMode = R3D_DRAWCALL_RENDER_FORWARD;
         arr = &R3D.container.aDrawForwardInst;
     }
 
     r3d_array_push_back(arr, &drawCall);
 }
 
-void R3D_DrawModel(Model model, Vector3 position, float scale)
+void R3D_DrawModel(const R3D_Model* model, Vector3 position, float scale)
 {
     Vector3 vScale = { scale, scale, scale };
     Vector3 rotationAxis = { 0.0f, 1.0f, 0.0f };
     R3D_DrawModelEx(model, position, rotationAxis, 0.0f, vScale);
 }
 
-void R3D_DrawModelEx(Model model, Vector3 position, Vector3 rotationAxis, float rotationAngle, Vector3 scale)
+void R3D_DrawModelEx(const R3D_Model* model, Vector3 position, Vector3 rotationAxis, float rotationAngle, Vector3 scale)
 {
     Matrix matScale = MatrixScale(scale.x, scale.y, scale.z);
     Matrix matRotation = MatrixRotate(rotationAxis, rotationAngle * DEG2RAD);
     Matrix matTranslation = MatrixTranslate(position.x, position.y, position.z);
     Matrix matTransform = MatrixMultiply(MatrixMultiply(matScale, matRotation), matTranslation);
 
-    model.transform = MatrixMultiply(model.transform, matTransform);
+    R3D_DrawModelPro(model, matTransform);
+}
 
-    for (int i = 0; i < model.meshCount; i++) {
-        R3D_DrawMesh(model.meshes[i], model.materials[model.meshMaterial[i]], model.transform);
+void R3D_DrawModelPro(const R3D_Model* model, Matrix transform)
+{
+    for (int i = 0; i < model->meshCount; i++) {
+        R3D_DrawMesh(&model->meshes[i], &model->materials[model->meshMaterials[i]], transform);
     }
 }
 
-void R3D_DrawSprite(R3D_Sprite sprite, Vector3 position)
+void R3D_DrawSprite(const R3D_Sprite* sprite, Vector3 position)
 {
     R3D_DrawSpritePro(sprite, position, (Vector2) { 1.0f, 1.0f }, (Vector3) { 0, 1, 0 }, 0.0f);
 }
 
-void R3D_DrawSpriteEx(R3D_Sprite sprite, Vector3 position, Vector2 size, float rotation)
+void R3D_DrawSpriteEx(const R3D_Sprite* sprite, Vector3 position, Vector2 size, float rotation)
 {
     R3D_DrawSpritePro(sprite, position, size, (Vector3) { 0, 1, 0 }, rotation);
 }
 
-void R3D_DrawSpritePro(R3D_Sprite sprite, Vector3 position, Vector2 size, Vector3 rotationAxis, float rotationAngle)
+void R3D_DrawSpritePro(const R3D_Sprite* sprite, Vector3 position, Vector2 size, Vector3 rotationAxis, float rotationAngle)
 {
     Matrix matScale = MatrixScale(fabsf(size.x) * 0.5f, -fabsf(size.y) * 0.5f, 1.0f);
     Matrix matRotation = MatrixRotate(rotationAxis, rotationAngle * DEG2RAD);
@@ -544,46 +503,43 @@ void R3D_DrawSpritePro(R3D_Sprite sprite, Vector3 position, Vector2 size, Vector
 
     r3d_drawcall_t drawCall = { 0 };
 
-    if (R3D.state.render.billboardMode == R3D_BILLBOARD_FRONT) {
-        r3d_billboard_mode_front(&matTransform, &R3D.state.transform.invView);
-    }
-    else if (R3D.state.render.billboardMode == R3D_BILLBOARD_Y_AXIS) {
-        r3d_billboard_mode_y(&matTransform, &R3D.state.transform.invView);
+    switch (sprite->material.billboardMode) {
+    case R3D_BILLBOARD_FRONT:
+        r3d_transform_to_billboard_front(&matTransform, &R3D.state.transform.invView);
+        break;
+    case R3D_BILLBOARD_Y_AXIS:
+        r3d_transform_to_billboard_y(&matTransform, &R3D.state.transform.invView);
+        break;
+    default:
+        break;
     }
 
     drawCall.transform = matTransform;
-    drawCall.material = sprite.material;
+    drawCall.material = &sprite->material;
     drawCall.geometryType = R3D_DRAWCALL_GEOMETRY_SPRITE;
-    drawCall.shadowCastMode = R3D.state.render.shadowCastMode;
+    drawCall.renderMode = R3D_DRAWCALL_RENDER_DEFERRED;
 
     r3d_sprite_get_uv_scale_offset(
-        &sprite, &drawCall.geometry.sprite.uvScale, &drawCall.geometry.sprite.uvOffset,
+        sprite, &drawCall.geometry.sprite.uvScale, &drawCall.geometry.sprite.uvOffset,
         (size.x > 0) ? 1.0f : -1.0f, (size.y > 0) ? 1.0f : -1.0f
     );
 
-    R3D_RenderMode mode = R3D.state.render.mode;
-
-    if (mode == R3D_RENDER_AUTO_DETECT) {
-        mode = r3d_render_auto_detect_mode(&sprite.material);
-    }
-
     r3d_array_t* arr = &R3D.container.aDrawDeferred;
 
-    if (mode == R3D_RENDER_FORWARD) {
-        drawCall.forward.alphaScissorThreshold = R3D.state.render.alphaScissorThreshold;
-        drawCall.forward.blendMode = R3D.state.render.blendMode;
+    if (sprite->material.blendMode != R3D_BLEND_OPAQUE || R3D.state.flags & R3D_FLAG_FORCE_FORWARD) {
+        drawCall.renderMode = R3D_DRAWCALL_RENDER_FORWARD;
         arr = &R3D.container.aDrawForward;
     }
 
     r3d_array_push_back(arr, &drawCall);
 }
 
-void R3D_DrawParticleSystem(const R3D_ParticleSystem* system, Mesh mesh, Material material)
+void R3D_DrawParticleSystem(const R3D_ParticleSystem* system, const R3D_Mesh* mesh, const R3D_Material* material)
 {
     R3D_DrawParticleSystemEx(system, mesh, material, MatrixIdentity());
 }
 
-void R3D_DrawParticleSystemEx(const R3D_ParticleSystem* system, Mesh mesh, Material material, Matrix transform)
+void R3D_DrawParticleSystemEx(const R3D_ParticleSystem* system, const R3D_Mesh* mesh, const R3D_Material* material, Matrix transform)
 {
     R3D_DrawMeshInstancedPro(
         mesh, material, transform,
@@ -637,64 +593,6 @@ void r3d_shadow_apply_cast_mode(R3D_ShadowCastMode mode)
     default:
         break;
     }
-}
-
-R3D_RenderMode r3d_render_auto_detect_mode(const Material* material)
-{
-    // If the desired mode is opaque, then there is no need to perform further tests
-    if (R3D.state.render.blendMode == R3D_BLEND_OPAQUE) {
-        return R3D_RENDER_DEFERRED;
-    }
-
-    // If the blend mode is not alpha but also not opaque
-    // (such as additive or multiply), then we still need the forward render mode
-    if (R3D.state.render.blendMode != R3D_BLEND_ALPHA) {
-        return R3D_RENDER_FORWARD;
-    }
-
-    // Obtaining the albedo texture used in the material
-    unsigned int texId = material->maps[MATERIAL_MAP_ALBEDO].texture.id;
-
-    // Detecting if it is a default texture
-    bool defaultTex = (texId == 0 || texId == rlGetTextureIdDefault());
-
-    // Detecting if a transparency value is used for the albedo
-    bool alphaColor = (material->maps[MATERIAL_MAP_ALBEDO].color.a < 255);
-
-    // Detecting if the format of the used texture supports transparency
-    // NOTE: By default, we know that default textures do not contain transparency
-    bool alphaFormat = false;
-    if (!defaultTex) {
-        switch (material->maps[MATERIAL_MAP_ALBEDO].texture.format) {
-        case PIXELFORMAT_UNCOMPRESSED_GRAY_ALPHA:
-        case PIXELFORMAT_UNCOMPRESSED_R5G5B5A1:
-        case PIXELFORMAT_UNCOMPRESSED_R4G4B4A4:
-        case PIXELFORMAT_UNCOMPRESSED_R8G8B8A8:
-        case PIXELFORMAT_UNCOMPRESSED_R32G32B32A32:
-        case PIXELFORMAT_UNCOMPRESSED_R16G16B16A16:
-        case PIXELFORMAT_COMPRESSED_DXT1_RGBA:
-        case PIXELFORMAT_COMPRESSED_DXT3_RGBA:
-        case PIXELFORMAT_COMPRESSED_DXT5_RGBA:
-        case PIXELFORMAT_COMPRESSED_ETC2_EAC_RGBA:
-        case PIXELFORMAT_COMPRESSED_PVRT_RGBA:
-        case PIXELFORMAT_COMPRESSED_ASTC_4x4_RGBA:
-        case PIXELFORMAT_COMPRESSED_ASTC_8x8_RGBA:
-            alphaFormat = true;
-            break;
-        default:
-            break;
-        }
-    }
-
-    // If the color contains transparency or the texture format supports it
-    // and the current blend mode is alpha, then we will use the forward mode
-    if ((alphaColor || alphaFormat) && R3D.state.render.blendMode == R3D_BLEND_ALPHA) {
-        return R3D_RENDER_FORWARD;
-    }
-
-    // Here, the alpha blend mode is requested but transparency is not possible,
-    // so we can perform the rendering in deferred mode
-    return R3D_RENDER_DEFERRED;
 }
 
 void r3d_render_apply_blend_mode(R3D_BlendMode mode)
@@ -885,44 +783,46 @@ void r3d_pass_shadow_maps(void)
                     // Rasterize geometries for depth rendering
                     r3d_shader_enable(raster.depthCubeInst);
                     {
-                        r3d_shader_set_float(raster.depthCubeInst, uAlphaScissorThreshold, R3D.state.render.alphaScissorThreshold);
                         r3d_shader_set_vec3(raster.depthCubeInst, uViewPosition, light->data->position);
                         r3d_shader_set_float(raster.depthCubeInst, uFar, light->data->far);
 
                         for (size_t k = 0; k < R3D.container.aDrawDeferredInst.count; k++) {
                             r3d_drawcall_t* call = (r3d_drawcall_t*)R3D.container.aDrawDeferredInst.data + k;
-                            if (call->shadowCastMode != R3D_SHADOW_CAST_DISABLED) {
-                                r3d_shadow_apply_cast_mode(call->shadowCastMode);
+                            if (call->material->shadowCastMode != R3D_SHADOW_CAST_DISABLED) {
+                                r3d_shader_set_float(raster.depthCubeInst, uAlphaScissorThreshold, call->material->alphaScissorThreshold);
+                                r3d_shadow_apply_cast_mode(call->material->shadowCastMode);
                                 r3d_drawcall_raster_depth_cube_inst(call);
                             }
                         }
 
                         for (size_t k = 0; k < R3D.container.aDrawForwardInst.count; k++) {
                             r3d_drawcall_t* call = (r3d_drawcall_t*)R3D.container.aDrawForwardInst.data + k;
-                            if (call->shadowCastMode != R3D_SHADOW_CAST_DISABLED) {
-                                r3d_shadow_apply_cast_mode(call->shadowCastMode);
+                            if (call->material->shadowCastMode != R3D_SHADOW_CAST_DISABLED) {
+                                r3d_shader_set_float(raster.depthCubeInst, uAlphaScissorThreshold, call->material->alphaScissorThreshold);
+                                r3d_shadow_apply_cast_mode(call->material->shadowCastMode);
                                 r3d_drawcall_raster_depth_cube_inst(call);
                             }
                         }
                     }
                     r3d_shader_enable(raster.depthCube);
                     {
-                        r3d_shader_set_float(raster.depthCube, uAlphaScissorThreshold, R3D.state.render.alphaScissorThreshold);
                         r3d_shader_set_vec3(raster.depthCube, uViewPosition, light->data->position);
                         r3d_shader_set_float(raster.depthCube, uFar, light->data->far);
 
                         for (size_t k = 0; k < R3D.container.aDrawDeferred.count; k++) {
                             r3d_drawcall_t* call = (r3d_drawcall_t*)R3D.container.aDrawDeferred.data + k;
-                            if (call->shadowCastMode != R3D_SHADOW_CAST_DISABLED) {
-                                r3d_shadow_apply_cast_mode(call->shadowCastMode);
+                            if (call->material->shadowCastMode != R3D_SHADOW_CAST_DISABLED) {
+                                r3d_shader_set_float(raster.depthCube, uAlphaScissorThreshold, call->material->alphaScissorThreshold);
+                                r3d_shadow_apply_cast_mode(call->material->shadowCastMode);
                                 r3d_drawcall_raster_depth_cube(call);
                             }
                         }
 
                         for (size_t k = 0; k < R3D.container.aDrawForward.count; k++) {
                             r3d_drawcall_t* call = (r3d_drawcall_t*)R3D.container.aDrawForward.data + k;
-                            if (call->shadowCastMode != R3D_SHADOW_CAST_DISABLED) {
-                                r3d_shadow_apply_cast_mode(call->shadowCastMode);
+                            if (call->material->shadowCastMode != R3D_SHADOW_CAST_DISABLED) {
+                                r3d_shader_set_float(raster.depthCube, uAlphaScissorThreshold, call->material->alphaScissorThreshold);
+                                r3d_shadow_apply_cast_mode(call->material->shadowCastMode);
                                 r3d_drawcall_raster_depth_cube(call);
                             }
                         }
@@ -959,38 +859,38 @@ void r3d_pass_shadow_maps(void)
                 // Rasterize geometry for depth rendering
                 r3d_shader_enable(raster.depthInst);
                 {
-                    r3d_shader_set_float(raster.depthInst, uAlphaScissorThreshold, R3D.state.render.alphaScissorThreshold);
-
                     for (size_t j = 0; j < R3D.container.aDrawDeferredInst.count; j++) {
                         r3d_drawcall_t* call = (r3d_drawcall_t*)R3D.container.aDrawDeferredInst.data + j;
-                        if (call->shadowCastMode != R3D_SHADOW_CAST_DISABLED) {
-                            r3d_shadow_apply_cast_mode(call->shadowCastMode);
+                        if (call->material->shadowCastMode != R3D_SHADOW_CAST_DISABLED) {
+                            r3d_shader_set_float(raster.depthInst, uAlphaScissorThreshold, call->material->alphaScissorThreshold);
+                            r3d_shadow_apply_cast_mode(call->material->shadowCastMode);
                             r3d_drawcall_raster_depth_inst(call);
                         }
                     }
                     for (size_t j = 0; j < R3D.container.aDrawForwardInst.count; j++) {
                         r3d_drawcall_t* call = (r3d_drawcall_t*)R3D.container.aDrawForwardInst.data + j;
-                        if (call->shadowCastMode != R3D_SHADOW_CAST_DISABLED) {
-                            r3d_shadow_apply_cast_mode(call->shadowCastMode);
+                        if (call->material->shadowCastMode != R3D_SHADOW_CAST_DISABLED) {
+                            r3d_shader_set_float(raster.depthInst, uAlphaScissorThreshold, call->material->alphaScissorThreshold);
+                            r3d_shadow_apply_cast_mode(call->material->shadowCastMode);
                             r3d_drawcall_raster_depth_inst(call);
                         }
                     }
                 }
                 r3d_shader_enable(raster.depth);
                 {
-                    r3d_shader_set_float(raster.depth, uAlphaScissorThreshold, R3D.state.render.alphaScissorThreshold);
-
                     for (size_t j = 0; j < R3D.container.aDrawDeferred.count; j++) {
                         r3d_drawcall_t* call = (r3d_drawcall_t*)R3D.container.aDrawDeferred.data + j;
-                        if (call->shadowCastMode != R3D_SHADOW_CAST_DISABLED) {
-                            r3d_shadow_apply_cast_mode(call->shadowCastMode);
+                        if (call->material->shadowCastMode != R3D_SHADOW_CAST_DISABLED) {
+                            r3d_shader_set_float(raster.depth, uAlphaScissorThreshold, call->material->alphaScissorThreshold);
+                            r3d_shadow_apply_cast_mode(call->material->shadowCastMode);
                             r3d_drawcall_raster_depth(call);
                         }
                     }
                     for (size_t j = 0; j < R3D.container.aDrawForward.count; j++) {
                         r3d_drawcall_t* call = (r3d_drawcall_t*)R3D.container.aDrawForward.data + j;
-                        if (call->shadowCastMode != R3D_SHADOW_CAST_DISABLED) {
-                            r3d_shadow_apply_cast_mode(call->shadowCastMode);
+                        if (call->material->shadowCastMode != R3D_SHADOW_CAST_DISABLED) {
+                            r3d_shader_set_float(raster.depth, uAlphaScissorThreshold, call->material->alphaScissorThreshold);
+                            r3d_shadow_apply_cast_mode(call->material->shadowCastMode);
                             r3d_drawcall_raster_depth(call);
                         }
                     }
@@ -1740,7 +1640,7 @@ void r3d_pass_scene_forward(void)
                 for (int i = 0; i < R3D.container.aDrawForwardInst.count; i++) {
                     r3d_drawcall_t* call = r3d_array_at(&R3D.container.aDrawForwardInst, i);
                     r3d_pass_scene_forward_inst_filter_and_send_lights(call);
-                    r3d_render_apply_blend_mode(call->forward.blendMode);
+                    r3d_render_apply_blend_mode(call->material->blendMode);
                     r3d_drawcall_raster_forward_inst(call);
                 }
 
@@ -1784,7 +1684,7 @@ void r3d_pass_scene_forward(void)
                 for (int i = 0; i < R3D.container.aDrawForward.count; i++) {
                     r3d_drawcall_t* call = r3d_array_at(&R3D.container.aDrawForward, i);
                     r3d_pass_scene_forward_filter_and_send_lights(call);
-                    r3d_render_apply_blend_mode(call->forward.blendMode);
+                    r3d_render_apply_blend_mode(call->material->blendMode);
                     r3d_drawcall_raster_forward(call);
                 }
 

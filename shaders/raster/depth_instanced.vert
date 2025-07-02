@@ -21,8 +21,8 @@
 
 /* === Defines === */
 
-#define BILLBOARD_FRONT 1
-#define BILLBOARD_Y_AXIS 2
+#define BILLBOARD_FRONT 0
+#define BILLBOARD_Y_AXIS 1
 
 /* === Attributes === */
 

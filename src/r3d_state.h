@@ -248,15 +248,6 @@ extern struct R3D_State {
             float texelY;
         } resolution;
 
-        // Render config
-        struct {
-            R3D_RenderMode mode;
-            R3D_BlendMode blendMode;
-            R3D_ShadowCastMode shadowCastMode;
-            R3D_BillboardMode billboardMode;
-            float alphaScissorThreshold;
-        } render;
-
         // Miscellaneous flags
         unsigned int flags;
 

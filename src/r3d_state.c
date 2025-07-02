@@ -743,9 +743,7 @@ void r3d_shader_load_raster_geometry(void)
     r3d_shader_get_location(raster.geometry, uTexAlbedo);
     r3d_shader_get_location(raster.geometry, uTexNormal);
     r3d_shader_get_location(raster.geometry, uTexEmission);
-    r3d_shader_get_location(raster.geometry, uTexOcclusion);
-    r3d_shader_get_location(raster.geometry, uTexRoughness);
-    r3d_shader_get_location(raster.geometry, uTexMetalness);
+    r3d_shader_get_location(raster.geometry, uTexORM);
     r3d_shader_get_location(raster.geometry, uValEmission);
     r3d_shader_get_location(raster.geometry, uValOcclusion);
     r3d_shader_get_location(raster.geometry, uValRoughness);
@@ -757,9 +755,7 @@ void r3d_shader_load_raster_geometry(void)
     r3d_shader_set_sampler2D_slot(raster.geometry, uTexAlbedo, 0);
     r3d_shader_set_sampler2D_slot(raster.geometry, uTexNormal, 1);
     r3d_shader_set_sampler2D_slot(raster.geometry, uTexEmission, 2);
-    r3d_shader_set_sampler2D_slot(raster.geometry, uTexOcclusion, 3);
-    r3d_shader_set_sampler2D_slot(raster.geometry, uTexRoughness, 4);
-    r3d_shader_set_sampler2D_slot(raster.geometry, uTexMetalness, 5);
+    r3d_shader_set_sampler2D_slot(raster.geometry, uTexORM, 3);
     r3d_shader_disable();
 }
 
@@ -778,9 +774,7 @@ void r3d_shader_load_raster_geometry_inst(void)
     r3d_shader_get_location(raster.geometryInst, uTexAlbedo);
     r3d_shader_get_location(raster.geometryInst, uTexNormal);
     r3d_shader_get_location(raster.geometryInst, uTexEmission);
-    r3d_shader_get_location(raster.geometryInst, uTexOcclusion);
-    r3d_shader_get_location(raster.geometryInst, uTexRoughness);
-    r3d_shader_get_location(raster.geometryInst, uTexMetalness);
+    r3d_shader_get_location(raster.geometryInst, uTexORM);
     r3d_shader_get_location(raster.geometryInst, uValEmission);
     r3d_shader_get_location(raster.geometryInst, uValOcclusion);
     r3d_shader_get_location(raster.geometryInst, uValRoughness);
@@ -792,9 +786,7 @@ void r3d_shader_load_raster_geometry_inst(void)
     r3d_shader_set_sampler2D_slot(raster.geometryInst, uTexAlbedo, 0);
     r3d_shader_set_sampler2D_slot(raster.geometryInst, uTexNormal, 1);
     r3d_shader_set_sampler2D_slot(raster.geometryInst, uTexEmission, 2);
-    r3d_shader_set_sampler2D_slot(raster.geometryInst, uTexOcclusion, 3);
-    r3d_shader_set_sampler2D_slot(raster.geometryInst, uTexRoughness, 4);
-    r3d_shader_set_sampler2D_slot(raster.geometryInst, uTexMetalness, 5);
+    r3d_shader_set_sampler2D_slot(raster.geometryInst, uTexORM, 3);
     r3d_shader_disable();
 }
 
@@ -814,9 +806,7 @@ void r3d_shader_load_raster_forward(void)
     r3d_shader_get_location(raster.forward, uTexAlbedo);
     r3d_shader_get_location(raster.forward, uTexEmission);
     r3d_shader_get_location(raster.forward, uTexNormal);
-    r3d_shader_get_location(raster.forward, uTexOcclusion);
-    r3d_shader_get_location(raster.forward, uTexRoughness);
-    r3d_shader_get_location(raster.forward, uTexMetalness);
+    r3d_shader_get_location(raster.forward, uTexORM);
     r3d_shader_get_location(raster.forward, uTexNoise);
     r3d_shader_get_location(raster.forward, uValEmission);
     r3d_shader_get_location(raster.forward, uValOcclusion);
@@ -838,13 +828,11 @@ void r3d_shader_load_raster_forward(void)
     r3d_shader_set_sampler2D_slot(raster.forward, uTexAlbedo, 0);
     r3d_shader_set_sampler2D_slot(raster.forward, uTexEmission, 1);
     r3d_shader_set_sampler2D_slot(raster.forward, uTexNormal, 2);
-    r3d_shader_set_sampler2D_slot(raster.forward, uTexOcclusion, 3);
-    r3d_shader_set_sampler2D_slot(raster.forward, uTexRoughness, 4);
-    r3d_shader_set_sampler2D_slot(raster.forward, uTexMetalness, 5);
-    r3d_shader_set_sampler2D_slot(raster.forward, uTexNoise, 6);
-    r3d_shader_set_samplerCube_slot(raster.forward, uCubeIrradiance, 7);
-    r3d_shader_set_samplerCube_slot(raster.forward, uCubePrefilter, 8);
-    r3d_shader_set_sampler2D_slot(raster.forward, uTexBrdfLut, 9);
+    r3d_shader_set_sampler2D_slot(raster.forward, uTexORM, 3);
+    r3d_shader_set_sampler2D_slot(raster.forward, uTexNoise, 4);
+    r3d_shader_set_samplerCube_slot(raster.forward, uCubeIrradiance, 5);
+    r3d_shader_set_samplerCube_slot(raster.forward, uCubePrefilter, 6);
+    r3d_shader_set_sampler2D_slot(raster.forward, uTexBrdfLut, 7);
 
     int shadowMapSlot = 10;
     for (int i = 0; i < R3D_SHADER_FORWARD_NUM_LIGHTS; i++) {
@@ -893,9 +881,7 @@ void r3d_shader_load_raster_forward_inst(void)
     r3d_shader_get_location(raster.forwardInst, uTexAlbedo);
     r3d_shader_get_location(raster.forwardInst, uTexEmission);
     r3d_shader_get_location(raster.forwardInst, uTexNormal);
-    r3d_shader_get_location(raster.forwardInst, uTexOcclusion);
-    r3d_shader_get_location(raster.forwardInst, uTexRoughness);
-    r3d_shader_get_location(raster.forwardInst, uTexMetalness);
+    r3d_shader_get_location(raster.forwardInst, uTexORM);
     r3d_shader_get_location(raster.forwardInst, uTexNoise);
     r3d_shader_get_location(raster.forwardInst, uValEmission);
     r3d_shader_get_location(raster.forwardInst, uValOcclusion);
@@ -917,13 +903,11 @@ void r3d_shader_load_raster_forward_inst(void)
     r3d_shader_set_sampler2D_slot(raster.forwardInst, uTexAlbedo, 0);
     r3d_shader_set_sampler2D_slot(raster.forwardInst, uTexEmission, 1);
     r3d_shader_set_sampler2D_slot(raster.forwardInst, uTexNormal, 2);
-    r3d_shader_set_sampler2D_slot(raster.forwardInst, uTexOcclusion, 3);
-    r3d_shader_set_sampler2D_slot(raster.forwardInst, uTexRoughness, 4);
-    r3d_shader_set_sampler2D_slot(raster.forwardInst, uTexMetalness, 5);
-    r3d_shader_set_sampler2D_slot(raster.forwardInst, uTexNoise, 6);
-    r3d_shader_set_samplerCube_slot(raster.forwardInst, uCubeIrradiance, 7);
-    r3d_shader_set_samplerCube_slot(raster.forwardInst, uCubePrefilter, 8);
-    r3d_shader_set_sampler2D_slot(raster.forwardInst, uTexBrdfLut, 9);
+    r3d_shader_set_sampler2D_slot(raster.forwardInst, uTexORM, 3);
+    r3d_shader_set_sampler2D_slot(raster.forwardInst, uTexNoise, 4);
+    r3d_shader_set_samplerCube_slot(raster.forwardInst, uCubeIrradiance, 5);
+    r3d_shader_set_samplerCube_slot(raster.forwardInst, uCubePrefilter, 6);
+    r3d_shader_set_sampler2D_slot(raster.forwardInst, uTexBrdfLut, 7);
 
     int shadowMapSlot = 10;
     for (int i = 0; i < R3D_SHADER_FORWARD_NUM_LIGHTS; i++) {
