@@ -619,8 +619,12 @@ void r3d_drawcall_raster_forward_inst(const r3d_drawcall_t* call)
 void r3d_draw_vertex_arrays(const r3d_drawcall_t* call)
 {
     if (call->geometryType == R3D_DRAWCALL_GEOMETRY_MESH) {
-        if (call->geometry.mesh->indices == NULL) rlDrawVertexArray(0, call->geometry.mesh->vertexCount);
-        else rlDrawVertexArrayElements(0, call->geometry.mesh->indexCount, 0);
+        if (call->geometry.mesh->indices == NULL) {
+            glDrawArrays(GL_TRIANGLES, 0, call->geometry.mesh->vertexCount);
+        }
+        else {
+            glDrawElements(GL_TRIANGLES, call->geometry.mesh->indexCount, GL_UNSIGNED_INT, NULL);
+        }
     }
     else if (call->geometryType == R3D_DRAWCALL_GEOMETRY_SPRITE) {
         r3d_primitive_draw_quad();
