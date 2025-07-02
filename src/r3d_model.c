@@ -204,7 +204,7 @@ R3D_Mesh R3D_GenMeshPlane(float width, float length, int resX, int resZ, bool up
 
 R3D_Mesh R3D_GenMeshCube(float width, float height, float length, bool upload)
 {
-    R3D_Mesh mesh = {0};
+    R3D_Mesh mesh = { 0 };
 
     // Validation of parameters
     if (width <= 0.0f || height <= 0.0f || length <= 0.0f) return mesh;
@@ -604,23 +604,22 @@ R3D_Mesh R3D_GenMeshCylinder(float radius, float height, int slices, bool upload
 {
     R3D_Mesh mesh = {0};
 
-    // Validation des paramètres
+    // Validate parameters
     if (radius <= 0.0f || height <= 0.0f || slices < 3) return mesh;
 
-    // Calcul des dimensions
-    // Corps du cylindre: 2 lignes × (slices+1) vertices (haut et bas)
-    // Base inférieure: slices+1 vertices (centre + périmètre)
-    // Base supérieure: slices+1 vertices (centre + périmètre)
+    // Calculate vertex and index counts
+    // Body vertices: 2 rows * (slices+1) vertices (top and bottom per slice)
+    // Cap vertices: 2 * (1 center + slices perimeter vertices)
     const int bodyVertexCount = 2 * (slices + 1);
-    const int capVertexCount = 2 * (slices + 1); // 2 bases
+    const int capVertexCount = 2 * (1 + slices);
     mesh.vertexCount = bodyVertexCount + capVertexCount;
 
-    // Indices: corps + 2 bases
-    const int bodyIndexCount = slices * 6; // 2 triangles par slice
-    const int capIndexCount = 2 * slices * 3; // slices triangles par base
+    // Indices: body + 2 caps
+    const int bodyIndexCount = slices * 6;      // 2 triangles per slice
+    const int capIndexCount = 2 * slices * 3;   // slices triangles per cap
     mesh.indexCount = bodyIndexCount + capIndexCount;
 
-    // Allocation mémoire
+    // Allocate memory
     mesh.vertices = (R3D_Vertex*)malloc(mesh.vertexCount * sizeof(R3D_Vertex));
     mesh.indices = (unsigned int*)malloc(mesh.indexCount * sizeof(unsigned int));
 
@@ -630,33 +629,35 @@ R3D_Mesh R3D_GenMeshCylinder(float radius, float height, int slices, bool upload
         return mesh;
     }
 
-    // Pre-compute some values
+    // Pre-compute values
     const float halfHeight = height * 0.5f;
+    // For -Z forward, +Y up: theta starts at +X and increases toward -Z (clockwise when viewed from above)
     const float sliceStep = 2.0f * PI / slices;
-    const Vector4 defaultColor = {255, 255, 255, 255};
+    const Vector4 defaultColor = {255, 255, 255, 255}; // White
 
-    // Génération des vertices du corps du cylindre
+    // Generate body vertices
     int vertexIndex = 0;
 
-    // Ligne du bas (y = -halfHeight)
+    // Bottom row (y = -halfHeight)
     for (int slice = 0; slice <= slices; slice++) {
         const float theta = slice * sliceStep;
-        const float cosTheta = cosf(theta);
-        const float sinTheta = sinf(theta);
-    
-        const float x = radius * cosTheta;
-        const float z = radius * sinTheta;
-    
-        // Normale horizontale (vers l'extérieur)
-        const Vector3 normal = {cosTheta, 0.0f, sinTheta};
-    
-        // UV mapping: u = position angulaire, v = hauteur
+        // For -Z forward: x = cos(theta), z = -sin(theta)
+        // This makes theta=0 point toward +X, theta=PI/2 toward -Z
+        const float x = radius * cosf(theta);
+        const float z = -radius * sinf(theta);
+
+        // Normal: points radially outward
+        const Vector3 normal = {cosf(theta), 0.0f, -sinf(theta)};
+
+        // UV mapping: u = angular position, v = height
         const float u = (float)slice / slices;
-        const float v = 0.0f; // Bas du cylindre
-    
-        // Tangente (dérivée par rapport à theta)
-        const Vector4 tangent = {-sinTheta, 0.0f, cosTheta, 1.0f};
-    
+        const float v = 0.0f; // Bottom of cylinder
+
+        // Tangent: perpendicular to the normal and along the circumference
+        // To be consistent with -Z forward, tangent is in the direction of increasing theta
+        // If normal is (cos(θ), 0, -sin(θ)), then tangent is (-sin(θ), 0, -cos(θ))
+        const Vector4 tangent = {-sinf(theta), 0.0f, -cosf(theta), 1.0f};
+
         mesh.vertices[vertexIndex] = (R3D_Vertex){
             .position = {x, -halfHeight, z},
             .texcoord = {u, v},
@@ -667,23 +668,21 @@ R3D_Mesh R3D_GenMeshCylinder(float radius, float height, int slices, bool upload
         vertexIndex++;
     }
 
-    // Ligne du haut (y = halfHeight)
+    // Top row (y = halfHeight)
     for (int slice = 0; slice <= slices; slice++) {
         const float theta = slice * sliceStep;
-        const float cosTheta = cosf(theta);
-        const float sinTheta = sinf(theta);
-    
-        const float x = radius * cosTheta;
-        const float z = radius * sinTheta;
-    
-        // Normale horizontale (vers l'extérieur)
-        const Vector3 normal = {cosTheta, 0.0f, sinTheta};
-    
+        const float x = radius * cosf(theta);
+        const float z = -radius * sinf(theta);
+
+        // Normal: points outwards
+        const Vector3 normal = {cosf(theta), 0.0f, -sinf(theta)};
+
         const float u = (float)slice / slices;
-        const float v = 1.0f; // Haut du cylindre
-    
-        const Vector4 tangent = {-sinTheta, 0.0f, cosTheta, 1.0f};
-    
+        const float v = 1.0f; // Top of cylinder
+
+        // Tangent: consistent with bottom row
+        const Vector4 tangent = {-sinf(theta), 0.0f, -cosf(theta), 1.0f};
+
         mesh.vertices[vertexIndex] = (R3D_Vertex){
             .position = {x, halfHeight, z},
             .texcoord = {u, v},
@@ -694,14 +693,16 @@ R3D_Mesh R3D_GenMeshCylinder(float radius, float height, int slices, bool upload
         vertexIndex++;
     }
 
-    // Génération des vertices de la base inférieure
+    // Generate bottom cap vertices
+    // Normal points downwards
     const Vector3 bottomNormal = {0.0f, -1.0f, 0.0f};
+    // Tangent for a flat surface facing down, +X is a valid tangent
     const Vector4 bottomTangent = {1.0f, 0.0f, 0.0f, 1.0f};
 
-    // Centre de la base inférieure
+    // Center of bottom cap
     mesh.vertices[vertexIndex] = (R3D_Vertex){
         .position = {0.0f, -halfHeight, 0.0f},
-        .texcoord = {0.5f, 0.5f},
+        .texcoord = {0.5f, 0.5f}, // Center of UV space
         .normal = bottomNormal,
         .color = defaultColor,
         .tangent = bottomTangent
@@ -709,19 +710,16 @@ R3D_Mesh R3D_GenMeshCylinder(float radius, float height, int slices, bool upload
     const int bottomCenterIndex = vertexIndex;
     vertexIndex++;
 
-    // Périmètre de la base inférieure
+    // Perimeter of bottom cap
     for (int slice = 0; slice < slices; slice++) {
         const float theta = slice * sliceStep;
-        const float cosTheta = cosf(theta);
-        const float sinTheta = sinf(theta);
-    
-        const float x = radius * cosTheta;
-        const float z = radius * sinTheta;
-    
-        // UV mapping circulaire
-        const float u = 0.5f + 0.5f * cosTheta;
-        const float v = 0.5f + 0.5f * sinTheta;
-    
+        const float x = radius * cosf(theta);
+        const float z = -radius * sinf(theta); // Consistent with -Z forward
+
+        // Circular UV mapping
+        const float u = 0.5f + 0.5f * cosf(theta);
+        const float v = 0.5f - 0.5f * sinf(theta); // Flip V for -Z forward
+
         mesh.vertices[vertexIndex] = (R3D_Vertex){
             .position = {x, -halfHeight, z},
             .texcoord = {u, v},
@@ -732,11 +730,13 @@ R3D_Mesh R3D_GenMeshCylinder(float radius, float height, int slices, bool upload
         vertexIndex++;
     }
 
-    // Génération des vertices de la base supérieure
+    // Generate top cap vertices
+    // Normal points upwards
     const Vector3 topNormal = {0.0f, 1.0f, 0.0f};
+    // Tangent for a flat surface facing up, +X is a valid tangent
     const Vector4 topTangent = {1.0f, 0.0f, 0.0f, 1.0f};
 
-    // Centre de la base supérieure
+    // Center of top cap
     mesh.vertices[vertexIndex] = (R3D_Vertex){
         .position = {0.0f, halfHeight, 0.0f},
         .texcoord = {0.5f, 0.5f},
@@ -747,19 +747,16 @@ R3D_Mesh R3D_GenMeshCylinder(float radius, float height, int slices, bool upload
     const int topCenterIndex = vertexIndex;
     vertexIndex++;
 
-    // Périmètre de la base supérieure
+    // Perimeter of top cap
     for (int slice = 0; slice < slices; slice++) {
         const float theta = slice * sliceStep;
-        const float cosTheta = cosf(theta);
-        const float sinTheta = sinf(theta);
-    
-        const float x = radius * cosTheta;
-        const float z = radius * sinTheta;
-    
-        // UV mapping circulaire
-        const float u = 0.5f + 0.5f * cosTheta;
-        const float v = 0.5f + 0.5f * sinTheta;
-    
+        const float x = radius * cosf(theta);
+        const float z = -radius * sinf(theta); // Consistent with -Z forward
+
+        // Circular UV mapping
+        const float u = 0.5f + 0.5f * cosf(theta);
+        const float v = 0.5f - 0.5f * sinf(theta); // Flip V for -Z forward
+
         mesh.vertices[vertexIndex] = (R3D_Vertex){
             .position = {x, halfHeight, z},
             .texcoord = {u, v},
@@ -770,60 +767,62 @@ R3D_Mesh R3D_GenMeshCylinder(float radius, float height, int slices, bool upload
         vertexIndex++;
     }
 
-    // Génération des indices
+    // Generate indices
     int indexOffset = 0;
-    const int verticesPerRow = slices + 1;
+    const int verticesPerRow = slices + 1; // Vertices in bottom and top rows of cylinder body
 
-    // Indices du corps du cylindre
+    // Body indices (CCW winding from outside)
+    // For -Z forward, CCW order from outside remains the same
     for (int slice = 0; slice < slices; slice++) {
-        // Quad entre ligne du bas et ligne du haut
         const unsigned int bottomLeft = slice;
         const unsigned int bottomRight = slice + 1;
         const unsigned int topLeft = verticesPerRow + slice;
         const unsigned int topRight = verticesPerRow + slice + 1;
-    
-        // Premier triangle (bottomLeft, topLeft, bottomRight)
+
+        // First triangle: bottomLeft -> bottomRight -> topRight (CCW from outside)
         mesh.indices[indexOffset++] = bottomLeft;
-        mesh.indices[indexOffset++] = topLeft;
         mesh.indices[indexOffset++] = bottomRight;
-    
-        // Deuxième triangle (bottomRight, topLeft, topRight)
-        mesh.indices[indexOffset++] = bottomRight;
-        mesh.indices[indexOffset++] = topLeft;
         mesh.indices[indexOffset++] = topRight;
+
+        // Second triangle: bottomLeft -> topRight -> topLeft (CCW from outside)
+        mesh.indices[indexOffset++] = bottomLeft;
+        mesh.indices[indexOffset++] = topRight;
+        mesh.indices[indexOffset++] = topLeft;
     }
 
-    // Indices de la base inférieure
+    // Bottom cap indices (CCW winding from normal's perspective: looking from -Y up)
+    // With -Z forward, the order must be reversed to maintain correct winding
     const int bottomPerimeterStart = bottomCenterIndex + 1;
     for (int slice = 0; slice < slices; slice++) {
         const unsigned int current = bottomPerimeterStart + slice;
         const unsigned int next = bottomPerimeterStart + (slice + 1) % slices;
-    
-        // Triangle (centre, next, current) - ordre clockwise car normale vers le bas
+
+        // Reverse order for -Z forward: center -> next -> current
         mesh.indices[indexOffset++] = bottomCenterIndex;
         mesh.indices[indexOffset++] = next;
         mesh.indices[indexOffset++] = current;
     }
 
-    // Indices de la base supérieure
+    // Top cap indices (CCW winding from normal's perspective: looking from +Y down)
+    // With -Z forward, the order must be reversed to maintain correct winding
     const int topPerimeterStart = topCenterIndex + 1;
     for (int slice = 0; slice < slices; slice++) {
         const unsigned int current = topPerimeterStart + slice;
         const unsigned int next = topPerimeterStart + (slice + 1) % slices;
-    
-        // Triangle (centre, current, next) - ordre counter-clockwise
+
+        // Reverse order for -Z forward: center -> current -> next
         mesh.indices[indexOffset++] = topCenterIndex;
         mesh.indices[indexOffset++] = current;
         mesh.indices[indexOffset++] = next;
     }
 
-    // Calcul AABB
+    // Calculate AABB
     mesh.aabb = (BoundingBox){
         .min = {-radius, -halfHeight, -radius},
         .max = {radius, halfHeight, radius}
     };
 
-    // Upload optionnel vers GPU
+    // Optional upload to GPU
     if (upload) {
         R3D_UploadMesh(&mesh, false);
     }
