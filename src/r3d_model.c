@@ -2246,99 +2246,235 @@ static Texture2D r3d_load_assimp_texture(
     }
 
     texture = LoadTextureFromImage(image);
-
-    SetTextureFilter(texture, R3D.state.loading.textureFilter);
+    if (imgIsAllocted) UnloadImage(image);
 
     if (R3D.state.loading.textureFilter > TEXTURE_FILTER_BILINEAR) {
         GenTextureMipmaps(&texture);
     }
 
-    if (imgIsAllocted) {
-        UnloadImage(image);
-    }
+    SetTextureFilter(texture, R3D.state.loading.textureFilter);
 
     return texture;
 }
 
+/* --- Main ORM texture loading function --- */
+
 static Texture2D r3d_load_assimp_orm_texture(const struct aiScene* scene, const struct aiMaterial* aiMat, const char* basePath)
 {
+#define PATHS_EQUAL(a, b) (strcmp((a).data, (b).data) == 0)
+#define HAS_TEXTURE_DATA(comp) ((comp).image.data != NULL)
+#define IS_SHININESS_TYPE(comp) ((comp).type == aiTextureType_SHININESS)
+
     Texture2D ormTexture = { 0 };
 
-    /* --- Check if combined ORM texture exists --- */
+    /* --- Texture component structure --- */
+    
+    typedef struct {
+        Image image;
+        bool isAllocated;
+        enum aiTextureType type;
+        struct aiString texPath;
+        bool hasTexture;
+    } TextureComponent;
 
-    struct aiString texPath;
-    if (aiGetMaterialTexture(aiMat, aiTextureType_UNKNOWN, 0, &texPath, NULL, NULL, NULL, NULL, NULL, NULL) == AI_SUCCESS) {
-        if (strstr(texPath.data, "orm") || strstr(texPath.data, "ORM"))
+    TextureComponent components[3] = {
+        { {0}, false, aiTextureType_AMBIENT_OCCLUSION, {0}, false },
+        { {0}, false, aiTextureType_DIFFUSE_ROUGHNESS, {0}, false },
+        { {0}, false, aiTextureType_METALNESS, {0}, false }
+    };
+
+    /* --- Initialize texture availability --- */
+    
+    components[0].hasTexture = (aiGetMaterialTexture(aiMat, components[0].type, 0, &components[0].texPath, NULL, NULL, NULL, NULL, NULL, NULL) == AI_SUCCESS);
+    components[1].hasTexture = (aiGetMaterialTexture(aiMat, components[1].type, 0, &components[1].texPath, NULL, NULL, NULL, NULL, NULL, NULL) == AI_SUCCESS);
+    
+    // Fallback to shininess for roughness if not available
+    if (!components[1].hasTexture) {
+        components[1].hasTexture = (aiGetMaterialTexture(aiMat, aiTextureType_SHININESS, 0, &components[1].texPath, NULL, NULL, NULL, NULL, NULL, NULL) == AI_SUCCESS);
+        if (components[1].hasTexture) components[1].type = aiTextureType_SHININESS;
+    }
+    
+    components[2].hasTexture = (aiGetMaterialTexture(aiMat, components[2].type, 0, &components[2].texPath, NULL, NULL, NULL, NULL, NULL, NULL) == AI_SUCCESS);
+
+    /* --- Analyze texture sharing patterns --- */
+    
+    bool allTexturesSame = false, twoTexturesSame = false;
+    int sharedTextureIndex = -1;
+
+    if (components[0].hasTexture && components[1].hasTexture && components[2].hasTexture) {
+        if (PATHS_EQUAL(components[0].texPath, components[1].texPath) && 
+            PATHS_EQUAL(components[1].texPath, components[2].texPath)) {
+            allTexturesSame = true;
+            sharedTextureIndex = 0;
+        }
+        else if (PATHS_EQUAL(components[0].texPath, components[1].texPath) || 
+                 PATHS_EQUAL(components[0].texPath, components[2].texPath)) {
+            twoTexturesSame = true;
+            sharedTextureIndex = 0;
+        }
+        else if (PATHS_EQUAL(components[1].texPath, components[2].texPath)) {
+            twoTexturesSame = true;
+            sharedTextureIndex = 1;
+        }
+    }
+
+    /* --- Handle case where all textures are identical --- */
+    
+    if (allTexturesSame)
+    {
+        components[0].image = r3d_load_assimp_image(scene, aiMat, components[0].type, 0, basePath, &components[0].isAllocated);
+
+        if (HAS_TEXTURE_DATA(components[0]))
         {
-            bool ormImageIsAllocated = false;
-            Image ormImage = r3d_load_assimp_image(scene, aiMat, aiTextureType_UNKNOWN, 0, basePath, &ormImageIsAllocated);
+            // Convert to RGB format if necessary
+            if (components[0].image.format != RL_PIXELFORMAT_UNCOMPRESSED_R8G8B8) {
+                ImageFormat(&components[0].image, RL_PIXELFORMAT_UNCOMPRESSED_R8G8B8);
+            }
 
-            ormTexture = LoadTextureFromImage(ormImage);
+            // In such cases, there should be no shininess as roughness.
+            //if (IS_SHININESS_TYPE(components[1])) {
+            //    ImageColorInvertGreen(&components[0].image);
+            //}
 
-            SetTextureFilter(ormTexture, R3D.state.loading.textureFilter);
+            ormTexture = LoadTextureFromImage(components[0].image);
 
+            // Apply texture filtering
             if (R3D.state.loading.textureFilter > TEXTURE_FILTER_BILINEAR) {
                 GenTextureMipmaps(&ormTexture);
             }
+            SetTextureFilter(ormTexture, R3D.state.loading.textureFilter);
 
-            if (ormImageIsAllocated) {
-                UnloadImage(ormImage);
+            // Cleanup and return
+            if (components[0].isAllocated) {
+                UnloadImage(components[0].image);
             }
-
             return ormTexture;
         }
     }
 
-    /* --- Load each ORM texture and generate the combined texture --- */
-
-    bool oImageIsAllocated = false;
-    bool rImageIsAllocated = false;
-    bool mImageIsAllocated = false;
-
-    Image oImage = r3d_load_assimp_image(scene, aiMat, aiTextureType_AMBIENT_OCCLUSION, 0, basePath, &oImageIsAllocated);
-    Image rImage = r3d_load_assimp_image(scene, aiMat, aiTextureType_DIFFUSE_ROUGHNESS, 0, basePath, &rImageIsAllocated);
-    Image mImage = r3d_load_assimp_image(scene, aiMat, aiTextureType_METALNESS, 0, basePath, &mImageIsAllocated);
-
-    if (!rImage.data) {
-        rImage = r3d_load_assimp_image(scene, aiMat, aiTextureType_SHININESS, 0, basePath, &rImageIsAllocated);
-        if (rImage.data) ImageColorInvert(&rImage);
+    /* --- Load individual texture components --- */
+    
+    // Load occlusion texture
+    if (components[0].hasTexture) {
+        components[0].image = r3d_load_assimp_image(scene, aiMat, components[0].type, 0, basePath, &components[0].isAllocated);
+    }
+    
+    // Load roughness texture with sharing
+    if (components[1].hasTexture) {
+        if (twoTexturesSame && sharedTextureIndex == 0 && PATHS_EQUAL(components[0].texPath, components[1].texPath)) {
+            components[1].image = components[0].image;
+            components[1].isAllocated = false;
+        } else {
+            components[1].image = r3d_load_assimp_image(scene, aiMat, components[1].type, 0, basePath, &components[1].isAllocated);
+            if (HAS_TEXTURE_DATA(components[1]) && IS_SHININESS_TYPE(components[1])) {
+                ImageColorInvert(&components[1].image);
+            }
+        }
+    }
+    
+    // Load metalness texture with sharing
+    if (components[2].hasTexture) {
+        bool shouldLoadNew = true;
+        
+        if (twoTexturesSame) {
+            if (sharedTextureIndex == 0 && PATHS_EQUAL(components[0].texPath, components[2].texPath)) {
+                components[2].image = components[0].image;
+                components[2].isAllocated = false;
+                shouldLoadNew = false;
+            } else if (sharedTextureIndex == 1 && PATHS_EQUAL(components[1].texPath, components[2].texPath)) {
+                components[2].image = components[1].image;
+                components[2].isAllocated = false;
+                shouldLoadNew = false;
+            }
+        }
+        
+        if (shouldLoadNew) {
+            components[2].image = r3d_load_assimp_image(scene, aiMat, components[2].type, 0, basePath, &components[2].isAllocated);
+        }
     }
 
-    if (!oImage.data && !rImage.data && !mImage.data) {
-        return ormTexture; // No ORM texture available
+    /* --- Validate at least one component is available --- */
+    
+    bool hasAnyTexture = HAS_TEXTURE_DATA(components[0]) || HAS_TEXTURE_DATA(components[1]) || HAS_TEXTURE_DATA(components[2]);
+    if (!hasAnyTexture) goto cleanup;
+
+    /* --- Determine reference dimensions --- */
+    
+    int refWidth = 0, refHeight = 0;
+    for (int i = 0; i < 3; i++) {
+        if (HAS_TEXTURE_DATA(components[i])) {
+            refWidth = components[i].image.width;
+            refHeight = components[i].image.height;
+            break;
+        }
     }
 
-    Image ormImage = { 0 };
-    ormImage.data = malloc(rImage.width * rImage.height * sizeof(uint16_t));
-    ormImage.format = RL_PIXELFORMAT_UNCOMPRESSED_R5G6B5;
-    ormImage.width = rImage.width;
-    ormImage.height = rImage.height;
-    ormImage.mipmaps = 1;
-
-    size_t szOrmImage = ormImage.width * ormImage.height;
-
-    for (size_t i = 0; i < szOrmImage; i++) {
-        unsigned char r = oImage.data ? GetPixelColor(oImage.data + i, RL_PIXELFORMAT_UNCOMPRESSED_R5G6B5).r : 255;
-        unsigned char g = rImage.data ? GetPixelColor(rImage.data + i, RL_PIXELFORMAT_UNCOMPRESSED_R5G6B5).g : 255;
-        unsigned char b = mImage.data ? GetPixelColor(mImage.data + i, RL_PIXELFORMAT_UNCOMPRESSED_R5G6B5).b : 255;
-        ((uint16_t*)ormImage.data)[i] = ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3);
+    /* --- Resize components to match reference dimensions --- */
+    
+    for (int i = 0; i < 3; i++) {
+        if (HAS_TEXTURE_DATA(components[i]) && components[i].isAllocated &&
+            (components[i].image.width != refWidth || components[i].image.height != refHeight)) {
+            ImageResize(&components[i].image, refWidth, refHeight);
+        }
     }
 
-    if (mImageIsAllocated) UnloadImage(mImage);
-    if (rImageIsAllocated) UnloadImage(rImage);
-    if (oImageIsAllocated) UnloadImage(oImage);
+    /* --- Create combined ORM texture --- */
+    
+    Image ormImage = {
+        .data = malloc(refWidth * refHeight * 3 * sizeof(uint8_t)),
+        .format = RL_PIXELFORMAT_UNCOMPRESSED_R8G8B8,
+        .width = refWidth,
+        .height = refHeight,
+        .mipmaps = 1
+    };
 
+    if (!ormImage.data) goto cleanup;
+
+    /* --- Pack ORM channels into final image --- */
+    
+    uint8_t* ormData = (uint8_t*)ormImage.data;
+    const size_t pixelCount = refWidth * refHeight;
+    
+    for (size_t i = 0; i < pixelCount; i++)
+    {
+        const int x = i % refWidth;
+        const int y = i / refWidth;
+
+        // Extract channels with default values
+        const uint8_t O = HAS_TEXTURE_DATA(components[0]) ? GetImageColor(components[0].image, x, y).r : 255;
+        const uint8_t R = HAS_TEXTURE_DATA(components[1]) ? GetImageColor(components[1].image, x, y).g : 255;
+        const uint8_t M = HAS_TEXTURE_DATA(components[2]) ? GetImageColor(components[2].image, x, y).b : 255;
+
+        // Pack into RGB: Red=Occlusion, Green=Roughness, Blue=Metalness
+        ormData[i * 3 + 0] = O;
+        ormData[i * 3 + 1] = R;
+        ormData[i * 3 + 2] = M;
+    }
+
+    /* --- Generate final texture with filtering --- */
+    
     ormTexture = LoadTextureFromImage(ormImage);
-
-    SetTextureFilter(ormTexture, R3D.state.loading.textureFilter);
+    UnloadImage(ormImage);
 
     if (R3D.state.loading.textureFilter > TEXTURE_FILTER_BILINEAR) {
         GenTextureMipmaps(&ormTexture);
     }
+    SetTextureFilter(ormTexture, R3D.state.loading.textureFilter);
 
-    UnloadImage(ormImage);
+cleanup:
+    /* --- Cleanup allocated texture components --- */
+
+    for (int i = 0; i < 3; i++) {
+        if (components[i].isAllocated && HAS_TEXTURE_DATA(components[i])) {
+            UnloadImage(components[i].image);
+        }
+    }
 
     return ormTexture;
+
+#undef PATHS_EQUAL
+#undef HAS_TEXTURE_DATA
+#undef IS_SHININESS_TYPE
 }
 
 bool process_assimp_materials(const struct aiScene* scene, R3D_Material** materials, int* materialCount, const char* modelPath)
