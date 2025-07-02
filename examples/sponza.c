@@ -4,10 +4,10 @@
 
 /* === Resources === */
 
-static Model		sponza = { 0 };
-static R3D_Skybox	skybox = { 0 };
-static Camera3D		camera = { 0 };
-static R3D_Light    lights[2] = { 0 };
+static R3D_Model sponza = { 0 };
+static R3D_Skybox skybox = { 0 };
+static Camera3D camera = { 0 };
+static R3D_Light lights[2] = { 0 };
 
 static bool sky = false;
 
@@ -23,30 +23,11 @@ const char* Init(void)
     R3D_SetSSAORadius(4.0f);
     R3D_SetBloomMode(R3D_BLOOM_MIX);
 
-    sponza = RES_LoadModel("sponza.glb");
-
-    for (int i = 0; i < sponza.materialCount; i++) {
-        sponza.materials[i].maps[MATERIAL_MAP_ALBEDO].color = WHITE;
-        sponza.materials[i].maps[MATERIAL_MAP_OCCLUSION].value = 1.0f;
-        sponza.materials[i].maps[MATERIAL_MAP_ROUGHNESS].value = 1.0f;
-        sponza.materials[i].maps[MATERIAL_MAP_METALNESS].value = 1.0f;
-
-        GenTextureMipmaps(&sponza.materials[i].maps[MATERIAL_MAP_ALBEDO].texture);
-        SetTextureFilter(sponza.materials[i].maps[MATERIAL_MAP_ALBEDO].texture, TEXTURE_FILTER_TRILINEAR);
-
-        GenTextureMipmaps(&sponza.materials[i].maps[MATERIAL_MAP_NORMAL].texture);
-        SetTextureFilter(sponza.materials[i].maps[MATERIAL_MAP_NORMAL].texture, TEXTURE_FILTER_TRILINEAR);
-
-        // REVIEW: Issue with the model textures
-        sponza.materials[i].maps[MATERIAL_MAP_ROUGHNESS].texture = (Texture2D){ .id = rlGetTextureIdDefault() };
-    }
-
-    // NOTE: Toggle sky with 'T' key
+    sponza = R3D_LoadModel(TextFormat("%s%s", RESOURCES_PATH, "sponza.glb"), true);
     skybox = R3D_LoadSkybox(RESOURCES_PATH "sky/skybox3.png", CUBEMAP_LAYOUT_AUTO_DETECT);
 
-
-    BoundingBox sceneBounds = GetModelBoundingBox(sponza);
-    R3D_SetSceneBounds(sceneBounds);
+    // Useful if you use directional lights
+    R3D_SetSceneBounds(sponza.aabb);
 
     for (int i = 0; i < 2; i++) {
         lights[i] = R3D_CreateLight(R3D_LIGHT_SPOT);
@@ -104,7 +85,7 @@ void Update(float delta)
 void Draw(void)
 {
     R3D_Begin(camera);
-        R3D_DrawModel(sponza, (Vector3) { 0 }, 1.0f);
+        R3D_DrawModel(&sponza, (Vector3) { 0 }, 1.0f);
     R3D_End();
 
     BeginMode3D(camera);
@@ -147,7 +128,7 @@ void Draw(void)
 
 void Close(void)
 {
-    UnloadModel(sponza);
+    R3D_UnloadModel(&sponza, true);
     R3D_UnloadSkybox(skybox);
     R3D_Close();
 }

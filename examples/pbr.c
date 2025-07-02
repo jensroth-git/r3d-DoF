@@ -3,14 +3,13 @@
 
 /* === Resources === */
 
-static Model		model = { 0 };
-static R3D_Skybox	skybox = { 0 };
-static Camera3D		camera = { 0 };
+static R3D_Model model = { 0 };
+static R3D_Skybox skybox = { 0 };
+static Camera3D camera = { 0 };
 
 static float modelScale = 1.0f;
 
-
-/* === Examples === */
+/* === Example === */
 
 const char* Init(void)
 {
@@ -24,20 +23,13 @@ const char* Init(void)
 	R3D_SetTonemapExposure(0.75f);
 	R3D_SetTonemapWhite(1.25f);
 
-	model = RES_LoadModel("pbr/musket.glb");
+	model = R3D_LoadModel(TextFormat("%s%s", RESOURCES_PATH, "pbr/musket.glb"), true);
 	{
-		model.transform = MatrixMultiply(model.transform, MatrixRotateY(PI / 2));
-
-		//for (int i = 0; i < model.meshCount; i++)
+		Matrix transform = MatrixRotateY(PI / 2);
 
 		for (int i = 0; i < model.materialCount; i++) {
-			model.materials[i].maps[MATERIAL_MAP_ALBEDO].color = WHITE;
-			model.materials[i].maps[MATERIAL_MAP_ROUGHNESS].value = 1.0f;
-			model.materials[i].maps[MATERIAL_MAP_METALNESS].value = 1.0f;
-			SetTextureFilter(model.materials[i].maps[MATERIAL_MAP_ALBEDO].texture, TEXTURE_FILTER_BILINEAR);
-			SetTextureFilter(model.materials[i].maps[MATERIAL_MAP_ROUGHNESS].texture, TEXTURE_FILTER_BILINEAR);
-			SetTextureFilter(model.materials[i].maps[MATERIAL_MAP_METALNESS].texture, TEXTURE_FILTER_BILINEAR);
-			SetTextureFilter(model.materials[i].maps[MATERIAL_MAP_NORMAL].texture, TEXTURE_FILTER_BILINEAR);
+			SetTextureFilter(model.materials[i].albedo.texture, TEXTURE_FILTER_BILINEAR);
+			SetTextureFilter(model.materials[i].orm.texture, TEXTURE_FILTER_BILINEAR);
 		}
 	}
 
@@ -69,16 +61,14 @@ void Update(float delta)
 		float pitch = (GetMouseDelta().y * 0.005f) / modelScale;
 		float yaw = (GetMouseDelta().x * 0.005f) / modelScale;
 
-		model.transform = MatrixMultiply(
-			model.transform, MatrixRotateXYZ((Vector3) { pitch, yaw, 0.0f })
-		);
+		Matrix transform = MatrixRotateXYZ((Vector3) { pitch, yaw, 0.0f });
 	}
 }
 
 void Draw(void)
 {
 	R3D_Begin(camera);
-		R3D_DrawModel(model, (Vector3) { 0 }, modelScale);
+		R3D_DrawModel(&model, (Vector3) { 0 }, modelScale);
 	R3D_End();
 
 	DrawFPS(10, 10);
@@ -88,7 +78,7 @@ void Draw(void)
 
 void Close(void)
 {
-	UnloadModel(model);
+	R3D_UnloadModel(&model, true);
 	R3D_UnloadSkybox(skybox);
 	R3D_Close();
 }

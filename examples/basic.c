@@ -1,29 +1,24 @@
 #include "./common.h"
 #include "r3d.h"
+#include "raymath.h"
 
 /* === Resources === */
 
-static Model		plane = { 0 };
-static Model		sphere = { 0 };
-static Camera3D		camera = { 0 };
+static R3D_Mesh plane = { 0 };
+static R3D_Mesh sphere = { 0 };
+static R3D_Material material = { 0 };
+static Camera3D camera = { 0 };
 
-
-/* === Examples === */
+/* === Example === */
 
 const char* Init(void)
 {
     R3D_Init(GetScreenWidth(), GetScreenHeight(), 0);
     SetTargetFPS(60);
 
-    plane = LoadModelFromMesh(GenMeshPlane(1000, 1000, 1, 1));
-    plane.materials[0].maps[MATERIAL_MAP_OCCLUSION].value = 1;
-    plane.materials[0].maps[MATERIAL_MAP_ROUGHNESS].value = 1;
-    plane.materials[0].maps[MATERIAL_MAP_METALNESS].value = 0;
-
-    sphere = LoadModelFromMesh(GenMeshSphere(0.5f, 64, 64));
-    sphere.materials[0].maps[MATERIAL_MAP_OCCLUSION].value = 1;
-    sphere.materials[0].maps[MATERIAL_MAP_ROUGHNESS].value = 0.25;
-    sphere.materials[0].maps[MATERIAL_MAP_METALNESS].value = 0.75;
+    plane = R3D_GenMeshPlane(1000, 1000, 1, 1, true);
+    sphere = R3D_GenMeshSphere(0.5f, 64, 64, true);
+    material = R3D_GetDefaultMaterial();
 
     camera = (Camera3D) {
         .position = (Vector3) { 0, 2, 2 },
@@ -50,14 +45,14 @@ void Update(float delta)
 void Draw(void)
 {
     R3D_Begin(camera);
-        R3D_DrawModel(plane, (Vector3) { 0, -0.5f, 0 }, 1.0f);
-        R3D_DrawModel(sphere, (Vector3) { 0 }, 1.0f);
+        R3D_DrawMesh(&plane, &material, MatrixTranslate(0, -0.5f, 0));
+        R3D_DrawMesh(&sphere, &material, MatrixIdentity());
     R3D_End();
 }
 
 void Close(void)
 {
-    UnloadModel(plane);
-    UnloadModel(sphere);
+    R3D_UnloadMesh(&plane);
+    R3D_UnloadMesh(&sphere);
     R3D_Close();
 }

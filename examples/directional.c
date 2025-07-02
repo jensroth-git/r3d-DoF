@@ -1,11 +1,12 @@
 #include "./common.h"
+#include "r3d.h"
 
 /* === Resources === */
 
-static Model		plane = { 0 };
-static Mesh		    sphere = { 0 };
-static Material     material = { 0 };
-static Camera3D		camera = { 0 };
+static R3D_Mesh plane = { 0 };
+static R3D_Mesh sphere = { 0 };
+static R3D_Material material = { 0 };
+static Camera3D camera = { 0 };
 
 static Matrix* transforms = NULL;
 
@@ -17,17 +18,9 @@ const char* Init(void)
     R3D_Init(GetScreenWidth(), GetScreenHeight(), 0);
     SetTargetFPS(60);
 
-    plane = LoadModelFromMesh(GenMeshPlane(1000, 1000, 1, 1));
-    plane.materials[0].maps[MATERIAL_MAP_OCCLUSION].value = 1;
-    plane.materials[0].maps[MATERIAL_MAP_ROUGHNESS].value = 1;
-    plane.materials[0].maps[MATERIAL_MAP_METALNESS].value = 0;
-
-    sphere = GenMeshSphere(0.35f, 16, 16);
-
-    material = LoadMaterialDefault();
-    material.maps[MATERIAL_MAP_OCCLUSION].value = 1;
-    material.maps[MATERIAL_MAP_ROUGHNESS].value = 0.25;
-    material.maps[MATERIAL_MAP_METALNESS].value = 0.75;
+    plane = R3D_GenMeshPlane(1000, 1000, 1, 1, true);
+    sphere = R3D_GenMeshSphere(0.35f, 16, 16, true);
+    material = R3D_GetDefaultMaterial();
 
     camera = (Camera3D){
         .position = (Vector3) { 0, 2, 2 },
@@ -68,8 +61,8 @@ void Update(float delta)
 void Draw(void)
 {
     R3D_Begin(camera);
-        R3D_DrawModel(plane, (Vector3) { 0, -0.5f, 0 }, 1.0f);
-        R3D_DrawMeshInstanced(sphere, material, transforms, 100 * 100);
+        R3D_DrawMesh(&plane, &material, MatrixTranslate(0, -0.5f, 0));
+        R3D_DrawMeshInstanced(&sphere, &material, transforms, 100 * 100);
     R3D_End();
 
     DrawFPS(10, 10);
@@ -77,8 +70,8 @@ void Draw(void)
 
 void Close(void)
 {
-    UnloadModel(plane);
-    UnloadMesh(sphere);
-    UnloadMaterial(material);
+    R3D_UnloadMesh(&plane);
+    R3D_UnloadMesh(&sphere);
+    R3D_UnloadMaterial(&material);
     R3D_Close();
 }

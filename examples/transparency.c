@@ -1,41 +1,54 @@
 #include "./common.h"
+#include "r3d.h"
 
 /* === Resources === */
 
-static Model		cube = { 0 };
-static Model		plane = { 0 };
-static Model		sphere = { 0 };
-static Camera3D		camera = { 0 };
+static R3D_Model cube = { 0 };
+static R3D_Model plane = { 0 };
+static R3D_Model sphere = { 0 };
+static Camera3D camera = { 0 };
 
-
-/* === Examples === */
+/* === Example === */
 
 const char* Init(void)
 {
     R3D_Init(GetScreenWidth(), GetScreenHeight(), 0);
     SetTargetFPS(60);
 
-    // NOTE: This mode is already the default one, but the call is made here for example purposes.
-    //       In this mode, R3D will attempt to detect when to perform deferred or forward rendering 
-    //       automatically based on the alpha of the albedo color or the format of the albedo texture.
+    R3D_Mesh mesh = { 0 };
 
-    R3D_ApplyRenderMode(R3D_RENDER_AUTO_DETECT);
+    /* --- Load cube model --- */
 
-    cube = LoadModelFromMesh(GenMeshCube(1, 1, 1));
-    cube.materials[0].maps[MATERIAL_MAP_ALBEDO].color = (Color){ 100, 100, 255, 100 };
-    cube.materials[0].maps[MATERIAL_MAP_OCCLUSION].value = 1.0f;
-    cube.materials[0].maps[MATERIAL_MAP_ROUGHNESS].value = 0.2f;
-    cube.materials[0].maps[MATERIAL_MAP_METALNESS].value = 0.2f;
+    mesh = R3D_GenMeshCube(1, 1, 1, true);
+    cube = R3D_LoadModelFromMesh(&mesh);
 
-    plane = LoadModelFromMesh(GenMeshPlane(1000, 1000, 1, 1));
-    plane.materials[0].maps[MATERIAL_MAP_OCCLUSION].value = 1.0f;
-    plane.materials[0].maps[MATERIAL_MAP_ROUGHNESS].value = 1.0f;
-    plane.materials[0].maps[MATERIAL_MAP_METALNESS].value = 0.0f;
+    cube.materials[0].albedo.color = (Color){ 100, 100, 255, 100 };
+    cube.materials[0].orm.occlusion = 1.0f;
+    cube.materials[0].orm.roughness = 0.2f;
+    cube.materials[0].orm.metalness = 0.2f;
 
-    sphere = LoadModelFromMesh(GenMeshSphere(0.5f, 64, 64));
-    sphere.materials[0].maps[MATERIAL_MAP_OCCLUSION].value = 1.0f;
-    sphere.materials[0].maps[MATERIAL_MAP_ROUGHNESS].value = 0.25f;
-    sphere.materials[0].maps[MATERIAL_MAP_METALNESS].value = 0.75f;
+    cube.materials[0].blendMode = R3D_BLEND_ALPHA;
+    cube.materials[0].shadowCastMode = R3D_SHADOW_CAST_DISABLED;
+
+    /* --- Load plane model --- */
+
+    mesh = R3D_GenMeshPlane(1000, 1000, 1, 1, true);
+    plane = R3D_LoadModelFromMesh(&mesh);
+
+    plane.materials[0].orm.occlusion = 1.0f;
+    plane.materials[0].orm.roughness = 1.0f;
+    plane.materials[0].orm.metalness = 0.0f;
+
+    /* --- Load sphere model --- */
+
+    mesh = R3D_GenMeshSphere(0.5f, 64, 64, true);
+    sphere = R3D_LoadModelFromMesh(&mesh);
+
+    sphere.materials[0].orm.occlusion = 1.0f;
+    sphere.materials[0].orm.roughness = 0.25f;
+    sphere.materials[0].orm.metalness = 0.75f;
+
+    /* --- Configure the camera --- */
 
     camera = (Camera3D){
         .position = (Vector3) { 0, 2, 2 },
@@ -43,6 +56,8 @@ const char* Init(void)
         .up = (Vector3) { 0, 1, 0 },
         .fovy = 60,
     };
+
+    /* --- Configure lighting --- */
 
     R3D_Light light = R3D_CreateLight(R3D_LIGHT_SPOT);
     {
@@ -63,14 +78,10 @@ void Draw(void)
 {
     R3D_Begin(camera);
     {
-        R3D_ApplyShadowCastMode(R3D_SHADOW_CAST_FRONT_FACES);
+        R3D_DrawModel(&plane, (Vector3) { 0, -0.5f, 0 }, 1.0f);
+        R3D_DrawModel(&sphere, (Vector3) { 0 }, 1.0f);
 
-        R3D_DrawModel(plane, (Vector3) { 0, -0.5f, 0 }, 1.0f);
-        R3D_DrawModel(sphere, (Vector3) { 0 }, 1.0f);
-
-        R3D_ApplyShadowCastMode(R3D_SHADOW_CAST_DISABLED);
-
-        R3D_DrawModel(cube, (Vector3) { 0 }, 1.0f);
+        R3D_DrawModel(&cube, (Vector3) { 0 }, 1.0f);
     }
 
     R3D_End();
@@ -78,7 +89,8 @@ void Draw(void)
 
 void Close(void)
 {
-    UnloadModel(plane);
-    UnloadModel(sphere);
+    R3D_UnloadModel(&plane, false);
+    R3D_UnloadModel(&sphere, false);
+
     R3D_Close();
 }

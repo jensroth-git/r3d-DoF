@@ -1,18 +1,18 @@
 #include "./common.h"
+#include "r3d.h"
 
 /* === Resources === */
 
-static Mesh		    sphere = { 0 };
-static Material     material = { 0 };
-static R3D_Skybox	skybox = { 0 };
-static Camera3D		camera = { 0 };
+static R3D_Mesh sphere = { 0 };
+static R3D_Material material = { 0 };
+static R3D_Skybox skybox = { 0 };
+static Camera3D camera = { 0 };
 
 static R3D_InterpolationCurve curve = { 0 };
 static R3D_ParticleSystem particles = { 0 };
 static BoundingBox particlesAabb = { 0 };
 
-
-/* === Examples === */
+/* === Example === */
 
 const char* Init(void)
 {
@@ -23,10 +23,10 @@ const char* Init(void)
     R3D_SetBackgroundColor((Color) { 4, 4, 4 });
     R3D_SetAmbientColor(BLACK);
 
-    sphere = GenMeshSphere(0.1f, 16, 32);
+    sphere = R3D_GenMeshSphere(0.1f, 16, 32, true);
 
-    material = LoadMaterialDefault();
-    R3D_SetMaterialEmission(&material, NULL, (Color) { 255, 0, 0, 255 }, 1.0f);
+    material = R3D_GetDefaultMaterial();
+    material.albedo.color = (Color) { 255, 0, 0, 255 };
 
     curve = R3D_LoadInterpolationCurve(3);
     R3D_AddKeyframe(&curve, 0.0f, 0.0f);
@@ -62,7 +62,7 @@ void Update(float delta)
 void Draw(void)
 {
     R3D_Begin(camera);
-        R3D_DrawParticleSystem(&particles, sphere, material);
+        R3D_DrawParticleSystem(&particles, &sphere, &material);
     R3D_End();
 
     BeginMode3D(camera);
@@ -77,8 +77,8 @@ void Close(void)
     R3D_UnloadInterpolationCurve(curve);
     R3D_UnloadParticleSystem(&particles);
 
-    UnloadMesh(sphere);
-    UnloadMaterial(material);
+    R3D_UnloadMesh(&sphere);
+    R3D_UnloadMaterial(&material);
 
     R3D_Close();
 }

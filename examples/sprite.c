@@ -1,11 +1,16 @@
 #include "./common.h"
+#include "r3d.h"
+#include "raymath.h"
 
 /* === Resources === */
 
-static Model		plane = { 0 };
-static Camera3D		camera = { 0 };
-static Texture2D    texture = { 0 };
-static R3D_Sprite   sprite = { 0 };
+static Camera3D camera = { 0 };
+
+static R3D_Mesh plane = { 0 };
+static R3D_Material material = { 0 };
+
+static Texture2D texture = { 0 };
+static R3D_Sprite sprite = { 0 };
 
 /* === Bird Data === */
 
@@ -19,10 +24,8 @@ const char* Init(void)
     R3D_Init(GetScreenWidth(), GetScreenHeight(), 0);
     SetTargetFPS(60);
 
-    plane = LoadModelFromMesh(GenMeshPlane(1000, 1000, 1, 1));
-    plane.materials[0].maps[MATERIAL_MAP_OCCLUSION].value = 1;
-    plane.materials[0].maps[MATERIAL_MAP_ROUGHNESS].value = 1;
-    plane.materials[0].maps[MATERIAL_MAP_METALNESS].value = 0;
+    plane = R3D_GenMeshPlane(1000, 1000, 1, 1, true);
+    material = R3D_GetDefaultMaterial();
 
     texture = RES_LoadTexture("spritesheet.png");
     sprite = R3D_LoadSprite(texture, 4, 1);
@@ -58,19 +61,16 @@ void Draw(void)
 {
     R3D_Begin(camera);
 
-    R3D_ApplyBillboardMode(R3D_BILLBOARD_DISABLED);
-    R3D_DrawModel(plane, (Vector3) { 0, -0.5f, 0 }, 1.0f);
-
-    R3D_ApplyBillboardMode(R3D_BILLBOARD_Y_AXIS);
-    R3D_DrawSpriteEx(sprite, birdPos, (Vector2) { birdDirX, 1.0f }, 0.0f);
+    R3D_DrawMesh(&plane, &material, MatrixTranslate(0, -0.5f, 0));
+    R3D_DrawSpriteEx(&sprite, birdPos, (Vector2) { birdDirX, 1.0f }, 0.0f);
 
     R3D_End();
 }
 
 void Close(void)
 {
-    R3D_UnloadSprite(sprite);
+    R3D_UnloadSprite(&sprite);
+    R3D_UnloadMesh(&plane);
     UnloadTexture(texture);
-    UnloadModel(plane);
     R3D_Close();
 }

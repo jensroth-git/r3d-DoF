@@ -25,12 +25,6 @@ static inline Texture2D RES_LoadTexture(const char* fileName)
 	return texture;
 }
 
-static inline Model RES_LoadModel(const char* fileName)
-{
-	return LoadModel(TextFormat("%s%s", RESOURCES_PATH, fileName));
-}
-
-
 /* === Example functions === */
 
 const char* Init(void);

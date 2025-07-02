@@ -1,14 +1,14 @@
 #include "./common.h"
+#include "r3d.h"
 #include <rlgl.h>
 
 /* === Resources === */
 
-static Model		sphere = { 0 };
-static Camera3D		camera = { 0 };
-static Material     materials[5] = { 0 };
+static Camera3D camera = { 0 };
+static R3D_Mesh sphere = { 0 };
+static R3D_Material materials[5] = { 0 };
 
-
-/* === Examples === */
+/* === Example === */
 
 const char* Init(void)
 {
@@ -16,15 +16,11 @@ const char* Init(void)
     SetWindowState(FLAG_WINDOW_RESIZABLE);
     SetTargetFPS(60);
 
-    sphere = LoadModelFromMesh(GenMeshSphere(0.5f, 64, 64));
-    UnloadMaterial(sphere.materials[0]);
+    sphere = R3D_GenMeshSphere(0.5f, 64, 64, true);
 
     for (int i = 0; i < 5; i++) {
-        materials[i] = LoadMaterialDefault();
-        materials[i].maps[MATERIAL_MAP_ALBEDO].color = ColorFromHSV((float)i / 5 * 330, 1.0f, 1.0f);
-        materials[i].maps[MATERIAL_MAP_OCCLUSION].value = 1;
-        materials[i].maps[MATERIAL_MAP_ROUGHNESS].value = 1;
-        materials[i].maps[MATERIAL_MAP_METALNESS].value = 0;
+        materials[i] = R3D_GetDefaultMaterial();
+        materials[i].albedo.color = ColorFromHSV((float)i / 5 * 330, 1.0f, 1.0f);
     }
 
     camera = (Camera3D){
@@ -72,8 +68,7 @@ void Draw(void)
     R3D_Begin(camera);
         rlPushMatrix();
         for (int i = 0; i < 5; i++) {
-            sphere.materials[0] = materials[i];
-            R3D_DrawModel(sphere, (Vector3) { i - 2, 0, 0 }, 1.0f);
+            R3D_DrawMesh(&sphere, &materials[i], MatrixTranslate(i - 2, 0, 0));
         }
         rlPopMatrix();
     R3D_End();
@@ -84,6 +79,6 @@ void Draw(void)
 
 void Close(void)
 {
-    UnloadModel(sphere);
+    R3D_UnloadMesh(&sphere);
     R3D_Close();
 }

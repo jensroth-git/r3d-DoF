@@ -1,10 +1,13 @@
 #include "./common.h"
+#include "r3d.h"
+#include "raymath.h"
 
 /* === Resources === */
 
-static Model		cube = { 0 };
-static Camera3D		camera = { 0 };
-static float        hueCube = 0.0f;
+static R3D_Mesh cube = { 0 };
+static R3D_Material material = { 0 };
+static Camera3D camera = { 0 };
+static float hueCube = 0.0f;
 
 /* === Local Functions === */
 
@@ -24,15 +27,7 @@ static const char* getBloomModeName(R3D_Bloom mode)
     return "Unknown";
 }
 
-static void updateCubeColor(void)
-{
-    Color color = ColorFromHSV(hueCube, 1.0f, 1.0f);
-    R3D_SetMaterialAlbedo(&cube.materials[0], NULL, color);
-    R3D_SetMaterialOcclusion(&cube.materials[0], NULL, 1.0f);
-    R3D_SetMaterialEmission(&cube.materials[0], NULL, color, 1.0f);
-}
-
-/* === Examples === */
+/* === Example === */
 
 const char* Init(void)
 {
@@ -43,8 +38,8 @@ const char* Init(void)
     R3D_SetBloomMode(R3D_BLOOM_MIX);
     R3D_SetBackgroundColor(BLACK);
 
-    cube = LoadModelFromMesh(GenMeshCube(1.0f, 1.0f, 1.0f));
-    updateCubeColor();
+    cube = R3D_GenMeshCube(1.0f, 1.0f, 1.0f, true);
+    material = R3D_GetDefaultMaterial();
 
     camera = (Camera3D){
         .position = (Vector3) { 0, 3.5, 5 },
@@ -63,7 +58,7 @@ void Update(float delta)
     int hueDir = IsMouseButtonDown(MOUSE_BUTTON_RIGHT) - IsMouseButtonDown(MOUSE_BUTTON_LEFT);
     if (hueDir != 0) {
         hueCube = Wrap(hueCube + hueDir * 90.0f * delta, 0, 360);
-        updateCubeColor();
+        material.albedo.color = ColorFromHSV(hueCube, 1.0f, 1.0f);
     }
 
     int intensityDir = (IsKeyPressedRepeat(KEY_RIGHT) || IsKeyPressed(KEY_RIGHT)) -
@@ -88,7 +83,7 @@ void Update(float delta)
 void Draw(void)
 {
     R3D_Begin(camera);
-        R3D_DrawModel(cube, (Vector3) { 0 }, 1.0f);
+        R3D_DrawMesh(&cube, &material, MatrixIdentity());
     R3D_End();
 
     R3D_DrawBufferEmission(10, 10, 100, 100);
@@ -112,6 +107,6 @@ void Draw(void)
 
 void Close(void)
 {
-    UnloadModel(cube);
+    R3D_UnloadMesh(&cube);
     R3D_Close();
 }
