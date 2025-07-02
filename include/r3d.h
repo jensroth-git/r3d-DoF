@@ -1591,25 +1591,25 @@ R3DAPI void R3D_SetBloomThreshold(float value);
 R3DAPI float R3D_GetBloomThreshold(void);
 
 /**
- * @brief Sets the bloom brightness softness threshold.
+ * @brief Sets the bloom brightness threshold's softness.
  *
  * Controls the softness of the cutoff between being include or excluded in the
  * bloom effect. A value of 0 will result in a hard transition between being
- * included or excluded, while values up to 1 will give a softer transition
- * as the value increases.
+ * included or excluded, while larger values will give an increasingly
+ * softer transition.
  *
- * @param value The value of of the soft threshold (in the range [0.0, 1.0).
+ * @param value The value of of the bloom brightness threshold's softness.
  */
 R3DAPI void R3D_SetBloomSoftThreshold(float value);
 
 /**
- * @brief Gets the current bloom brightness softness threshold.
+ * @brief Gets the current bloom brightness threshold's softness.
  *
  * Retrieves the softness of the brightness cutoff for the bloom effect.
  * This value determines the softness of the transition between being
  * included or excluded in the bloom effect
  *
- * @return The current bloom brightness soft threshold.
+ * @return The current bloom brightness threshold's softness.
  */
 R3DAPI float R3D_GetBloomSoftThreshold(void);
 

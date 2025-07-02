@@ -184,6 +184,7 @@ extern struct R3D_State {
         int bloomFilterRadius;      // (gen pass)
         float bloomThreshold;       // (gen pass)
         float bloomSoftThreshold;   // (gen pass)
+        Vector4 bloomPrefilter;     // (gen pass)
 
         R3D_Fog fogMode;            // (post pass)
         Vector3 fogColor;           // (post pass)
@@ -272,6 +273,8 @@ extern struct R3D_State {
 /* === Helper functions === */
 
 bool r3d_check_texture_format_support(unsigned int format);
+
+void r3d_calculate_bloom_prefilter_data();
 
 
 /* === Main loading functions === */
