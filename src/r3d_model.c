@@ -2450,20 +2450,28 @@ bool process_assimp_materials(const struct aiScene* scene, R3D_Material** materi
     aiProcess_CalcTangentSpace      |   \
     aiProcess_GenNormals            |   \
     aiProcess_JoinIdenticalVertices |   \
-    aiProcess_SortByPType
+    aiProcess_SortByPType           |   \
+    aiProcess_GlobalScale
 
 R3D_Model R3D_LoadModel(const char* filePath, bool upload)
 {
     R3D_Model model = { 0 };
 
+    /* --- Configure Assimp properties --- */
+
+    // Set the global scale from 'cm' to 'm'
+    struct aiPropertyStore* props = aiCreatePropertyStore();
+    aiSetImportPropertyFloat(props, AI_CONFIG_GLOBAL_SCALE_FACTOR_KEY, 0.01f);
+
     /* --- Import scene using Assimp --- */
 
-    const struct aiScene* scene = aiImportFile(filePath, R3D_ASSIMP_FLAGS);
-
+    const struct aiScene* scene = aiImportFileExWithProperties(filePath, R3D_ASSIMP_FLAGS, NULL, props);
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
         TraceLog(LOG_ERROR, "R3D: Assimp error; %s", aiGetErrorString());
         return model;
     }
+
+    aiReleasePropertyStore(props);
 
     /* --- Process materials --- */
 
@@ -2519,6 +2527,12 @@ R3D_Model R3D_LoadModelFromMemory(const char* fileType, const void* data, unsign
 {
     R3D_Model model = { 0 };
 
+    /* --- Configure Assimp properties --- */
+
+    // Set the global scale from 'cm' to 'm'
+    struct aiPropertyStore* props = aiCreatePropertyStore();
+    aiSetImportPropertyFloat(props, AI_CONFIG_GLOBAL_SCALE_FACTOR_KEY, 0.01f);
+
     /* --- Import scene using Assimp --- */
 
     if (fileType != NULL && fileType[0] == '.') {
@@ -2526,12 +2540,15 @@ R3D_Model R3D_LoadModelFromMemory(const char* fileType, const void* data, unsign
         fileType++;
     }
 
-    const struct aiScene* scene = aiImportFileFromMemory(data, size, R3D_ASSIMP_FLAGS, fileType);
+    const struct aiScene* scene = aiImportFileFromMemoryWithProperties(
+        data, size, R3D_ASSIMP_FLAGS, fileType, props);
 
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
         TraceLog(LOG_ERROR, "R3D: Assimp error; %s", aiGetErrorString());
         return model;
     }
+
+    aiReleasePropertyStore(props);
 
     /* --- Process materials --- */
 
