@@ -12,7 +12,7 @@ const char* Init(void)
     R3D_Init(GetScreenWidth(), GetScreenHeight(), 0);
     SetTargetFPS(60);
 
-    sponza = R3D_LoadModel(TextFormat("%s%s", RESOURCES_PATH, "sponza.glb"), true);
+    sponza = R3D_LoadModel(RESOURCES_PATH "sponza.glb", true);
 
     R3D_SetFogMode(R3D_FOG_EXP);
 

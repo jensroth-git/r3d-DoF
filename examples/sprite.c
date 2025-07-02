@@ -27,7 +27,7 @@ const char* Init(void)
     plane = R3D_GenMeshPlane(1000, 1000, 1, 1, true);
     material = R3D_GetDefaultMaterial();
 
-    texture = RES_LoadTexture("spritesheet.png");
+    texture = LoadTexture(RESOURCES_PATH "spritesheet.png");
     sprite = R3D_LoadSprite(texture, 4, 1);
 
     camera = (Camera3D){
