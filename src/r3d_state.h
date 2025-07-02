@@ -54,7 +54,7 @@ extern struct R3D_State {
             unsigned int albedo;            ///< RGB[8|8|8]
             unsigned int emission;          ///< RGB[11|11|10] (if compatible, otherwise 16F || 32F || 8UI)
             unsigned int normal;            ///< RG[16|16] (or) RG[8|8] (R3D_FLAGS_8_BIT_NORMALS or 16F not supported)
-            unsigned int orm;               ///< RGB[5|6|5]
+            unsigned int orm;               ///< RGB[8|8|8]
             unsigned int depth;             ///< DS[24|8]
         } gBuffer;
 

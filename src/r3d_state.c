@@ -281,7 +281,7 @@ void r3d_framebuffer_load_gbuffer(int width, int height)
 
     // Generate (albedo / orm) buffers
     gBuffer->albedo = rlLoadTexture(NULL, width, height, RL_PIXELFORMAT_UNCOMPRESSED_R8G8B8, 1);
-    gBuffer->orm = rlLoadTexture(NULL, width, height, RL_PIXELFORMAT_UNCOMPRESSED_R5G6B5, 1);
+    gBuffer->orm = rlLoadTexture(NULL, width, height, RL_PIXELFORMAT_UNCOMPRESSED_R8G8B8, 1);
 
     // Generate emission buffer
     glGenTextures(1, &gBuffer->emission);
@@ -292,7 +292,7 @@ void r3d_framebuffer_load_gbuffer(int width, int height)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    
+
     // We generate the normal buffer here.
     // The setup for the normal buffer requires direct API calls
     // since RLGL does not support the creation of 16-bit two-component textures.
