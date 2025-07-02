@@ -970,16 +970,16 @@ R3D_Mesh R3D_GenMeshTorus(float radius, float size, int radSeg, int sides, bool 
 {
     R3D_Mesh mesh = {0};
 
-    // Validation des paramètres
-    if (radius <= 0.0f || size <= 0.0f || radSeg < 3 || sides < 3) return mesh;
+    if (radius <= 0.0f || size <= 0.0f || radSeg < 3 || sides < 3) {
+        return mesh;
+    }
 
-    // Calcul des dimensions
-    // Un torus est composé de (radSeg+1) * (sides+1) vertices
-    // pour permettre la fermeture correcte avec UV mapping
-    mesh.vertexCount = (radSeg + 1) * (sides + 1);
-    mesh.indexCount = radSeg * sides * 6; // 2 triangles par quad
+    const int rings = radSeg + 1;
+    const int segments = sides + 1;
 
-    // Allocation mémoire
+    mesh.vertexCount = rings * segments;
+    mesh.indexCount = radSeg * sides * 6;
+
     mesh.vertices = (R3D_Vertex*)malloc(mesh.vertexCount * sizeof(R3D_Vertex));
     mesh.indices = (unsigned int*)malloc(mesh.indexCount * sizeof(unsigned int));
 
@@ -989,86 +989,88 @@ R3D_Mesh R3D_GenMeshTorus(float radius, float size, int radSeg, int sides, bool 
         return mesh;
     }
 
-    // Pre-compute some values
-    const float radStep = 2.0f * PI / radSeg;  // Angle autour de l'axe principal
-    const float sideStep = 2.0f * PI / sides;  // Angle autour du tube
+    const float ringStep = 2.0f * PI / radSeg;
+    const float sideStep = 2.0f * PI / sides;
     const Vector4 defaultColor = {255, 255, 255, 255};
 
-    // Génération des vertices
     int vertexIndex = 0;
-    for (int i = 0; i <= radSeg; i++) {
-        const float phi = i * radStep;       // Angle autour de l'axe Y
-        const float cosPhi = cosf(phi);
-        const float sinPhi = sinf(phi);
-    
-        for (int j = 0; j <= sides; j++) {
-            const float theta = j * sideStep; // Angle autour du tube
-            const float cosTheta = cosf(theta);
-            const float sinTheta = sinf(theta);
-        
-            // Position du vertex
-            // Le centre du tube circulaire se trouve à (radius * cos(phi), 0, radius * sin(phi))
-            // Le point sur le tube est décalé de size dans la direction normale
-            const float tubeX = (radius + size * cosTheta) * cosPhi;
-            const float tubeY = size * sinTheta;
-            const float tubeZ = (radius + size * cosTheta) * sinPhi;
-        
-            // Normale du torus
-            // La normale pointe depuis le centre du tube vers le point
-            const Vector3 normal = {
+
+    for (int ring = 0; ring <= radSeg; ring++) {
+        float theta = ring * ringStep;
+        float cosTheta = cosf(theta);
+        float sinTheta = sinf(theta);
+
+        // Center of current ring
+        Vector3 ringCenter = {
+            radius * cosTheta,
+            0.0f,
+            -radius * sinTheta
+        };
+
+        for (int side = 0; side <= sides; side++) {
+            float phi = side * sideStep;
+            float cosPhi = cosf(phi);
+            float sinPhi = sinf(phi);
+
+            // Normal at vertex
+            Vector3 normal = {
                 cosTheta * cosPhi,
-                sinTheta,
-                cosTheta * sinPhi
+                sinPhi,
+                -sinTheta * cosPhi
             };
-        
-            // UV mapping
-            const float u = (float)i / radSeg;
-            const float v = (float)j / sides;
-        
-            // Tangente (direction tangentielle autour du tube principal)
-            const Vector4 tangent = {-sinPhi, 0.0f, cosPhi, 1.0f};
-        
-            mesh.vertices[vertexIndex] = (R3D_Vertex){
-                .position = {tubeX, tubeY, tubeZ},
+
+            // Position = ringCenter + normal * size
+            Vector3 pos = {
+                ringCenter.x + size * normal.x,
+                ringCenter.y + size * normal.y,
+                ringCenter.z + size * normal.z
+            };
+
+            // Tangent along ring (around main circle)
+            Vector4 tangent = {
+                -sinTheta, 0.0f, -cosTheta, 1.0f
+            };
+
+            // UV coordinates
+            float u = (float)ring / radSeg;
+            float v = (float)side / sides;
+
+            mesh.vertices[vertexIndex++] = (R3D_Vertex){
+                .position = pos,
                 .texcoord = {u, v},
                 .normal = normal,
                 .color = defaultColor,
                 .tangent = tangent
             };
-            vertexIndex++;
         }
     }
 
-    // Génération des indices
-    int indexOffset = 0;
-    for (int i = 0; i < radSeg; i++) {
-        for (int j = 0; j < sides; j++) {
-            // Indices des 4 coins du quad actuel
-            const unsigned int current = i * (sides + 1) + j;
-            const unsigned int next = current + sides + 1;
-            const unsigned int currentNext = current + 1;
-            const unsigned int nextNext = next + 1;
-        
-            // Premier triangle (current, next, currentNext)
-            mesh.indices[indexOffset++] = current;
-            mesh.indices[indexOffset++] = next;
-            mesh.indices[indexOffset++] = currentNext;
-        
-            // Deuxième triangle (currentNext, next, nextNext)
-            mesh.indices[indexOffset++] = currentNext;
-            mesh.indices[indexOffset++] = next;
-            mesh.indices[indexOffset++] = nextNext;
+    // Indices
+    int index = 0;
+    for (int ring = 0; ring < radSeg; ring++) {
+        for (int side = 0; side < sides; side++) {
+            int current = ring * segments + side;
+            int next = (ring + 1) * segments + side;
+
+            // Triangle 1
+            mesh.indices[index++] = current;
+            mesh.indices[index++] = next;
+            mesh.indices[index++] = next + 1;
+
+            // Triangle 2
+            mesh.indices[index++] = current;
+            mesh.indices[index++] = next + 1;
+            mesh.indices[index++] = current + 1;
         }
     }
 
-    // Calcul AABB
-    const float outerRadius = radius + size;
+    // AABB
+    float outerRadius = radius + size;
     mesh.aabb = (BoundingBox){
         .min = {-outerRadius, -size, -outerRadius},
-        .max = {outerRadius, size, outerRadius}
+        .max = { outerRadius,  size,  outerRadius}
     };
 
-    // Upload optionnel vers GPU
     if (upload) {
         R3D_UploadMesh(&mesh, false);
     }
