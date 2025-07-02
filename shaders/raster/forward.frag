@@ -304,7 +304,7 @@ void main()
 
     /* Sample ORM texture and extract values */
 
-    vec3 orm = texture(uTexORM, vTexCoord);
+    vec3 orm = texture(uTexORM, vTexCoord).rgb;
 
     float occlusion = uValOcclusion * orm.x;
     float roughness = uValRoughness * orm.y;

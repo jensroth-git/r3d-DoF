@@ -76,7 +76,7 @@ void main()
     FragEmission = vEmission * texture(uTexEmission, vTexCoord).rgb;
     FragNormal = EncodeOctahedral(normalize(vTBN * (texture(uTexNormal, vTexCoord).rgb * 2.0 - 1.0)));
 
-    vec3 orm = texture(uTexORM, vTexCoord);
+    vec3 orm = texture(uTexORM, vTexCoord).rgb;
 
     FragORM.r = uValOcclusion * orm.x;
     FragORM.g = uValRoughness * orm.y;
