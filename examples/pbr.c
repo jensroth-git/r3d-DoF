@@ -32,7 +32,6 @@ const char* Init(void)
 		for (int i = 0; i < model.materialCount; i++) {
 			SetTextureFilter(model.materials[i].albedo.texture, TEXTURE_FILTER_BILINEAR);
 			SetTextureFilter(model.materials[i].orm.texture, TEXTURE_FILTER_BILINEAR);
-			model.materials[i].blendMode = R3D_BLEND_OPAQUE;
 		}
 	}
 
