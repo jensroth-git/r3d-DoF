@@ -1078,19 +1078,20 @@ R3D_Mesh R3D_GenMeshTorus(float radius, float size, int radSeg, int sides, bool 
     return mesh;
 }
 
-R3D_Mesh R3D_GenMeshKnot(float radius, float size, int radSeg, int sides, bool upload)
+R3D_Mesh R3D_GenMeshKnot(float radius, float tubeRadius, int segments, int sides, bool upload)
 {
     R3D_Mesh mesh = {0};
 
-    // Parameter validation
-    if (radius <= 0.0f || size <= 0.0f || radSeg < 6 || sides < 3) return mesh;
+    if (radius <= 0.0f || tubeRadius <= 0.0f || segments < 6 || sides < 3) {
+        return mesh;
+    }
 
-    // Dimension calculation
-    // A knot consists of (radSeg+1) * (sides+1) vertices
-    mesh.vertexCount = (radSeg + 1) * (sides + 1);
-    mesh.indexCount = radSeg * sides * 6; // 2 triangles per quad
+    const int knotSegments = segments + 1;
+    const int tubeSides = sides + 1;
 
-    // Memory allocation
+    mesh.vertexCount = knotSegments * tubeSides;
+    mesh.indexCount = segments * sides * 6;
+
     mesh.vertices = (R3D_Vertex*)malloc(mesh.vertexCount * sizeof(R3D_Vertex));
     mesh.indices = (unsigned int*)malloc(mesh.indexCount * sizeof(unsigned int));
 
@@ -1100,143 +1101,135 @@ R3D_Mesh R3D_GenMeshKnot(float radius, float size, int radSeg, int sides, bool u
         return mesh;
     }
 
-    // Precompute some values
-    const float tStep = 2.0f * PI / radSeg;     // Parameter t along the knot
-    const float sideStep = 2.0f * PI / sides;  // Angle around the tube
+    const float segmentStep = 2.0f * PI / segments;
+    const float sideStep = 2.0f * PI / sides;
     const Vector4 defaultColor = {255, 255, 255, 255};
 
-    // Trefoil knot parameters (3-loop knot)
-    const float p = 2.0f; // Knot parameter p for (2,3)-torus knot
-    const float q = 3.0f; // Knot parameter q
-
-    // Calculate bounds for the AABB
-    float minX = FLT_MAX, maxX = -FLT_MAX;
-    float minY = FLT_MAX, maxY = -FLT_MAX;
-    float minZ = FLT_MAX, maxZ = -FLT_MAX;
-
-    // Generate vertices
     int vertexIndex = 0;
-    for (int i = 0; i <= radSeg; i++) {
-        const float t = i * tStep;
-    
-        // Parametric equations of the trefoil knot
-        const float knotX = radius * (cosf(p * t) * (2.0f + cosf(q * t)));
-        const float knotY = radius * (sinf(p * t) * (2.0f + cosf(q * t)));
-        const float knotZ = radius * sinf(q * t);
-    
-        // Calculate first derivative (tangent)
-        const float dxdt = radius * (-p * sinf(p * t) * (2.0f + cosf(q * t)) - q * cosf(p * t) * sinf(q * t));
-        const float dydt = radius * (p * cosf(p * t) * (2.0f + cosf(q * t)) - q * sinf(p * t) * sinf(q * t));
-        const float dzdt = radius * q * cosf(q * t);
-    
-        // Normalize the tangent
-        const float tangentLength = sqrtf(dxdt * dxdt + dydt * dydt + dzdt * dzdt);
-        const Vector3 tangent = {
-            dxdt / tangentLength,
-            dydt / tangentLength,
-            dzdt / tangentLength
+
+    for (int seg = 0; seg <= segments; seg++) {
+        float t = seg * segmentStep;
+        
+        // Trefoil knot parametric equations
+        float x = sinf(t) + 2.0f * sinf(2.0f * t);
+        float y = cosf(t) - 2.0f * cosf(2.0f * t);
+        float z = -sinf(3.0f * t);
+        
+        // Scale by radius
+        Vector3 knotCenter = {
+            radius * x * 0.2f,  // Scale factor to normalize the knot size
+            radius * y * 0.2f,
+            radius * z * 0.2f
         };
-    
-        // Calculate an arbitrary normal vector (stable method)
-        Vector3 up = {0.0f, 1.0f, 0.0f};
-        if (fabsf(tangent.y) > 0.9f) {
-            up = (Vector3){1.0f, 0.0f, 0.0f};
+
+        // Calculate tangent vector (derivative of knot curve)
+        float dx = cosf(t) + 4.0f * cosf(2.0f * t);
+        float dy = -sinf(t) + 4.0f * sinf(2.0f * t);
+        float dz = -3.0f * cosf(3.0f * t);
+        
+        Vector3 tangent = {dx, dy, dz};
+        
+        // Normalize tangent
+        float tangentLength = sqrtf(tangent.x * tangent.x + tangent.y * tangent.y + tangent.z * tangent.z);
+        if (tangentLength > 0.0f) {
+            tangent.x /= tangentLength;
+            tangent.y /= tangentLength;
+            tangent.z /= tangentLength;
         }
-    
-        // Binormal (cross product of up × tangent)
-        Vector3 binormal = {
-            up.y * tangent.z - up.z * tangent.y,
-            up.z * tangent.x - up.x * tangent.z,
-            up.x * tangent.y - up.y * tangent.x
-        };
-    
-        // Normalize the binormal
-        const float binormalLength = sqrtf(binormal.x * binormal.x + binormal.y * binormal.y + binormal.z * binormal.z);
-        binormal.x /= binormalLength;
-        binormal.y /= binormalLength;
-        binormal.z /= binormalLength;
-    
-        // Normal (cross product of tangent × binormal)
+
+        // Calculate binormal (second derivative for better frame)
+        float d2x = -sinf(t) - 8.0f * sinf(2.0f * t);
+        float d2y = -cosf(t) + 8.0f * cosf(2.0f * t);
+        float d2z = 9.0f * sinf(3.0f * t);
+        
+        Vector3 binormal = {d2x, d2y, d2z};
+        
+        // Normalize binormal
+        float binormalLength = sqrtf(binormal.x * binormal.x + binormal.y * binormal.y + binormal.z * binormal.z);
+        if (binormalLength > 0.0f) {
+            binormal.x /= binormalLength;
+            binormal.y /= binormalLength;
+            binormal.z /= binormalLength;
+        }
+
+        // Calculate normal (cross product of tangent and binormal)
         Vector3 normal = {
             tangent.y * binormal.z - tangent.z * binormal.y,
             tangent.z * binormal.x - tangent.x * binormal.z,
             tangent.x * binormal.y - tangent.y * binormal.x
         };
-    
-        // Generate vertices around the tube
-        for (int j = 0; j <= sides; j++) {
-            const float theta = j * sideStep;
-            const float cosTheta = cosf(theta);
-            const float sinTheta = sinf(theta);
-        
-            // Vertex position on the tube
-            const float tubeX = knotX + size * (cosTheta * normal.x + sinTheta * binormal.x);
-            const float tubeY = knotY + size * (cosTheta * normal.y + sinTheta * binormal.y);
-            const float tubeZ = knotZ + size * (cosTheta * normal.z + sinTheta * binormal.z);
-        
-            // Tube normal
-            const Vector3 tubeNormal = {
-                cosTheta * normal.x + sinTheta * binormal.x,
-                cosTheta * normal.y + sinTheta * binormal.y,
-                cosTheta * normal.z + sinTheta * binormal.z
+
+        for (int side = 0; side <= sides; side++) {
+            float phi = side * sideStep;
+            float cosPhi = cosf(phi);
+            float sinPhi = sinf(phi);
+
+            // Create tube cross-section
+            Vector3 tubeOffset = {
+                tubeRadius * (normal.x * cosPhi + binormal.x * sinPhi),
+                tubeRadius * (normal.y * cosPhi + binormal.y * sinPhi),
+                tubeRadius * (normal.z * cosPhi + binormal.z * sinPhi)
             };
-        
-            // UV mapping
-            const float u = (float)i / radSeg;
-            const float v = (float)j / sides;
-        
-            // Tube tangent (direction along the knot)
-            const Vector4 tubeTangent = {tangent.x, tangent.y, tangent.z, 1.0f};
-        
-            mesh.vertices[vertexIndex] = (R3D_Vertex){
-                .position = {tubeX, tubeY, tubeZ},
+
+            // Final vertex position
+            Vector3 pos = {
+                knotCenter.x + tubeOffset.x,
+                knotCenter.y + tubeOffset.y,
+                knotCenter.z + tubeOffset.z
+            };
+
+            // Surface normal at this point
+            Vector3 surfaceNormal = {
+                normal.x * cosPhi + binormal.x * sinPhi,
+                normal.y * cosPhi + binormal.y * sinPhi,
+                normal.z * cosPhi + binormal.z * sinPhi
+            };
+
+            // Tangent along the knot curve
+            Vector4 vertexTangent = {
+                tangent.x, tangent.y, tangent.z, 1.0f
+            };
+
+            // UV coordinates
+            float u = (float)seg / segments;
+            float v = (float)side / sides;
+
+            mesh.vertices[vertexIndex++] = (R3D_Vertex){
+                .position = pos,
                 .texcoord = {u, v},
-                .normal = tubeNormal,
+                .normal = surfaceNormal,
                 .color = defaultColor,
-                .tangent = tubeTangent
+                .tangent = vertexTangent
             };
-        
-            // Update AABB bounds
-            if (tubeX < minX) minX = tubeX;
-            if (tubeX > maxX) maxX = tubeX;
-            if (tubeY < minY) minY = tubeY;
-            if (tubeY > maxY) maxY = tubeY;
-            if (tubeZ < minZ) minZ = tubeZ;
-            if (tubeZ > maxZ) maxZ = tubeZ;
-        
-            vertexIndex++;
         }
     }
 
     // Generate indices
-    int indexOffset = 0;
-    for (int i = 0; i < radSeg; i++) {
-        for (int j = 0; j < sides; j++) {
-            // Indices of the 4 corners of the current quad
-            const unsigned int current = i * (sides + 1) + j;
-            const unsigned int next = current + sides + 1;
-            const unsigned int currentNext = current + 1;
-            const unsigned int nextNext = next + 1;
-        
-            // First triangle (current, next, currentNext)
-            mesh.indices[indexOffset++] = current;
-            mesh.indices[indexOffset++] = next;
-            mesh.indices[indexOffset++] = currentNext;
-        
-            // Second triangle (currentNext, next, nextNext)
-            mesh.indices[indexOffset++] = currentNext;
-            mesh.indices[indexOffset++] = next;
-            mesh.indices[indexOffset++] = nextNext;
+    int index = 0;
+    for (int seg = 0; seg < segments; seg++) {
+        for (int side = 0; side < sides; side++) {
+            int current = seg * tubeSides + side;
+            int next = (seg + 1) * tubeSides + side;
+
+            // Triangle 1
+            mesh.indices[index++] = current;
+            mesh.indices[index++] = next;
+            mesh.indices[index++] = next + 1;
+
+            // Triangle 2
+            mesh.indices[index++] = current;
+            mesh.indices[index++] = next + 1;
+            mesh.indices[index++] = current + 1;
         }
     }
 
-    // Compute AABB from calculated bounds
+    // Calculate AABB (approximate bounds for trefoil knot)
+    float maxExtent = radius * 0.6f + tubeRadius;  // Approximate max extent
     mesh.aabb = (BoundingBox){
-        .min = {minX, minY, minZ},
-        .max = {maxX, maxY, maxZ}
+        .min = {-maxExtent, -maxExtent, -maxExtent},
+        .max = { maxExtent,  maxExtent,  maxExtent}
     };
 
-    // Optional upload to GPU
     if (upload) {
         R3D_UploadMesh(&mesh, false);
     }
