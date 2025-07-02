@@ -8,6 +8,7 @@
 #include <glad.h>
 
 #include <assimp/postprocess.h>
+#include <assimp/material.h>
 #include <assimp/cimport.h>
 #include <assimp/scene.h>
 
@@ -2259,13 +2260,21 @@ static Texture2D r3d_load_assimp_texture(
 
 /* --- Main ORM texture loading function --- */
 
-static Texture2D r3d_load_assimp_orm_texture(const struct aiScene* scene, const struct aiMaterial* aiMat, const char* basePath)
+static Texture2D r3d_load_assimp_orm_texture(
+    const struct aiScene* scene, const struct aiMaterial* aiMat, const char* basePath,
+    bool* hasOcclusion, bool* hasRoughness, bool* hasMetalness)
 {
 #define PATHS_EQUAL(a, b) (strcmp((a).data, (b).data) == 0)
 #define HAS_TEXTURE_DATA(comp) ((comp).image.data != NULL)
 #define IS_SHININESS_TYPE(comp) ((comp).type == aiTextureType_SHININESS)
 
     Texture2D ormTexture = { 0 };
+
+    /* --- Init output values --- */
+
+    *hasOcclusion = false;
+    *hasRoughness = false;
+    *hasMetalness = false;
 
     /* --- Texture component structure --- */
     
@@ -2285,16 +2294,16 @@ static Texture2D r3d_load_assimp_orm_texture(const struct aiScene* scene, const 
 
     /* --- Initialize texture availability --- */
     
-    components[0].hasTexture = (aiGetMaterialTexture(aiMat, components[0].type, 0, &components[0].texPath, NULL, NULL, NULL, NULL, NULL, NULL) == AI_SUCCESS);
-    components[1].hasTexture = (aiGetMaterialTexture(aiMat, components[1].type, 0, &components[1].texPath, NULL, NULL, NULL, NULL, NULL, NULL) == AI_SUCCESS);
+    *hasOcclusion = components[0].hasTexture = (aiGetMaterialTexture(aiMat, components[0].type, 0, &components[0].texPath, NULL, NULL, NULL, NULL, NULL, NULL) == AI_SUCCESS);
+    *hasRoughness = components[1].hasTexture = (aiGetMaterialTexture(aiMat, components[1].type, 0, &components[1].texPath, NULL, NULL, NULL, NULL, NULL, NULL) == AI_SUCCESS);
     
     // Fallback to shininess for roughness if not available
     if (!components[1].hasTexture) {
-        components[1].hasTexture = (aiGetMaterialTexture(aiMat, aiTextureType_SHININESS, 0, &components[1].texPath, NULL, NULL, NULL, NULL, NULL, NULL) == AI_SUCCESS);
+        *hasRoughness = components[1].hasTexture = (aiGetMaterialTexture(aiMat, aiTextureType_SHININESS, 0, &components[1].texPath, NULL, NULL, NULL, NULL, NULL, NULL) == AI_SUCCESS);
         if (components[1].hasTexture) components[1].type = aiTextureType_SHININESS;
     }
     
-    components[2].hasTexture = (aiGetMaterialTexture(aiMat, components[2].type, 0, &components[2].texPath, NULL, NULL, NULL, NULL, NULL, NULL) == AI_SUCCESS);
+    *hasMetalness = components[2].hasTexture = (aiGetMaterialTexture(aiMat, components[2].type, 0, &components[2].texPath, NULL, NULL, NULL, NULL, NULL, NULL) == AI_SUCCESS);
 
     /* --- Analyze texture sharing patterns --- */
     
@@ -2511,6 +2520,11 @@ bool process_assimp_materials(const struct aiScene* scene, R3D_Material** materi
             mat->albedo.color = r3d_color_from_ai_color(&color);
         }
 
+        float opacity;
+        if (aiGetMaterialFloat(aiMat, AI_MATKEY_OPACITY, &opacity) == AI_SUCCESS) {
+            mat->albedo.color.a *= opacity;
+        }
+
         mat->albedo.texture = r3d_load_assimp_texture(scene, aiMat, aiTextureType_DIFFUSE, 0, basePath);
 
         if (mat->albedo.texture.id == 0) {
@@ -2531,22 +2545,29 @@ bool process_assimp_materials(const struct aiScene* scene, R3D_Material** materi
 
         //mat->normal.scale = 1.0f;
 
-        /* --- Load PBR factors (roughness, metalness) --- */
-
-        float value;
-        if (aiGetMaterialFloat(aiMat, AI_MATKEY_ROUGHNESS_FACTOR, &value) == AI_SUCCESS) {
-            mat->orm.roughness = value;
-        }
-        if (aiGetMaterialFloat(aiMat, AI_MATKEY_METALLIC_FACTOR, &value) == AI_SUCCESS) {
-            mat->orm.metalness = value;
-        }
-
         /* --- Load ORM map --- */
 
-        mat->orm.texture = r3d_load_assimp_orm_texture(scene, aiMat, basePath);
+        bool hasOcclusion = false;
+        bool hasRoughness = false;
+        bool hasMetalness = false;
+
+        mat->orm.texture = r3d_load_assimp_orm_texture(
+            scene, aiMat, basePath,
+            &hasOcclusion,
+            &hasRoughness,
+            &hasMetalness
+        );
 
         if (mat->orm.texture.id == 0) {
             mat->orm.texture = R3D_GetWhiteTexture();
+        }
+
+        if (aiGetMaterialFloat(aiMat, AI_MATKEY_ROUGHNESS_FACTOR, &mat->orm.roughness) != AI_SUCCESS) {
+            mat->orm.roughness = 1.0f;
+        }
+
+        if (aiGetMaterialFloat(aiMat, AI_MATKEY_METALLIC_FACTOR, &mat->orm.metalness) != AI_SUCCESS) {
+            mat->orm.metalness = hasMetalness ? 1.0f : 0.0f;
         }
 
         /* --- Handle cull mode from two-sided property --- */
