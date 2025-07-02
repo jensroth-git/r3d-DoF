@@ -343,6 +343,12 @@ void R3D_End(void)
     if (r3d_has_deferred_calls()) {
         r3d_pass_gbuffer();
     }
+    else {
+        // If there are no objects to render in deferred mode, at least clear the
+        // depth buffer, which is also used in forward rendering
+        rlEnableFramebuffer(R3D.framebuffer.gBuffer.id);
+        glClear(GL_DEPTH_BUFFER_BIT);
+    }
 
     if (R3D.env.ssaoEnabled) {
         r3d_pass_ssao();
