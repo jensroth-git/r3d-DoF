@@ -834,23 +834,24 @@ R3D_Mesh R3D_GenMeshCone(float radius, float height, int slices, bool upload)
 {
     R3D_Mesh mesh = {0};
 
-    // Validation des paramètres
+    // Validate parameters
     if (radius <= 0.0f || height <= 0.0f || slices < 3) return mesh;
 
-    // Calcul des dimensions
-    // Corps du cône: 1 sommet + (slices+1) vertices base
-    // Base: centre + slices vertices périmètre
-    const int apexVertexCount = 1;
-    const int bodyBaseVertexCount = slices + 1;
-    const int baseVertexCount = slices + 1; // centre + périmètre
-    mesh.vertexCount = apexVertexCount + bodyBaseVertexCount + baseVertexCount;
+    // Vertex counts
+    // Side: slices+1 base vertices + 1 tip vertex
+    // Base: 1 center vertex + slices perimeter
+    const int sideVertexCount = slices + 1 + 1;  // base + tip
+    const int baseVertexCount = 1 + slices;      // center + perimeter
+    mesh.vertexCount = sideVertexCount + baseVertexCount;
 
-    // Indices: corps + base
-    const int bodyIndexCount = slices * 3; // 1 triangle par slice
-    const int baseIndexCount = slices * 3; // 1 triangle par slice
-    mesh.indexCount = bodyIndexCount + baseIndexCount;
+    // Index counts
+    // Side: slices triangles
+    // Base: slices triangles
+    const int sideIndexCount = slices * 3;
+    const int baseIndexCount = slices * 3;
+    mesh.indexCount = sideIndexCount + baseIndexCount;
 
-    // Allocation mémoire
+    // Memory allocation
     mesh.vertices = (R3D_Vertex*)malloc(mesh.vertexCount * sizeof(R3D_Vertex));
     mesh.indices = (unsigned int*)malloc(mesh.indexCount * sizeof(unsigned int));
 
@@ -860,136 +861,104 @@ R3D_Mesh R3D_GenMeshCone(float radius, float height, int slices, bool upload)
         return mesh;
     }
 
-    // Pre-compute some values
     const float halfHeight = height * 0.5f;
     const float sliceStep = 2.0f * PI / slices;
-    const Vector4 defaultColor = {255, 255, 255, 255};
-
-    // Calcul de la normale du cône (inclinée)
-    // Pour un cône, la normale n'est pas perpendiculaire à la surface
-    // mais inclinée selon l'angle du cône
-    const float coneAngle = atanf(radius / height);
-    const float normalY = cosf(coneAngle);
-    const float normalRadial = sinf(coneAngle);
+    const Vector4 defaultColor = {255, 255, 255, 255}; // White
 
     int vertexIndex = 0;
 
-    // Vertex du sommet (apex)
-    mesh.vertices[vertexIndex] = (R3D_Vertex){
-        .position = {0.0f, halfHeight, 0.0f},
-        .texcoord = {0.5f, 1.0f}, // Centre en haut de la texture
-        .normal = {0.0f, 1.0f, 0.0f}, // Normale vers le haut au sommet
-        .color = defaultColor,
-        .tangent = {1.0f, 0.0f, 0.0f, 1.0f}
-    };
-    const int apexIndex = vertexIndex;
-    vertexIndex++;
-
-    // Vertices du périmètre de la base (pour le corps du cône)
+    // Base ring vertices (shared between side and base)
     for (int slice = 0; slice <= slices; slice++) {
         const float theta = slice * sliceStep;
-        const float cosTheta = cosf(theta);
-        const float sinTheta = sinf(theta);
-    
-        const float x = radius * cosTheta;
-        const float z = radius * sinTheta;
-    
-        // Normale inclinée du cône
-        const Vector3 normal = {
-            normalRadial * cosTheta,
-            normalY,
-            normalRadial * sinTheta
-        };
-    
-        // UV mapping: u = position angulaire, v = 0 (base)
+        const float x = radius * cosf(theta);
+        const float z = -radius * sinf(theta); // -Z forward
+
         const float u = (float)slice / slices;
         const float v = 0.0f;
-    
-        // Tangente (direction tangentielle sur la base)
-        const Vector4 tangent = {-sinTheta, 0.0f, cosTheta, 1.0f};
-    
-        mesh.vertices[vertexIndex] = (R3D_Vertex){
-            .position = {x, -halfHeight, z},
-            .texcoord = {u, v},
-            .normal = normal,
+
+        const Vector3 pos = {x, -halfHeight, z};
+        const Vector3 normal = {cosf(theta), radius / height, -sinf(theta)};
+        const float len = sqrtf(normal.x * normal.x + normal.y * normal.y + normal.z * normal.z);
+        const Vector3 norm = {normal.x / len, normal.y / len, normal.z / len};
+
+        const Vector4 tangent = {-sinf(theta), 0.0f, -cosf(theta), 1.0f};
+
+        mesh.vertices[vertexIndex++] = (R3D_Vertex){
+            .position = pos,
+            .texcoord = {u, 0.0f},
+            .normal = norm,
             .color = defaultColor,
             .tangent = tangent
         };
-        vertexIndex++;
     }
 
-    // Génération des vertices de la base circulaire
-    const Vector3 baseNormal = {0.0f, -1.0f, 0.0f};
-    const Vector4 baseTangent = {1.0f, 0.0f, 0.0f, 1.0f};
+    // Tip of the cone (at y = +halfHeight)
+    const int tipIndex = vertexIndex;
+    mesh.vertices[vertexIndex++] = (R3D_Vertex){
+        .position = {0.0f, halfHeight, 0.0f},
+        .texcoord = {0.5f, 1.0f},
+        .normal = {0.0f, 1.0f, 0.0f}, // Rough default normal
+        .color = defaultColor,
+        .tangent = {1.0f, 0.0f, 0.0f, 1.0f}
+    };
 
-    // Centre de la base
-    mesh.vertices[vertexIndex] = (R3D_Vertex){
+    // Base center vertex
+    const int baseCenterIndex = vertexIndex;
+    mesh.vertices[vertexIndex++] = (R3D_Vertex){
         .position = {0.0f, -halfHeight, 0.0f},
         .texcoord = {0.5f, 0.5f},
-        .normal = baseNormal,
+        .normal = {0.0f, -1.0f, 0.0f},
         .color = defaultColor,
-        .tangent = baseTangent
+        .tangent = {1.0f, 0.0f, 0.0f, 1.0f}
     };
-    const int baseCenterIndex = vertexIndex;
-    vertexIndex++;
 
-    // Périmètre de la base
+    // Base perimeter
     for (int slice = 0; slice < slices; slice++) {
         const float theta = slice * sliceStep;
-        const float cosTheta = cosf(theta);
-        const float sinTheta = sinf(theta);
-    
-        const float x = radius * cosTheta;
-        const float z = radius * sinTheta;
-    
-        // UV mapping circulaire pour la base
-        const float u = 0.5f + 0.5f * cosTheta;
-        const float v = 0.5f + 0.5f * sinTheta;
-    
-        mesh.vertices[vertexIndex] = (R3D_Vertex){
+        const float x = radius * cosf(theta);
+        const float z = -radius * sinf(theta);
+
+        const float u = 0.5f + 0.5f * cosf(theta);
+        const float v = 0.5f - 0.5f * sinf(theta);
+
+        mesh.vertices[vertexIndex++] = (R3D_Vertex){
             .position = {x, -halfHeight, z},
             .texcoord = {u, v},
-            .normal = baseNormal,
+            .normal = {0.0f, -1.0f, 0.0f},
             .color = defaultColor,
-            .tangent = baseTangent
+            .tangent = {1.0f, 0.0f, 0.0f, 1.0f}
         };
-        vertexIndex++;
     }
 
-    // Génération des indices
-    int indexOffset = 0;
+    // Indices
+    int index = 0;
 
-    // Indices du corps du cône
-    const int bodyBaseStart = apexIndex + 1;
+    // Side triangles (each slice connects base to tip)
     for (int slice = 0; slice < slices; slice++) {
-        const unsigned int current = bodyBaseStart + slice;
-        const unsigned int next = bodyBaseStart + slice + 1;
-    
-        // Triangle (apex, next, current) - ordre counter-clockwise
-        mesh.indices[indexOffset++] = apexIndex;
-        mesh.indices[indexOffset++] = next;
-        mesh.indices[indexOffset++] = current;
+        const unsigned int base0 = slice;
+        const unsigned int base1 = slice + 1;
+        mesh.indices[index++] = base0;
+        mesh.indices[index++] = base1;
+        mesh.indices[index++] = tipIndex; // All triangles meet at the tip
     }
 
-    // Indices de la base
+    // Base triangles (CCW order from below, so reversed here)
     const int basePerimeterStart = baseCenterIndex + 1;
     for (int slice = 0; slice < slices; slice++) {
-        const unsigned int current = basePerimeterStart + slice;
-        const unsigned int next = basePerimeterStart + (slice + 1) % slices;
-    
-        // Triangle (centre, next, current) - ordre clockwise car normale vers le bas
-        mesh.indices[indexOffset++] = baseCenterIndex;
-        mesh.indices[indexOffset++] = next;
-        mesh.indices[indexOffset++] = current;
+        const unsigned int curr = basePerimeterStart + slice;
+        const unsigned int next = basePerimeterStart + ((slice + 1) % slices);
+        mesh.indices[index++] = baseCenterIndex;
+        mesh.indices[index++] = next;
+        mesh.indices[index++] = curr;
     }
 
-    // Calcul AABB
+    // AABB
     mesh.aabb = (BoundingBox){
         .min = {-radius, -halfHeight, -radius},
         .max = {radius, halfHeight, radius}
     };
 
-    // Upload optionnel vers GPU
+    // Upload if requested
     if (upload) {
         R3D_UploadMesh(&mesh, false);
     }
