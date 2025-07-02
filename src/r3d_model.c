@@ -15,6 +15,7 @@
 #include <string.h>
 #include <assert.h>
 #include <float.h>
+#include <time.h>
 
 /* === Public Mesh Functions === */
 
@@ -1796,7 +1797,6 @@ bool R3D_UploadMesh(R3D_Mesh* mesh, bool dynamic)
         return false;
     }
 
-    const size_t vertexSize = sizeof(R3D_Vertex);
     GLenum usage = dynamic ? GL_DYNAMIC_DRAW : GL_STATIC_DRAW;
 
     // Creation of the VAO
@@ -1806,34 +1806,27 @@ bool R3D_UploadMesh(R3D_Mesh* mesh, bool dynamic)
     // Creation of the VBO
     glGenBuffers(1, &mesh->vbo);
     glBindBuffer(GL_ARRAY_BUFFER, mesh->vbo);
-    glBufferData(GL_ARRAY_BUFFER, mesh->vertexCount * vertexSize, mesh->vertices, usage);
-
-    // Definition of attributes
-    size_t offset = 0;
+    glBufferData(GL_ARRAY_BUFFER, mesh->vertexCount * sizeof(R3D_Vertex), mesh->vertices, usage);
 
     // position (vec3)
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, vertexSize, (void*)offset);
-    offset += sizeof(Vector3);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(R3D_Vertex), (void*)offsetof(R3D_Vertex, position));
 
     // texcoord (vec2)
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, vertexSize, (void*)offset);
-    offset += sizeof(Vector2);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(R3D_Vertex), (void*)offsetof(R3D_Vertex, texcoord));
 
     // normal (vec3)
     glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, vertexSize, (void*)offset);
-    offset += sizeof(Vector3);
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(R3D_Vertex), (void*)offsetof(R3D_Vertex, normal));
 
     // color (vec4)
     glEnableVertexAttribArray(3);
-    glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, vertexSize, (void*)offset);
-    offset += sizeof(Vector4);
+    glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(R3D_Vertex), (void*)offsetof(R3D_Vertex, color));
 
     // tangent (vec4)
     glEnableVertexAttribArray(4);
-    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, vertexSize, (void*)offset);
+    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(R3D_Vertex), (void*)offsetof(R3D_Vertex, tangent));
 
     // EBO if indices present
     if (mesh->indexCount > 0 && mesh->indices) {
@@ -2018,7 +2011,6 @@ static bool r3d_process_assimp_mesh(R3D_Model* model, int meshIndex, const struc
     }
 
     R3D_Mesh* mesh = &model->meshes[meshIndex];
-
     if (!mesh) {
         TraceLog(LOG_ERROR, "R3D: Invalid mesh for process_assimp_mesh");
         return false;
@@ -2039,39 +2031,55 @@ static bool r3d_process_assimp_mesh(R3D_Model* model, int meshIndex, const struc
 
     /* --- Allocate vertex and index buffers --- */
 
-    mesh->vertices = (R3D_Vertex*)malloc(mesh->vertexCount * sizeof(R3D_Vertex));
+    mesh->vertices = malloc(mesh->vertexCount * sizeof(R3D_Vertex));
     if (!mesh->vertices) {
         TraceLog(LOG_ERROR, "R3D: Unable to allocate memory for vertices");
         return false;
     }
 
-    mesh->indices = (unsigned int*)malloc(mesh->indexCount * sizeof(unsigned int));
+    mesh->indices = malloc(mesh->indexCount * sizeof(unsigned int));
     if (!mesh->indices) {
         TraceLog(LOG_ERROR, "R3D: Unable to allocate memory for indices");
+        free(mesh->vertices);
         return false;
     }
+
+    /* --- Initialize bounding box --- */
+
+    Vector3 minBounds = {FLT_MAX, FLT_MAX, FLT_MAX};
+    Vector3 maxBounds = {-FLT_MAX, -FLT_MAX, -FLT_MAX};
 
     /* --- Process vertex attributes --- */
 
     for (size_t i = 0; i < mesh->vertexCount; i++) {
         R3D_Vertex* vertex = &mesh->vertices[i];
 
+        // Position
         vertex->position = r3d_vec3_from_ai_vec3(&aiMesh->mVertices[i]);
+        
+        // Bounds update
+        if (vertex->position.x < minBounds.x) minBounds.x = vertex->position.x;
+        if (vertex->position.y < minBounds.y) minBounds.y = vertex->position.y;
+        if (vertex->position.z < minBounds.z) minBounds.z = vertex->position.z;
+        if (vertex->position.x > maxBounds.x) maxBounds.x = vertex->position.x;
+        if (vertex->position.y > maxBounds.y) maxBounds.y = vertex->position.y;
+        if (vertex->position.z > maxBounds.z) maxBounds.z = vertex->position.z;
 
+        // Texture coordinates
         if (aiMesh->mTextureCoords[0] && aiMesh->mNumUVComponents[0] >= 2) {
             vertex->texcoord = r3d_vec2_from_ai_vec3(&aiMesh->mTextureCoords[0][i]);
-        }
-        else {
-            vertex->texcoord = (Vector2) { 0 };
+        } else {
+            vertex->texcoord = (Vector2) { 0.0f, 0.0f };
         }
 
+        // Normals
         if (aiMesh->mNormals) {
             vertex->normal = r3d_vec3_from_ai_vec3(&aiMesh->mNormals[i]);
-        }
-        else {
-            vertex->normal = (Vector3) { 0, 0, 1 };
+        } else {
+            vertex->normal = (Vector3) { 0.0f, 0.0f, 1.0f };
         }
 
+        // Tangent
         if (aiMesh->mNormals && aiMesh->mTangents && aiMesh->mBitangents) {
             vertex->tangent.x = aiMesh->mTangents[i].x;
             vertex->tangent.y = aiMesh->mTangents[i].y;
@@ -2081,23 +2089,29 @@ static bool r3d_process_assimp_mesh(R3D_Model* model, int meshIndex, const struc
             Vector3 tangent = r3d_vec3_from_ai_vec3(&aiMesh->mTangents[i]);
             Vector3 bitangent = r3d_vec3_from_ai_vec3(&aiMesh->mBitangents[i]);
 
+            // Calculation of handedness
             Vector3 reconstructedBitangent = Vector3CrossProduct(normal, tangent);
-            vertex->tangent.w = (Vector3DotProduct(reconstructedBitangent, bitangent) > 0.0f) ? 1.0f : -1.0f;
-        }
-        else {
+            float handedness = Vector3DotProduct(reconstructedBitangent, bitangent);
+            vertex->tangent.w = (handedness < 0.0f) ? -1.0f : 1.0f;
+        } else {
             vertex->tangent = (Vector4) { 1.0f, 0.0f, 0.0f, 1.0f };
         }
 
+        // Vertex color
         if (aiMesh->mColors[0]) {
             vertex->color.x = aiMesh->mColors[0][i].r;
             vertex->color.y = aiMesh->mColors[0][i].g;
             vertex->color.z = aiMesh->mColors[0][i].b;
             vertex->color.w = aiMesh->mColors[0][i].a;
-        }
-        else {
+        } else {
             vertex->color = (Vector4) { 1.0f, 1.0f, 1.0f, 1.0f };
         }
     }
+
+    /* --- Set bounding box --- */
+
+    mesh->aabb.min = minBounds;
+    mesh->aabb.max = maxBounds;
 
     /* --- Process indices and validate faces --- */
 
@@ -2182,7 +2196,7 @@ static Image r3d_load_assimp_image(
 
         if (aiTex->mHeight == 0) {
             image = LoadImageFromMemory(
-                aiTex->achFormatHint, (const unsigned char*)aiTex->pcData, aiTex->mWidth
+                TextFormat(".%s", aiTex->achFormatHint), (const unsigned char*)aiTex->pcData, aiTex->mWidth
             );
             *isAllocated = true;
         }
@@ -2461,12 +2475,21 @@ R3D_Model R3D_LoadModel(const char* filePath, bool upload)
     /* --- Initialize model and allocate meshes --- */
 
     model.meshCount = scene->mNumMeshes;
-    model.meshes = malloc(model.meshCount * sizeof(R3D_Mesh));
 
+    model.meshes = calloc(model.meshCount, sizeof(R3D_Mesh));
     if (model.meshes == NULL) {
         TraceLog(LOG_ERROR, "R3D: Unable to allocate memory for meshes; The model will be invalid");
         R3D_UnloadModel(&model, true);
         aiReleaseImport(scene);
+        return model;
+    }
+
+    model.meshMaterials = calloc(model.meshCount, sizeof(int));
+    if (model.meshMaterials == NULL) {
+        TraceLog(LOG_ERROR, "R3D: Unable to allocate memory for mesh materials array; The model will be invalid");
+        R3D_UnloadModel(&model, true);
+        aiReleaseImport(scene);
+        free(model.meshes);
         return model;
     }
 
@@ -2483,7 +2506,7 @@ R3D_Model R3D_LoadModel(const char* filePath, bool upload)
 
     /* --- Calculate model bounding box --- */
 
-    R3D_UpdateModelBoundingBox(&model, true);
+    R3D_UpdateModelBoundingBox(&model, false);
 
     /* --- Clean up and return the model --- */
 
@@ -2542,7 +2565,7 @@ R3D_Model R3D_LoadModelFromMemory(const char* fileType, const void* data, unsign
 
     /* --- Calculate model bounding box --- */
 
-    R3D_UpdateModelBoundingBox(&model, true);
+    R3D_UpdateModelBoundingBox(&model, false);
 
     /* --- Clean up and return the model --- */
 
