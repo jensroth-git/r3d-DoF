@@ -150,6 +150,9 @@ void R3D_Init(int resWidth, int resHeight, unsigned int flags)
         (Vector3) {  100,  100,  100 }
     };
 
+    // Init default loading parameters
+    R3D.state.loading.textureFilter = TEXTURE_FILTER_TRILINEAR;
+
     // Load primitive shapes
     glGenVertexArrays(1, &R3D.primitive.dummyVAO);
     R3D.primitive.quad = r3d_primitive_load_quad();
@@ -263,6 +266,11 @@ void R3D_SetRenderTarget(const RenderTexture* target)
 void R3D_SetSceneBounds(BoundingBox sceneBounds)
 {
     R3D.state.scene.bounds = sceneBounds;
+}
+
+void R3D_SetTextureFilter(TextureFilter filter)
+{
+    R3D.state.loading.textureFilter = filter;
 }
 
 void R3D_Begin(Camera3D camera)

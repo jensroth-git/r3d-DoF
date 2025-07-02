@@ -248,6 +248,11 @@ extern struct R3D_State {
             float texelY;
         } resolution;
 
+        // Loading param
+        struct {
+            TextureFilter textureFilter;
+        } loading;
+
         // Miscellaneous flags
         unsigned int flags;
 

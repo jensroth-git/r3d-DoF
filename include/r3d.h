@@ -513,6 +513,21 @@ R3DAPI void R3D_SetRenderTarget(const RenderTexture* target);
  */
 R3DAPI void R3D_SetSceneBounds(BoundingBox sceneBounds);
 
+/**
+ * @brief Sets the default texture filtering mode.
+ * 
+ * This function defines the default texture filter that will be applied to all subsequently 
+ * loaded textures, including those used in materials, sprites, and other resources.
+ * 
+ * If a trilinear or anisotropic filter is selected, mipmaps will be automatically generated 
+ * for the textures, but they will not be generated when using nearest or bilinear filtering.
+ *
+ * The default texture filter mode is `TEXTURE_FILTER_TRILINEAR`.
+ * 
+ * @param filter The texture filtering mode to be applied by default.
+ */
+R3DAPI void R3D_SetTextureFilter(TextureFilter filter);
+
 
 
 // --------------------------------------------

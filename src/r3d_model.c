@@ -2,6 +2,7 @@
 
 #include "./details/r3d_primitives.h"
 #include "./r3d_state.h"
+#include "raylib.h"
 
 #include <raymath.h>
 #include <glad.h>
@@ -2233,7 +2234,7 @@ static Image r3d_load_assimp_image(
 static Texture2D r3d_load_assimp_texture(
     const struct aiScene* scene, const struct aiMaterial* aiMat,
     enum aiTextureType textureType, unsigned int index,
-    const char* basePath, bool genMipmaps)
+    const char* basePath)
 {
     Texture2D texture = { 0 };
 
@@ -2246,7 +2247,9 @@ static Texture2D r3d_load_assimp_texture(
 
     texture = LoadTextureFromImage(image);
 
-    if (genMipmaps) {
+    SetTextureFilter(texture, R3D.state.loading.textureFilter);
+
+    if (R3D.state.loading.textureFilter > TEXTURE_FILTER_BILINEAR) {
         GenTextureMipmaps(&texture);
     }
 
@@ -2257,9 +2260,9 @@ static Texture2D r3d_load_assimp_texture(
     return texture;
 }
 
-static Texture2D r3d_load_assimp_orm_texture(const struct aiScene* scene, const struct aiMaterial* aiMat, const char* basePath, bool genMipmaps)
+static Texture2D r3d_load_assimp_orm_texture(const struct aiScene* scene, const struct aiMaterial* aiMat, const char* basePath)
 {
-    Texture2D texture = { 0 };
+    Texture2D ormTexture = { 0 };
 
     /* --- Check if combined ORM texture exists --- */
 
@@ -2270,9 +2273,11 @@ static Texture2D r3d_load_assimp_orm_texture(const struct aiScene* scene, const 
             bool ormImageIsAllocated = false;
             Image ormImage = r3d_load_assimp_image(scene, aiMat, aiTextureType_UNKNOWN, 0, basePath, &ormImageIsAllocated);
 
-            Texture2D ormTexture = LoadTextureFromImage(ormImage);
+            ormTexture = LoadTextureFromImage(ormImage);
 
-            if (genMipmaps) {
+            SetTextureFilter(ormTexture, R3D.state.loading.textureFilter);
+
+            if (R3D.state.loading.textureFilter > TEXTURE_FILTER_BILINEAR) {
                 GenTextureMipmaps(&ormTexture);
             }
 
@@ -2300,7 +2305,7 @@ static Texture2D r3d_load_assimp_orm_texture(const struct aiScene* scene, const 
     }
 
     if (!oImage.data && !rImage.data && !mImage.data) {
-        return texture; // No ORM texture available
+        return ormTexture; // No ORM texture available
     }
 
     Image ormImage = { 0 };
@@ -2308,6 +2313,7 @@ static Texture2D r3d_load_assimp_orm_texture(const struct aiScene* scene, const 
     ormImage.format = RL_PIXELFORMAT_UNCOMPRESSED_R5G6B5;
     ormImage.width = rImage.width;
     ormImage.height = rImage.height;
+    ormImage.mipmaps = 1;
 
     size_t szOrmImage = ormImage.width * ormImage.height;
 
@@ -2322,8 +2328,11 @@ static Texture2D r3d_load_assimp_orm_texture(const struct aiScene* scene, const 
     if (rImageIsAllocated) UnloadImage(rImage);
     if (oImageIsAllocated) UnloadImage(oImage);
 
-    Texture2D ormTexture = LoadTextureFromImage(ormImage);
-    if (genMipmaps) {
+    ormTexture = LoadTextureFromImage(ormImage);
+
+    SetTextureFilter(ormTexture, R3D.state.loading.textureFilter);
+
+    if (R3D.state.loading.textureFilter > TEXTURE_FILTER_BILINEAR) {
         GenTextureMipmaps(&ormTexture);
     }
 
@@ -2366,10 +2375,10 @@ bool process_assimp_materials(const struct aiScene* scene, R3D_Material** materi
             mat->albedo.color = r3d_color_from_ai_color(&color);
         }
 
-        mat->albedo.texture = r3d_load_assimp_texture(scene, aiMat, aiTextureType_DIFFUSE, 0, basePath, true);
+        mat->albedo.texture = r3d_load_assimp_texture(scene, aiMat, aiTextureType_DIFFUSE, 0, basePath);
 
         if (mat->albedo.texture.id == 0) {
-            mat->albedo.texture = r3d_load_assimp_texture(scene, aiMat, aiTextureType_BASE_COLOR, 0, basePath, true);
+            mat->albedo.texture = r3d_load_assimp_texture(scene, aiMat, aiTextureType_BASE_COLOR, 0, basePath);
         }
 
         if (mat->albedo.texture.id == 0) {
@@ -2378,7 +2387,7 @@ bool process_assimp_materials(const struct aiScene* scene, R3D_Material** materi
 
         /* --- Load normal map --- */
 
-        mat->normal.texture = r3d_load_assimp_texture(scene, aiMat, aiTextureType_NORMALS, 0, basePath, true);
+        mat->normal.texture = r3d_load_assimp_texture(scene, aiMat, aiTextureType_NORMALS, 0, basePath);
 
         if (mat->normal.texture.id == 0) {
             mat->normal.texture = R3D_GetNormalTexture();
@@ -2398,7 +2407,7 @@ bool process_assimp_materials(const struct aiScene* scene, R3D_Material** materi
 
         /* --- Load ORM map --- */
 
-        mat->orm.texture = r3d_load_assimp_orm_texture(scene, aiMat, basePath, true);
+        mat->orm.texture = r3d_load_assimp_orm_texture(scene, aiMat, basePath);
 
         if (mat->orm.texture.id == 0) {
             mat->orm.texture = R3D_GetWhiteTexture();
