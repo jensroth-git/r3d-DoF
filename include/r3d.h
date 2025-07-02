@@ -59,14 +59,14 @@
  */
 typedef unsigned int R3D_Flags;
 
-#define R3D_FLAG_NONE           0           /*< No special rendering flags */
-#define R3D_FLAG_FXAA           (1 << 0)    /*< Enables Fast Approximate Anti-Aliasing (FXAA) */
-#define R3D_FLAG_BLIT_LINEAR    (1 << 1)    /*< Uses linear filtering when blitting the final image */
-#define R3D_FLAG_ASPECT_KEEP    (1 << 2)    /*< Maintains the aspect ratio of the internal resolution when blitting the final image */
-#define R3D_FLAG_STENCIL_TEST   (1 << 3)    /*< Performs a stencil test on each rendering pass affecting geometry */
-#define R3D_FLAG_DEPTH_PREPASS  (1 << 4)    /*< Performs a depth pre-pass before forward rendering, improving desktop GPU performance but unnecessary on mobile */
-#define R3D_FLAG_8_BIT_NORMALS  (1 << 5)    /*< Use 8-bit precision for the normals buffer (deferred); default is 16-bit float */
-#define R3D_FLAG_FORCE_FORWARD  (1 << 6)    /*< Used to force forward rendering for opaque objects, useful for tile-based devices */
+#define R3D_FLAG_NONE           0           /**< No special rendering flags */
+#define R3D_FLAG_FXAA           (1 << 0)    /**< Enables Fast Approximate Anti-Aliasing (FXAA) */
+#define R3D_FLAG_BLIT_LINEAR    (1 << 1)    /**< Uses linear filtering when blitting the final image */
+#define R3D_FLAG_ASPECT_KEEP    (1 << 2)    /**< Maintains the aspect ratio of the internal resolution when blitting the final image */
+#define R3D_FLAG_STENCIL_TEST   (1 << 3)    /**< Performs a stencil test on each rendering pass affecting geometry */
+#define R3D_FLAG_DEPTH_PREPASS  (1 << 4)    /**< Performs a depth pre-pass before forward rendering, improving desktop GPU performance but unnecessary on mobile */
+#define R3D_FLAG_8_BIT_NORMALS  (1 << 5)    /**< Use 8-bit precision for the normals buffer (deferred); default is 16-bit float */
+#define R3D_FLAG_FORCE_FORWARD  (1 << 6)    /**< Used to force forward rendering for opaque objects, useful for tile-based devices */
 
 /**
  * @brief Blend modes for rendering.
@@ -180,79 +180,97 @@ typedef enum R3D_Tonemap {
 //                   TYPES
 // --------------------------------------------
 
+/**
+ * @brief Represents a vertex and all its attributes for a mesh.
+ */
 typedef struct R3D_Vertex {
-    Vector3 position;
-    Vector2 texcoord;
-    Vector3 normal;
-    Vector4 color;
-    Vector4 tangent;
+    Vector3 position;       /**< The 3D position of the vertex in object space. */
+    Vector2 texcoord;       /**< The 2D texture coordinates (UV) for mapping textures. */
+    Vector3 normal;         /**< The normal vector used for lighting calculations. */
+    Vector4 color;          /**< Vertex color, typically RGBA. */
+    Vector4 tangent;        /**< The tangent vector, used in normal mapping (often with a handedness in w). */
 } R3D_Vertex;
 
+/**
+ * @brief Represents a mesh with its geometry data and GPU buffers.
+ *
+ * Contains vertex/index data, GPU buffer handles, and bounding volume.
+ */
 typedef struct R3D_Mesh {
 
-    R3D_Vertex* vertices;
-    unsigned int* indices;
+    R3D_Vertex* vertices;      /**< Pointer to the array of vertices. */
+    unsigned int* indices;     /**< Pointer to the array of indices. */
 
-    int vertexCount;
-    int indexCount;
+    int vertexCount;           /**< Number of vertices. */
+    int indexCount;            /**< Number of indices. */
 
-    unsigned int vbo;
-    unsigned int ebo;
-    unsigned int vao;
+    unsigned int vbo;          /**< Vertex Buffer Object (GPU handle). */
+    unsigned int ebo;          /**< Element Buffer Object (GPU handle). */
+    unsigned int vao;          /**< Vertex Array Object (GPU handle). */
 
-    BoundingBox aabb;
+    BoundingBox aabb;          /**< Axis-Aligned Bounding Box in local space. */
 
-    int reserved0;
+    int reserved0;             /**< Reserved for future use (must be zero-initialized). */
 
 } R3D_Mesh;
 
+/**
+ * @brief Represents a material with textures, parameters, and rendering modes.
+ *
+ * Combines multiple texture maps and settings used during shading.
+ */
 typedef struct R3D_Material {
 
     struct R3D_MapAlbedo {
-        Texture2D texture;
-        Color color;
+        Texture2D texture;   /**< Albedo (base color) texture. */
+        Color color;         /**< Albedo color multiplier. */
     } albedo;
 
     struct R3D_MapEmission {
-        Texture2D texture;
-        Color color;
-        float multiplier;
+        Texture2D texture;   /**< Emission texture. */
+        Color color;         /**< Emission color. */
+        float multiplier;    /**< Emission intensity multiplier. */
     } emission;
 
     struct R3D_MapNormal {
-        Texture2D texture;
+        Texture2D texture;   /**< Normal map texture. */
     } normal;
 
     struct R3D_MapORM {
-        Texture2D texture;
-        float occlusion;
-        float roughness;
-        float metalness;
+        Texture2D texture;   /**< Combined Occlusion-Roughness-Metalness texture. */
+        float occlusion;     /**< Occlusion multiplier. */
+        float roughness;     /**< Roughness multiplier. */
+        float metalness;     /**< Metalness multiplier. */
     } orm;
 
-    R3D_BlendMode blendMode;    ///< Indique le blend mode à utilisé pour le material
-    R3D_CullMode cullMode;      ///< Indique le cull mode à utilisé pour le material
+    R3D_BlendMode blendMode;              /**< Blend mode used for rendering the material. */
+    R3D_CullMode cullMode;                /**< Face culling mode used for the material. */
 
-    R3D_ShadowCastMode shadowCastMode;  ///< Indique le mode de rendu de l'objet dans les shadow maps
-    R3D_BillboardMode billboardMode;    ///< Indique le mode billboarding de l'objet
+    R3D_ShadowCastMode shadowCastMode;    /**< Shadow casting mode for the object. */
+    R3D_BillboardMode billboardMode;      /**< Billboard mode applied to the object. */
 
-    float alphaScissorThreshold;    ///< Seuil alpha en dessous duquel les fragments de la geometrie doivent etre disacarded
+    float alphaScissorThreshold;          /**< Alpha threshold below which fragments are discarded. */
 
 } R3D_Material;
 
+/**
+ * @brief Represents a complete 3D model with meshes and materials.
+ *
+ * Contains multiple meshes and their associated materials, along with bounding information.
+ */
 typedef struct R3D_Model {
 
-    R3D_Mesh* meshes;
-    R3D_Material* materials;
-    int* meshMaterials;
+    R3D_Mesh* meshes;              /**< Array of meshes composing the model. */
+    R3D_Material* materials;       /**< Array of materials used by the model. */
+    int* meshMaterials;            /**< Array of material indices, one per mesh. */
 
-    int meshCount;
-    int materialCount;
+    int meshCount;                 /**< Number of meshes. */
+    int materialCount;             /**< Number of materials. */
 
-    BoundingBox aabb;
+    BoundingBox aabb;              /**< Axis-Aligned Bounding Box encompassing the whole model. */
 
-    int reserved0;
-    int reserved1;
+    int reserved0;                 /**< Reserved for future use (must be zero-initialized). */
+    int reserved1;                 /**< Reserved for future use (must be zero-initialized). */
 
 } R3D_Model;
 
@@ -914,8 +932,6 @@ R3DAPI bool R3D_UpdateMesh(R3D_Mesh* mesh);
  * @param mesh Pointer to the mesh structure whose bounding box will be updated.
  */
 R3DAPI void R3D_UpdateMeshBoundingBox(R3D_Mesh* mesh);
-
-
 
 /**
  * @brief Generate a polygon mesh with specified number of sides.
@@ -1813,7 +1829,9 @@ R3DAPI BoundingBox R3D_GetParticleSystemBoundingBox(R3D_ParticleSystem* system);
 /**
  * @brief Load a sprite from a texture.
  *
- * This function creates a `R3D_Sprite` using the provided texture. The texture will be used as the albedo of the sprite's material.
+ * This function creates a `R3D_Sprite` using the provided texture.
+ * The texture will be used as the albedo of the sprite's material.
+ * The default billboard mode applied to the material is `R3D_BILLBOARD_Y_AXIS`.
  *
  * @warning The lifetime of the provided texture is managed by the caller.
  *
