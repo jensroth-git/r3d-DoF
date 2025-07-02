@@ -169,6 +169,8 @@ int R3D_GetBloomFilterRadius(void)
 void R3D_SetBloomThreshold(float value)
 {
 	R3D.env.bloomThreshold = value;
+
+	r3d_calculate_bloom_prefilter_data();
 }
 
 float R3D_GetBloomThreshold(void)
@@ -179,6 +181,8 @@ float R3D_GetBloomThreshold(void)
 void R3D_SetBloomSoftThreshold(float value)
 {
 	R3D.env.bloomSoftThreshold = value;
+
+	r3d_calculate_bloom_prefilter_data();
 }
 
 float R3D_GetBloomSoftThreshold(void)
