@@ -18,59 +18,115 @@
  */
 
 #include "./r3d_primitives.h"
+#include <stddef.h>
 
 r3d_primitive_t r3d_primitive_load_quad(void)
 {
-    static const float VERTICES[] =
-    {
-        // Positions         Normals             Texcoords
-       -1.0f,  1.0f, 0.0f,   0.0f, 0.0f, 1.0f,   0.0f, 1.0f,
-       -1.0f, -1.0f, 0.0f,   0.0f, 0.0f, 1.0f,   0.0f, 0.0f,
-        1.0f,  1.0f, 0.0f,   0.0f, 0.0f, 1.0f,   1.0f, 1.0f,
-        1.0f, -1.0f, 0.0f,   0.0f, 0.0f, 1.0f,   1.0f, 0.0f,
+    // Structure: Pos(3) + Normal(3) + TexCoord(2) + Color(4 uchar) + Tangent(4)
+    // Stride: 16 floats + 4 unsigned char = 64 + 4 = 68 bytes par vertex
+    static const struct {
+        float pos[3];
+        float normal[3];
+        float texcoord[2];
+        unsigned char color[4];
+        float tangent[4];
+    } VERTICES[] = {
+        // Vertex 0: top-left
+        {{-1.0f,  1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}, {255, 255, 255, 255}, {1.0f, 0.0f, 0.0f, 1.0f}},
+        // Vertex 1: bottom-left
+        {{-1.0f, -1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}, {255, 255, 255, 255}, {1.0f, 0.0f, 0.0f, 1.0f}},
+        // Vertex 2: top-right
+        {{ 1.0f,  1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}, {255, 255, 255, 255}, {1.0f, 0.0f, 0.0f, 1.0f}},
+        // Vertex 3: bottom-right
+        {{ 1.0f, -1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}, {255, 255, 255, 255}, {1.0f, 0.0f, 0.0f, 1.0f}},
     };
 
     static const unsigned short INDICES[] =
     {
-        0, 1, 2,  // First triangle (bottom-left, bottom-right, top-left)
-        1, 3, 2   // Second triangle (bottom-right, top-right, top-left)
+        0, 1, 2, // First triangle (bottom-left, bottom-right, top-left)
+        1, 3, 2  // Second triangle (bottom-right, top-right, top-left)
     };
 
     r3d_primitive_t quad = { 0 };
-
+    
     quad.vao = rlLoadVertexArray();
     rlEnableVertexArray(quad.vao);
-
+    
     quad.ebo = rlLoadVertexBufferElement(INDICES, sizeof(INDICES), false);
     quad.vbo = rlLoadVertexBuffer(VERTICES, sizeof(VERTICES), false);
-
-    rlSetVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION, 3, RL_FLOAT, false, 8 * sizeof(float), 0);
-    rlSetVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_TEXCOORD, 2, RL_FLOAT, false, 8 * sizeof(float), 6 * sizeof(float));
-    rlSetVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_NORMAL, 3, RL_FLOAT, false, 8 * sizeof(float), 3 * sizeof(float));
-
-    rlEnableVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION);
-    rlEnableVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_TEXCOORD);
-    rlEnableVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_NORMAL);
-
+    
+    const size_t stride = sizeof(VERTICES[0]);
+    
+    // Attribut 0: Positions (vec3)
+    rlSetVertexAttribute(0, 3, RL_FLOAT, false, stride, offsetof(typeof(VERTICES[0]), pos));
+    rlEnableVertexAttribute(0);
+    
+    // Attribut 1: Texcoords (vec2)
+    rlSetVertexAttribute(1, 2, RL_FLOAT, false, stride, offsetof(typeof(VERTICES[0]), texcoord));
+    rlEnableVertexAttribute(1);
+    
+    // Attribut 2: Normals (vec3)
+    rlSetVertexAttribute(2, 3, RL_FLOAT, false, stride, offsetof(typeof(VERTICES[0]), normal));
+    rlEnableVertexAttribute(2);
+    
+    // Attribut 3: Couleurs (vec4 unsigned char)
+    rlSetVertexAttribute(3, 4, RL_UNSIGNED_BYTE, true, stride, offsetof(typeof(VERTICES[0]), color));
+    rlEnableVertexAttribute(3);
+    
+    // Attribut 4: Tangentes (vec4)
+    rlSetVertexAttribute(4, 4, RL_FLOAT, false, stride, offsetof(typeof(VERTICES[0]), tangent));
+    rlEnableVertexAttribute(4);
+    
     rlDisableVertexArray();
-
+    
     return quad;
 }
 
 r3d_primitive_t r3d_primitive_load_cube(void)
 {
-    static const float VERTICES[] =
-    {
-        // Positions            // Normals             // Texcoords
-       -1.0f,  1.0f,  1.0f,     0.0f,  0.0f,  1.0f,    0.0f, 1.0f,  // Front top-left
-       -1.0f, -1.0f,  1.0f,     0.0f,  0.0f,  1.0f,    0.0f, 0.0f,  // Front bottom-left
-        1.0f,  1.0f,  1.0f,     0.0f,  0.0f,  1.0f,    1.0f, 1.0f,  // Front top-right
-        1.0f, -1.0f,  1.0f,     0.0f,  0.0f,  1.0f,    1.0f, 0.0f,  // Front bottom-right
-
-       -1.0f,  1.0f, -1.0f,     0.0f,  0.0f, -1.0f,    1.0f, 1.0f,  // Back top-left
-       -1.0f, -1.0f, -1.0f,     0.0f,  0.0f, -1.0f,    1.0f, 0.0f,  // Back bottom-left
-        1.0f,  1.0f, -1.0f,     0.0f,  0.0f, -1.0f,    0.0f, 1.0f,  // Back top-right
-        1.0f, -1.0f, -1.0f,     0.0f,  0.0f, -1.0f,    0.0f, 0.0f,  // Back bottom-right
+    // Structure: Pos(3) + Normal(3) + TexCoord(2) + Color(4 uchar) + Tangent(4)
+    static const struct {
+        float pos[3];
+        float normal[3];
+        float texcoord[2];
+        unsigned char color[4];
+        float tangent[4];
+    } VERTICES[] = {
+        // Front face (Z+) - tangent points right (X+)
+        {{-1.0f,  1.0f,  1.0f}, {0.0f, 0.0f,  1.0f}, {0.0f, 1.0f}, {255, 255, 255, 255}, { 1.0f, 0.0f, 0.0f, 1.0f}}, // 0: Front top-left
+        {{-1.0f, -1.0f,  1.0f}, {0.0f, 0.0f,  1.0f}, {0.0f, 0.0f}, {255, 255, 255, 255}, { 1.0f, 0.0f, 0.0f, 1.0f}}, // 1: Front bottom-left
+        {{ 1.0f,  1.0f,  1.0f}, {0.0f, 0.0f,  1.0f}, {1.0f, 1.0f}, {255, 255, 255, 255}, { 1.0f, 0.0f, 0.0f, 1.0f}}, // 2: Front top-right
+        {{ 1.0f, -1.0f,  1.0f}, {0.0f, 0.0f,  1.0f}, {1.0f, 0.0f}, {255, 255, 255, 255}, { 1.0f, 0.0f, 0.0f, 1.0f}}, // 3: Front bottom-right
+        
+        // Back face (Z-) - tangent points left (X-)
+        {{-1.0f,  1.0f, -1.0f}, {0.0f, 0.0f, -1.0f}, {1.0f, 1.0f}, {255, 255, 255, 255}, {-1.0f, 0.0f, 0.0f, 1.0f}}, // 4: Back top-left
+        {{-1.0f, -1.0f, -1.0f}, {0.0f, 0.0f, -1.0f}, {1.0f, 0.0f}, {255, 255, 255, 255}, {-1.0f, 0.0f, 0.0f, 1.0f}}, // 5: Back bottom-left
+        {{ 1.0f,  1.0f, -1.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f}, {255, 255, 255, 255}, {-1.0f, 0.0f, 0.0f, 1.0f}}, // 6: Back top-right
+        {{ 1.0f, -1.0f, -1.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 0.0f}, {255, 255, 255, 255}, {-1.0f, 0.0f, 0.0f, 1.0f}}, // 7: Back bottom-right
+        
+        // Left face (X-) - tangent points back (Z-)
+        {{-1.0f,  1.0f, -1.0f}, {-1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}, {255, 255, 255, 255}, {0.0f, 0.0f, -1.0f, 1.0f}}, // 8: Left top-back
+        {{-1.0f, -1.0f, -1.0f}, {-1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}, {255, 255, 255, 255}, {0.0f, 0.0f, -1.0f, 1.0f}}, // 9: Left bottom-back
+        {{-1.0f,  1.0f,  1.0f}, {-1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}, {255, 255, 255, 255}, {0.0f, 0.0f, -1.0f, 1.0f}}, // 10: Left top-front
+        {{-1.0f, -1.0f,  1.0f}, {-1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}, {255, 255, 255, 255}, {0.0f, 0.0f, -1.0f, 1.0f}}, // 11: Left bottom-front
+        
+        // Right face (X+) - tangent points forward (Z+)
+        {{ 1.0f,  1.0f,  1.0f}, { 1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}, {255, 255, 255, 255}, {0.0f, 0.0f,  1.0f, 1.0f}}, // 12: Right top-front
+        {{ 1.0f, -1.0f,  1.0f}, { 1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}, {255, 255, 255, 255}, {0.0f, 0.0f,  1.0f, 1.0f}}, // 13: Right bottom-front
+        {{ 1.0f,  1.0f, -1.0f}, { 1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}, {255, 255, 255, 255}, {0.0f, 0.0f,  1.0f, 1.0f}}, // 14: Right top-back
+        {{ 1.0f, -1.0f, -1.0f}, { 1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}, {255, 255, 255, 255}, {0.0f, 0.0f,  1.0f, 1.0f}}, // 15: Right bottom-back
+        
+        // Top face (Y+) - tangent points right (X+)
+        {{-1.0f,  1.0f, -1.0f}, {0.0f,  1.0f, 0.0f}, {0.0f, 0.0f}, {255, 255, 255, 255}, { 1.0f, 0.0f, 0.0f, 1.0f}}, // 16: Top back-left
+        {{-1.0f,  1.0f,  1.0f}, {0.0f,  1.0f, 0.0f}, {0.0f, 1.0f}, {255, 255, 255, 255}, { 1.0f, 0.0f, 0.0f, 1.0f}}, // 17: Top front-left
+        {{ 1.0f,  1.0f, -1.0f}, {0.0f,  1.0f, 0.0f}, {1.0f, 0.0f}, {255, 255, 255, 255}, { 1.0f, 0.0f, 0.0f, 1.0f}}, // 18: Top back-right
+        {{ 1.0f,  1.0f,  1.0f}, {0.0f,  1.0f, 0.0f}, {1.0f, 1.0f}, {255, 255, 255, 255}, { 1.0f, 0.0f, 0.0f, 1.0f}}, // 19: Top front-right
+        
+        // Bottom face (Y-) - tangent points right (X+)
+        {{-1.0f, -1.0f,  1.0f}, {0.0f, -1.0f, 0.0f}, {0.0f, 0.0f}, {255, 255, 255, 255}, { 1.0f, 0.0f, 0.0f, 1.0f}}, // 20: Bottom front-left
+        {{-1.0f, -1.0f, -1.0f}, {0.0f, -1.0f, 0.0f}, {0.0f, 1.0f}, {255, 255, 255, 255}, { 1.0f, 0.0f, 0.0f, 1.0f}}, // 21: Bottom back-left
+        {{ 1.0f, -1.0f,  1.0f}, {0.0f, -1.0f, 0.0f}, {1.0f, 0.0f}, {255, 255, 255, 255}, { 1.0f, 0.0f, 0.0f, 1.0f}}, // 22: Bottom front-right
+        {{ 1.0f, -1.0f, -1.0f}, {0.0f, -1.0f, 0.0f}, {1.0f, 1.0f}, {255, 255, 255, 255}, { 1.0f, 0.0f, 0.0f, 1.0f}}, // 23: Bottom back-right
     };
 
     static const unsigned short INDICES[] =
@@ -80,33 +136,47 @@ r3d_primitive_t r3d_primitive_load_cube(void)
         // Back face
         4, 5, 6, 6, 5, 7,
         // Left face
-        4, 5, 0, 0, 5, 1,
+        8, 9, 10, 10, 9, 11,
         // Right face
-        2, 3, 6, 6, 3, 7,
+        12, 13, 14, 14, 13, 15,
         // Top face
-        4, 0, 6, 6, 0, 2,
+        16, 17, 18, 18, 17, 19,
         // Bottom face
-        1, 5, 3, 3, 5, 7
+        20, 21, 22, 22, 21, 23
     };
 
     r3d_primitive_t cube = { 0 };
-
+    
     cube.vao = rlLoadVertexArray();
     rlEnableVertexArray(cube.vao);
-
+    
     cube.ebo = rlLoadVertexBufferElement(INDICES, sizeof(INDICES), false);
     cube.vbo = rlLoadVertexBuffer(VERTICES, sizeof(VERTICES), false);
-
-    rlSetVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION, 3, RL_FLOAT, false, 8 * sizeof(float), 0);
-    rlSetVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_TEXCOORD, 2, RL_FLOAT, false, 8 * sizeof(float), 6 * sizeof(float));
-    rlSetVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_NORMAL, 3, RL_FLOAT, false, 8 * sizeof(float), 3 * sizeof(float));
-
-    rlEnableVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION);
-    rlEnableVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_TEXCOORD);
-    rlEnableVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_NORMAL);
-
+    
+    const size_t stride = sizeof(VERTICES[0]);
+    
+    // Attribut 0: Positions (vec3)
+    rlSetVertexAttribute(0, 3, RL_FLOAT, false, stride, offsetof(typeof(VERTICES[0]), pos));
+    rlEnableVertexAttribute(0);
+    
+    // Attribut 1: Texcoords (vec2)
+    rlSetVertexAttribute(1, 2, RL_FLOAT, false, stride, offsetof(typeof(VERTICES[0]), texcoord));
+    rlEnableVertexAttribute(1);
+    
+    // Attribut 2: Normals (vec3)
+    rlSetVertexAttribute(2, 3, RL_FLOAT, false, stride, offsetof(typeof(VERTICES[0]), normal));
+    rlEnableVertexAttribute(2);
+    
+    // Attribut 3: Couleurs (vec4 unsigned char)
+    rlSetVertexAttribute(3, 4, RL_UNSIGNED_BYTE, true, stride, offsetof(typeof(VERTICES[0]), color));
+    rlEnableVertexAttribute(3);
+    
+    // Attribut 4: Tangentes (vec4)
+    rlSetVertexAttribute(4, 4, RL_FLOAT, false, stride, offsetof(typeof(VERTICES[0]), tangent));
+    rlEnableVertexAttribute(4);
+    
     rlDisableVertexArray();
-
+    
     return cube;
 }
 
@@ -124,14 +194,20 @@ void r3d_primitive_draw(r3d_primitive_t* primitive)
     if (!vaoEnabled) {
         rlEnableVertexBuffer(primitive->vbo);
 
-        rlSetVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION, 3, RL_FLOAT, 0, 0, 0);
-        rlEnableVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION);
+        rlSetVertexAttribute(0, 3, RL_FLOAT, 0, 0, 0);
+        rlEnableVertexAttribute(0);
 
-        rlSetVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_TEXCOORD, 2, RL_FLOAT, 0, 0, 0);
-        rlEnableVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_TEXCOORD);
+        rlSetVertexAttribute(1, 2, RL_FLOAT, 0, 0, 0);
+        rlEnableVertexAttribute(1);
 
-        rlSetVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_NORMAL, 3, RL_FLOAT, 0, 0, 0);
-        rlEnableVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_NORMAL);
+        rlSetVertexAttribute(2, 3, RL_FLOAT, 0, 0, 0);
+        rlEnableVertexAttribute(2);
+
+        rlSetVertexAttribute(3, 3, RL_FLOAT, 0, 0, 0);
+        rlEnableVertexAttribute(3);
+
+        rlSetVertexAttribute(4, 3, RL_FLOAT, 0, 0, 0);
+        rlEnableVertexAttribute(4);
 
         rlEnableVertexBufferElement(primitive->ebo);
     }
