@@ -323,18 +323,16 @@ R3D_Mesh R3D_GenMeshCube(float width, float height, float length, bool upload)
 
 R3D_Mesh R3D_GenMeshSphere(float radius, int rings, int slices, bool upload)
 {
-    R3D_Mesh mesh = {0};
+    R3D_Mesh mesh = { 0 };
 
-    // Validation of parameters
+    // Parameter validation
     if (radius <= 0.0f || rings < 2 || slices < 3) return mesh;
 
-    // Calculating dimensions
-    // rings+1 lines of vertices (including poles)
-    // slices+1 vertices per line (to close the texture)
+    // Calculate mesh dimensions
     mesh.vertexCount = (rings + 1) * (slices + 1);
     mesh.indexCount = rings * slices * 6; // 2 triangles per quad
 
-    // Memory allocation
+    // Allocate memory for vertices and indices
     mesh.vertices = (R3D_Vertex*)malloc(mesh.vertexCount * sizeof(R3D_Vertex));
     mesh.indices = (unsigned int*)malloc(mesh.indexCount * sizeof(unsigned int));
 
@@ -344,103 +342,91 @@ R3D_Mesh R3D_GenMeshSphere(float radius, int rings, int slices, bool upload)
         return mesh;
     }
 
-    // Pre-compute some values
-    const float ringStep = PI / rings;        // Vertical angle between rings
-    const float sliceStep = 2.0f * PI / slices; // Horizontal angle between slices
-    const Vector4 defaultColor = {255, 255, 255, 255};
+    // Pre-calculate angular steps and default color
+    const float ringStep = PI / rings;        // Vertical angle increment (phi: 0 to PI)
+    const float sliceStep = 2.0f * PI / slices; // Horizontal angle increment (theta: 0 to 2PI)
+    const Vector4 defaultColor = { 255, 255, 255, 255 };
 
-    // Vertice generation
+    // Generate vertices
     int vertexIndex = 0;
     for (int ring = 0; ring <= rings; ring++) {
-        const float phi = ring * ringStep;          // Vertical angle (0 to PI)
+        const float phi = ring * ringStep;          // Vertical angle from +Y (North Pole)
         const float sinPhi = sinf(phi);
         const float cosPhi = cosf(phi);
-        const float y = radius * cosPhi;            // Y position
-        const float ringRadius = radius * sinPhi;   // Ring radius
-        const float v = (float)ring / rings;        // V texture coordinate
+
+        const float y = radius * cosPhi;            // Y-coordinate (up/down)
+        const float ringRadius = radius * sinPhi;   // Radius of the current ring
+
+        const float v = (float)ring / rings;        // V texture coordinate (0 at North Pole, 1 at South Pole)
     
         for (int slice = 0; slice <= slices; slice++) {
-            const float theta = slice * sliceStep;   // Horizontal angle (0 to 2PI)
+            const float theta = slice * sliceStep;   // Horizontal angle (around Y-axis)
             const float sinTheta = sinf(theta);
             const float cosTheta = cosf(theta);
         
-            // Position on the sphere
+            // Calculate vertex position for right-handed, -Z forward, +Y up system
             const float x = ringRadius * cosTheta;
-            const float z = ringRadius * sinTheta;
-        
-            // Normal (normalized by construction)
+            const float z = ringRadius * -sinTheta; // Invert Z for -Z forward
+            
+            // Normals point outwards from the sphere center
             const Vector3 normal = {x / radius, y / radius, z / radius};
         
             // UV coordinates
             const float u = (float)slice / slices;
         
-            // Calculation of the tangent (derivative with respect to theta)
-            // Tangent = d(position)/d(theta) normalized
-            const Vector3 tangentDir = {-sinTheta, 0.0f, cosTheta};
-            const Vector4 tangent = {tangentDir.x, tangentDir.y, tangentDir.z, 1.0f};
+            // Calculate tangent vector (points in the direction of increasing U)
+            // Adjusted for -Z forward system: tangent = d(position)/d(theta) normalized
+            const Vector3 tangentDir = {-sinTheta, 0.0f, -cosTheta};
+            const Vector4 tangent = {tangentDir.x, tangentDir.y, tangentDir.z, 1.0f}; // W for bitangent handedness
         
-            mesh.vertices[vertexIndex] = (R3D_Vertex){
+            mesh.vertices[vertexIndex++] = (R3D_Vertex){
                 .position = {x, y, z},
                 .texcoord = {u, v},
                 .normal = normal,
                 .color = defaultColor,
                 .tangent = tangent
             };
-            vertexIndex++;
         }
     }
 
-    // Generation of indices
+    // Generate indices
     int indexOffset = 0;
     const int verticesPerRing = slices + 1;
 
     for (int ring = 0; ring < rings; ring++) {
-        const int currentRing = ring * verticesPerRing;
-        const int nextRing = (ring + 1) * verticesPerRing;
+        const int currentRingStartIdx = ring * verticesPerRing;
+        const int nextRingStartIdx = (ring + 1) * verticesPerRing;
     
         for (int slice = 0; slice < slices; slice++) {
-            // Indices from the 4 corners of the quad
-            const unsigned int current = currentRing + slice;
-            const unsigned int next = currentRing + slice + 1;
-            const unsigned int currentNext = nextRing + slice;
-            const unsigned int nextNext = nextRing + slice + 1;
+            // Get indices of the 4 corners of the quad
+            const unsigned int current = currentRingStartIdx + slice;
+            const unsigned int next = currentRingStartIdx + slice + 1;
+            const unsigned int currentNext = nextRingStartIdx + slice;
+            const unsigned int nextNext = nextRingStartIdx + slice + 1;
         
-            // Special handling for poles (avoid degenerate triangles)
-            if (ring == 0) {
-                // North Pole - one triangle per slice
-                mesh.indices[indexOffset++] = current;
-                mesh.indices[indexOffset++] = nextNext;
-                mesh.indices[indexOffset++] = currentNext;
-            } else if (ring == rings - 1) {
-                // South Pole - one triangle per slice
-                mesh.indices[indexOffset++] = current;
-                mesh.indices[indexOffset++] = next;
-                mesh.indices[indexOffset++] = currentNext;
-            } else {
-                // Normal quad - 2 triangles
-                // First triangle (current, currentNext, next)
-                mesh.indices[indexOffset++] = current;
-                mesh.indices[indexOffset++] = currentNext;
-                mesh.indices[indexOffset++] = next;
-            
-                // Second triangle (next, currentNext, nextNext)
-                mesh.indices[indexOffset++] = next;
-                mesh.indices[indexOffset++] = currentNext;
-                mesh.indices[indexOffset++] = nextNext;
-            }
+            // Define triangles with clockwise winding for back-face culling (right-handed system)
+            // First triangle of the quad
+            mesh.indices[indexOffset++] = current;
+            mesh.indices[indexOffset++] = currentNext;
+            mesh.indices[indexOffset++] = nextNext;
+
+            // Second triangle of the quad
+            mesh.indices[indexOffset++] = current;
+            mesh.indices[indexOffset++] = nextNext;
+            mesh.indices[indexOffset++] = next;
         }
     }
 
-    // Adjusted the actual number of indices (due to poles)
+    // Set final index count
     mesh.indexCount = indexOffset;
 
-    // AABB Calculation
+    // Calculate Axis-Aligned Bounding Box (AABB)
     mesh.aabb = (BoundingBox){
         .min = {-radius, -radius, -radius},
         .max = {radius, radius, radius}
     };
 
-    // Optional upload to GPU
+    // Optional GPU upload
     if (upload) {
         R3D_UploadMesh(&mesh, false);
     }
