@@ -115,6 +115,15 @@ bool r3d_is_default_texture(unsigned int id)
     return false;
 }
 
+void r3d_calculate_bloom_prefilter_data()
+{
+    float knee = R3D.env.bloomThreshold * R3D.env.bloomSoftThreshold;
+    R3D.env.bloomPrefilter.x = R3D.env.bloomThreshold;
+    R3D.env.bloomPrefilter.y = R3D.env.bloomPrefilter.x - knee;
+    R3D.env.bloomPrefilter.z = 2.0f * knee;
+    R3D.env.bloomPrefilter.w = 0.25f / (knee + 0.00001f);
+}
+
 
 /* === Main loading functions === */
 
