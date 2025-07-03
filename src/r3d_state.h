@@ -546,17 +546,17 @@ void r3d_texture_load_ibl_brdf_lut(void);
 
 /* === Primitive helper macros */
 
-#define r3d_primitive_draw_quad()                           \
+#define r3d_primitive_bind_and_draw_quad()                  \
 {                                                           \
-    r3d_primitive_draw(&R3D.primitive.quad);                \
+    r3d_primitive_bind_and_draw(&R3D.primitive.quad);       \
 }
 
-#define r3d_primitive_draw_cube()                           \
+#define r3d_primitive_bind_and_draw_cube()                  \
 {                                                           \
-    r3d_primitive_draw(&R3D.primitive.cube);                \
+    r3d_primitive_bind_and_draw(&R3D.primitive.cube);       \
 }
 
-#define r3d_primitive_draw_screen()                         \
+#define r3d_primitive_bind_and_draw_screen()                \
 {                                                           \
     glBindVertexArray(R3D.primitive.dummyVAO);              \
     glDrawArrays(GL_TRIANGLES, 0, 3);                       \
