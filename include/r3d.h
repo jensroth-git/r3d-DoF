@@ -604,9 +604,9 @@ R3DAPI void R3D_DrawMeshInstancedEx(const R3D_Mesh* mesh, const R3D_Material* ma
  *
  * @param mesh A pointer to the mesh to render. Cannot be NULL.
  * @param material A pointer to the material to apply to the mesh. Can be NULL, default material will be used.
- * @param allAabb Optional bounding box encompassing all instances, in local space. Used for frustum culling.
- *                Can be NULL to disable culling. Will be transformed by the global matrix if necessary.
- * @param transform The global transformation matrix applied to all instances.
+ * @param globalAabb Optional bounding box encompassing all instances, in local space. Used for frustum culling.
+ *                   Can be NULL to disable culling. Will be transformed by the global matrix if necessary.
+ * @param globalTransform The global transformation matrix applied to all instances.
  * @param instanceTransforms Pointer to an array of transformation matrices for each instance, allowing unique transformations. Cannot be NULL.
  * @param transformsStride The stride (in bytes) between consecutive transformation matrices in the array.
  *                         Set to 0 if the matrices are tightly packed (stride equals sizeof(Matrix)).
@@ -617,7 +617,8 @@ R3DAPI void R3D_DrawMeshInstancedEx(const R3D_Mesh* mesh, const R3D_Material* ma
  *                     If colors are embedded in a struct, set to the size of the struct or the actual byte offset between elements.
  * @param instanceCount The number of instances to render. Must be greater than 0.
  */
-void R3D_DrawMeshInstancedPro(const R3D_Mesh* mesh, const R3D_Material* material, const BoundingBox* allAabb, Matrix transform,
+void R3D_DrawMeshInstancedPro(const R3D_Mesh* mesh, const R3D_Material* material,
+                              const BoundingBox* globalAabb, Matrix globalTransform,
                               const Matrix* instanceTransforms, int transformsStride,
                               const Color* instanceColors, int colorsStride,
                               int instanceCount);
@@ -732,7 +733,9 @@ R3DAPI void R3D_DrawSpriteInstancedEx(const R3D_Sprite* sprite, const Matrix* in
  * Each instance can have its own position, rotation, scale, and color while sharing the same sprite.
  *
  * @param sprite A pointer to the sprite to render. Cannot be NULL.
- * @param transform The global transformation matrix applied to all instances.
+ * @param globalAabb Optional bounding box encompassing all instances, in local space. Used for frustum culling.
+ *                   Can be NULL to disable culling. Will be transformed by the global matrix if provided.
+ * @param globalTransform The global transformation matrix applied to all instances.
  * @param instanceTransforms Pointer to an array of transformation matrices for each instance, allowing unique transformations. Cannot be NULL.
  * @param transformsStride The stride (in bytes) between consecutive transformation matrices in the array.
  *                         Set to 0 if the matrices are tightly packed (stride equals sizeof(Matrix)).
@@ -743,7 +746,10 @@ R3DAPI void R3D_DrawSpriteInstancedEx(const R3D_Sprite* sprite, const Matrix* in
  *                     If colors are embedded in a struct, set to the size of the struct or the actual byte offset between elements.
  * @param instanceCount The number of instances to render. Must be greater than 0.
  */
-R3DAPI void R3D_DrawSpriteInstancedPro(const R3D_Sprite* sprite, Matrix transform, const Matrix* instanceTransforms, int transformsStride, const Color* instanceColors, int colorsStride, int instanceCount);
+R3DAPI void R3D_DrawSpriteInstancedPro(const R3D_Sprite* sprite, const BoundingBox* globalAabb, Matrix globalTransform,
+                                       const Matrix* instanceTransforms, int transformsStride,
+                                       const Color* instanceColors, int colorsStride,
+                                       int instanceCount);
 
 /**
  * @brief Renders the current state of a CPU-based particle system.

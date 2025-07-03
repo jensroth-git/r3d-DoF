@@ -451,7 +451,8 @@ void R3D_DrawMeshInstancedEx(const R3D_Mesh* mesh, const R3D_Material* material,
     R3D_DrawMeshInstancedPro(mesh, material, NULL, MatrixIdentity(), instanceTransforms, 0, instanceColors, 0, instanceCount);
 }
 
-void R3D_DrawMeshInstancedPro(const R3D_Mesh* mesh, const R3D_Material* material, const BoundingBox* allAabb, Matrix transform,
+void R3D_DrawMeshInstancedPro(const R3D_Mesh* mesh, const R3D_Material* material,
+                              const BoundingBox* globalAabb, Matrix globalTransform,
                               const Matrix* instanceTransforms, int transformsStride,
                               const Color* instanceColors, int colorsStride,
                               int instanceCount)
@@ -462,13 +463,13 @@ void R3D_DrawMeshInstancedPro(const R3D_Mesh* mesh, const R3D_Material* material
         return;
     }
 
-    drawCall.transform = transform;
+    drawCall.transform = globalTransform;
     drawCall.material = material ? *material : R3D_GetDefaultMaterial();
     drawCall.geometry.mesh = mesh;
     drawCall.geometryType = R3D_DRAWCALL_GEOMETRY_MESH;
     drawCall.renderMode = R3D_DRAWCALL_RENDER_DEFERRED;
 
-    drawCall.instanced.allAabb = allAabb ? *allAabb
+    drawCall.instanced.allAabb = globalAabb ? *globalAabb
         : (BoundingBox) {
             { -FLT_MAX, -FLT_MAX, -FLT_MAX },
             { +FLT_MAX, +FLT_MAX, +FLT_MAX }
@@ -570,15 +571,18 @@ void R3D_DrawSpritePro(const R3D_Sprite* sprite, Vector3 position, Vector2 size,
 
 void R3D_DrawSpriteInstanced(const R3D_Sprite* sprite, const Matrix* instanceTransforms, int instanceCount)
 {
-    R3D_DrawSpriteInstancedPro(sprite, MatrixIdentity(), instanceTransforms, 0, NULL, 0, instanceCount);
+    R3D_DrawSpriteInstancedPro(sprite, NULL, MatrixIdentity(), instanceTransforms, 0, NULL, 0, instanceCount);
 }
 
 void R3D_DrawSpriteInstancedEx(const R3D_Sprite* sprite, const Matrix* instanceTransforms, const Color* instanceColors, int instanceCount)
 {
-    R3D_DrawSpriteInstancedPro(sprite, MatrixIdentity(), instanceTransforms, 0, instanceColors, 0, instanceCount);
+    R3D_DrawSpriteInstancedPro(sprite, NULL, MatrixIdentity(), instanceTransforms, 0, instanceColors, 0, instanceCount);
 }
 
-void R3D_DrawSpriteInstancedPro(const R3D_Sprite* sprite, Matrix transform, const Matrix* instanceTransforms, int transformsStride, const Color* instanceColors, int colorsStride, int instanceCount)
+void R3D_DrawSpriteInstancedPro(const R3D_Sprite* sprite, const BoundingBox* globalAabb, Matrix globalTransform,
+                                const Matrix* instanceTransforms, int transformsStride,
+                                const Color* instanceColors, int colorsStride,
+                                int instanceCount)
 {
     r3d_drawcall_t drawCall = { 0 };
 
@@ -586,7 +590,7 @@ void R3D_DrawSpriteInstancedPro(const R3D_Sprite* sprite, Matrix transform, cons
         return;
     }
 
-    drawCall.transform = transform;
+    drawCall.transform = globalTransform;
     drawCall.material = sprite->material;
     drawCall.geometryType = R3D_DRAWCALL_GEOMETRY_SPRITE;
     drawCall.renderMode = R3D_DRAWCALL_RENDER_DEFERRED;
@@ -596,6 +600,12 @@ void R3D_DrawSpriteInstancedPro(const R3D_Sprite* sprite, Matrix transform, cons
         &drawCall.geometry.sprite.uvOffset,
         sprite, 1.0f, -1.0f
     );
+
+    drawCall.instanced.allAabb = globalAabb ? *globalAabb
+        : (BoundingBox) {
+            { -FLT_MAX, -FLT_MAX, -FLT_MAX },
+            { +FLT_MAX, +FLT_MAX, +FLT_MAX }
+        };
 
     drawCall.instanced.transforms = instanceTransforms;
     drawCall.instanced.transStride = transformsStride;

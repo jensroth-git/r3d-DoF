@@ -95,7 +95,7 @@ bool r3d_drawcall_geometry_is_visible(const r3d_drawcall_t* call)
 
 bool r3d_drawcall_instanced_geometry_is_visible(const r3d_drawcall_t* call)
 {
-    if (call->instanced.allAabb.min.x <= -FLT_MAX + 1e-4f) {
+    if (call->instanced.allAabb.min.x == -FLT_MAX) {
         return true;
     }
 
