@@ -58,7 +58,6 @@ typedef struct {
     r3d_drawcall_render_mode_e renderMode;
 
     struct {
-        R3D_BillboardMode billboardMode;
         const Matrix* transforms;
         const Color* colors;
         size_t transStride;

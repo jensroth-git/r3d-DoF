@@ -107,8 +107,8 @@ void r3d_drawcall_raster_depth_inst(const r3d_drawcall_t* call, bool shadow)
     r3d_shader_set_mat4(raster.depthInst, uMatVP, matVP);
 
     // Send billboard related data
-    r3d_shader_set_int(raster.depthInst, uBillboardMode, call->instanced.billboardMode);
-    if (call->instanced.billboardMode != R3D_BILLBOARD_DISABLED) {
+    r3d_shader_set_int(raster.depthInst, uBillboardMode, call->material->billboardMode);
+    if (call->material->billboardMode != R3D_BILLBOARD_DISABLED) {
         r3d_shader_set_mat4(raster.depthInst, uMatInvView, R3D.state.transform.invView);
     }
 
@@ -188,8 +188,8 @@ void r3d_drawcall_raster_depth_cube_inst(const r3d_drawcall_t* call, bool shadow
     r3d_shader_set_mat4(raster.depthCubeInst, uMatVP, matVP);
 
     // Send billboard related data
-    r3d_shader_set_int(raster.depthCubeInst, uBillboardMode, call->instanced.billboardMode);
-    if (call->instanced.billboardMode != R3D_BILLBOARD_DISABLED) {
+    r3d_shader_set_int(raster.depthCubeInst, uBillboardMode, call->material->billboardMode);
+    if (call->material->billboardMode != R3D_BILLBOARD_DISABLED) {
         r3d_shader_set_mat4(raster.depthCubeInst, uMatInvView, R3D.state.transform.invView);
     }
 
@@ -293,8 +293,8 @@ void r3d_drawcall_raster_geometry_inst(const r3d_drawcall_t* call)
     r3d_shader_set_col3(raster.geometryInst, uColEmission, call->material->emission.color);
 
     // Setup billboard mode
-    r3d_shader_set_int(raster.geometryInst, uBillboardMode, call->instanced.billboardMode);
-    if (call->instanced.billboardMode != R3D_BILLBOARD_DISABLED) {
+    r3d_shader_set_int(raster.geometryInst, uBillboardMode, call->material->billboardMode);
+    if (call->material->billboardMode != R3D_BILLBOARD_DISABLED) {
         r3d_shader_set_mat4(raster.geometryInst, uMatInvView, R3D.state.transform.invView);
     }
 
@@ -410,8 +410,8 @@ void r3d_drawcall_raster_forward_inst(const r3d_drawcall_t* call)
     r3d_shader_set_col3(raster.forwardInst, uColEmission, call->material->emission.color);
 
     // Setup billboard mode
-    r3d_shader_set_int(raster.forwardInst, uBillboardMode, call->instanced.billboardMode);
-    if (call->instanced.billboardMode != R3D_BILLBOARD_DISABLED) {
+    r3d_shader_set_int(raster.forwardInst, uBillboardMode, call->material->billboardMode);
+    if (call->material->billboardMode != R3D_BILLBOARD_DISABLED) {
         r3d_shader_set_mat4(raster.forwardInst, uMatInvView, R3D.state.transform.invView);
     }
 
@@ -512,10 +512,9 @@ static void r3d_drawcall_apply_shadow_cast_mode(R3D_ShadowCastMode mode)
     }
 }
 
-// Mesh binding function, called by 'r3d_drawcall' functions only for geometry mode
-static void r3d_drawcall_bind_mesh(const R3D_Mesh* mesh)
+static void r3d_drawcall_bind_geometry_mesh(const R3D_Mesh* mesh)
 {
-    if (rlEnableVertexArray(mesh->vao)) {
+    if (!rlEnableVertexArray(mesh->vao)) {
         return;
     }
 
@@ -548,22 +547,20 @@ static void r3d_drawcall_bind_mesh(const R3D_Mesh* mesh)
     }
 }
 
+static void r3d_drawcall_unbind_geometry_mesh(void)
+{
+    rlDisableVertexArray();
+    rlDisableVertexBuffer();
+    rlDisableVertexBufferElement();
+}
+
 void r3d_drawcall(const r3d_drawcall_t* call)
 {
-    if (call->geometryType == R3D_DRAWCALL_GEOMETRY_MESH)
-    {
-        r3d_drawcall_bind_mesh(call->geometry.mesh);
-
-        if (call->geometry.mesh->indices == NULL) {
-            glDrawArrays(GL_TRIANGLES, 0, call->geometry.mesh->vertexCount);
-        }
-        else {
-            glDrawElements(GL_TRIANGLES, call->geometry.mesh->indexCount, GL_UNSIGNED_INT, NULL);
-        }
-
-        rlDisableVertexArray();
-        rlDisableVertexBuffer();
-        rlDisableVertexBufferElement();
+    if (call->geometryType == R3D_DRAWCALL_GEOMETRY_MESH) {
+        r3d_drawcall_bind_geometry_mesh(call->geometry.mesh);
+        if (call->geometry.mesh->indices == NULL) glDrawArrays(GL_TRIANGLES, 0, call->geometry.mesh->vertexCount);
+        else glDrawElements(GL_TRIANGLES, call->geometry.mesh->indexCount, GL_UNSIGNED_INT, NULL);
+        r3d_drawcall_unbind_geometry_mesh();
     }
 
     // Sprite mode only requires to render a generic quad
@@ -574,89 +571,90 @@ void r3d_drawcall(const r3d_drawcall_t* call)
 
 void r3d_drawcall_instanced(const r3d_drawcall_t* call, int locInstanceModel, int locInstanceColor)
 {
-    // WARNING: Always use the same attribute locations in shaders for instance matrices and colors.
-    // If attribute locations differ between shaders (e.g., between the depth shader and the geometry shader),
-    // it will break the rendering. This is because the vertex attributes are assigned based on specific 
-    // attribute locations, and if those locations are not consistent across shaders, the attributes 
-    // for instance transforms and colors will not be correctly bound. 
-    // This results in undefined or incorrect behavior, such as missing or incorrectly transformed meshes.
-
-    unsigned int vboTransforms = 0;
-    unsigned int vboColors = 0;
-
-    // Enable the attribute for the transformation matrix (decomposed into 4 vec4 vectors)
-    if (locInstanceModel >= 0 && call->instanced.transforms) {
-        size_t stride = (call->instanced.transStride == 0) ? sizeof(Matrix) : call->instanced.transStride;
-        vboTransforms = rlLoadVertexBuffer(call->instanced.transforms, (int)(call->instanced.count * stride), true);
-        rlEnableVertexBuffer(vboTransforms);
-        for (int i = 0; i < 4; i++) {
-            rlSetVertexAttribute(locInstanceModel + i, 4, RL_FLOAT, false, (int)stride, i * sizeof(Vector4));
-            rlSetVertexAttributeDivisor(locInstanceModel + i, 1);
-            rlEnableVertexAttribute(locInstanceModel + i);
-        }
-    }
-    else if (locInstanceModel >= 0) {
-        const float defaultTransform[4 * 4] = {
-            1, 0, 0, 0,
-            0, 1, 0, 0,
-            0, 0, 1, 0,
-            0, 0, 0, 1
-        };
-        for (int i = 0; i < 4; i++) {
-            glVertexAttrib4fv(locInstanceModel + i, defaultTransform + i * 4);
-            rlDisableVertexAttribute(locInstanceModel + i);
-        }
-    }
-
-    // Handle per-instance colors if available
-    if (locInstanceColor >= 0 && call->instanced.colors) {
-        size_t stride = (call->instanced.colStride == 0) ? sizeof(Color) : call->instanced.colStride;
-        vboColors = rlLoadVertexBuffer(call->instanced.colors, (int)(call->instanced.count * stride), true);
-        rlEnableVertexBuffer(vboColors);
-        rlSetVertexAttribute(locInstanceColor, 4, RL_UNSIGNED_BYTE, true, (int)call->instanced.colStride, 0);
-        rlSetVertexAttributeDivisor(locInstanceColor, 1);
-        rlEnableVertexAttribute(locInstanceColor);
-    }
-    else if (locInstanceColor >= 0) {
-        const float defaultColor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
-        glVertexAttrib4fv(locInstanceColor, defaultColor);
-        rlDisableVertexAttribute(locInstanceColor);
-    }
-
     // Draw instances or a single object depending on the case
     if (call->geometryType == R3D_DRAWCALL_GEOMETRY_MESH)
     {
-        r3d_drawcall_bind_mesh(call->geometry.mesh);
+        r3d_drawcall_bind_geometry_mesh(call->geometry.mesh);
 
+        // WARNING: Always use the same attribute locations in shaders for instance matrices and colors.
+        // If attribute locations differ between shaders (e.g., between the depth shader and the geometry shader),
+        // it will break the rendering. This is because the vertex attributes are assigned based on specific 
+        // attribute locations, and if those locations are not consistent across shaders, the attributes 
+        // for instance transforms and colors will not be correctly bound. 
+        // This results in undefined or incorrect behavior, such as missing or incorrectly transformed meshes.
+
+        unsigned int vboTransforms = 0;
+        unsigned int vboColors = 0;
+
+        // Enable the attribute for the transformation matrix (decomposed into 4 vec4 vectors)
+        if (locInstanceModel >= 0 && call->instanced.transforms) {
+            size_t stride = (call->instanced.transStride == 0) ? sizeof(Matrix) : call->instanced.transStride;
+            vboTransforms = rlLoadVertexBuffer(call->instanced.transforms, (int)(call->instanced.count * stride), true);
+            rlEnableVertexBuffer(vboTransforms);
+            for (int i = 0; i < 4; i++) {
+                rlSetVertexAttribute(locInstanceModel + i, 4, RL_FLOAT, false, (int)stride, i * sizeof(Vector4));
+                rlSetVertexAttributeDivisor(locInstanceModel + i, 1);
+                rlEnableVertexAttribute(locInstanceModel + i);
+            }
+        }
+        else if (locInstanceModel >= 0) {
+            const float defaultTransform[4 * 4] = {
+                1, 0, 0, 0,
+                0, 1, 0, 0,
+                0, 0, 1, 0,
+                0, 0, 0, 1
+            };
+            for (int i = 0; i < 4; i++) {
+                glVertexAttrib4fv(locInstanceModel + i, defaultTransform + i * 4);
+                rlDisableVertexAttribute(locInstanceModel + i);
+            }
+        }
+
+        // Handle per-instance colors if available
+        if (locInstanceColor >= 0 && call->instanced.colors) {
+            size_t stride = (call->instanced.colStride == 0) ? sizeof(Color) : call->instanced.colStride;
+            vboColors = rlLoadVertexBuffer(call->instanced.colors, (int)(call->instanced.count * stride), true);
+            rlEnableVertexBuffer(vboColors);
+            rlSetVertexAttribute(locInstanceColor, 4, RL_UNSIGNED_BYTE, true, (int)call->instanced.colStride, 0);
+            rlSetVertexAttributeDivisor(locInstanceColor, 1);
+            rlEnableVertexAttribute(locInstanceColor);
+        }
+        else if (locInstanceColor >= 0) {
+            const float defaultColor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+            glVertexAttrib4fv(locInstanceColor, defaultColor);
+            rlDisableVertexAttribute(locInstanceColor);
+        }
+
+        // Draw the geometry
         if (call->geometry.mesh->indices == NULL) {
-            glDrawArrays(GL_TRIANGLES, 0, call->geometry.mesh->vertexCount);
+            glDrawArraysInstanced(GL_TRIANGLES, 0, call->geometry.mesh->vertexCount, call->instanced.count);
         }
         else {
-            glDrawElements(GL_TRIANGLES, call->geometry.mesh->indexCount, GL_UNSIGNED_INT, NULL);
+            glDrawElementsInstanced(GL_TRIANGLES, call->geometry.mesh->indexCount, GL_UNSIGNED_INT, NULL, call->instanced.count);
         }
 
-        rlDisableVertexArray();
-        rlDisableVertexBuffer();
-        rlDisableVertexBufferElement();
+        // Clean up instanced data
+        if (vboTransforms > 0) {
+            for (int i = 0; i < 4; i++) {
+                rlDisableVertexAttribute(locInstanceModel + i);
+                rlSetVertexAttributeDivisor(locInstanceModel + i, 0);
+            }
+            rlUnloadVertexBuffer(vboTransforms);
+        }
+        if (vboColors > 0) {
+            rlDisableVertexAttribute(locInstanceColor);
+            rlSetVertexAttributeDivisor(locInstanceColor, 0);
+            rlUnloadVertexBuffer(vboColors);
+        }
+
+        // Unbind mesh vertex buffers
+        r3d_drawcall_unbind_geometry_mesh();
     }
 
     // Sprite mode only requires to render a generic quad
     else if (call->geometryType == R3D_DRAWCALL_GEOMETRY_SPRITE) {
-        r3d_primitive_draw_quad();
-    }
-
-    // Clean up resources
-    if (vboTransforms > 0) {
-        for (int i = 0; i < 4; i++) {
-            rlDisableVertexAttribute(locInstanceModel + i);
-            rlSetVertexAttributeDivisor(locInstanceModel + i, 0);
-        }
-        rlUnloadVertexBuffer(vboTransforms);
-    }
-    if (vboColors > 0) {
-        rlDisableVertexAttribute(locInstanceColor);
-        rlSetVertexAttributeDivisor(locInstanceColor, 0);
-        rlUnloadVertexBuffer(vboColors);
+        // TODO FIXME: Impl instanced primitive function
+        //r3d_primitive_draw_quad();
     }
 }
 
