@@ -26,20 +26,26 @@
 
 static inline Vector4 r3d_frustum_normalize_plane(Vector4 plane)
 {
-    float mag = sqrtf(plane.x * plane.x + plane.y * plane.y + plane.z * plane.z);
-    if (mag <= 1e-6f) return (Vector4) { 0 };
+    float len = sqrtf(plane.x * plane.x + plane.y * plane.y + plane.z * plane.z);
+    if (len <= 1e-6f) return (Vector4) { 0 };
 
-    return Vector4Scale(plane, 1.0f / mag);
+    float invLen = 1.0f / len;
+    plane.x *= invLen;
+    plane.y *= invLen;
+    plane.z *= invLen;
+    plane.w *= invLen;
+
+    return plane;
 }
 
-static inline float r3d_frustum_distance_to_plane(Vector4 plane, Vector3 position)
+static inline float r3d_frustum_distance_to_plane(const Vector4* plane, const Vector3* position)
 {
-    return plane.x * position.x + plane.y * position.y + plane.z * position.z + plane.w;
+    return plane->x * position->x + plane->y * position->y + plane->z * position->z + plane->w;
 }
 
-static inline float r3d_frustum_distance_to_plane_xyz(Vector4 plane, float x, float y, float z)
+static inline float r3d_frustum_distance_to_plane_xyz(const Vector4* plane, float x, float y, float z)
 {
-    return plane.x * x + plane.y * y + plane.z * z + plane.w;
+    return plane->x * x + plane->y * y + plane->z * z + plane->w;
 }
 
 /* === Public functions === */
@@ -136,10 +142,10 @@ BoundingBox r3d_frustum_get_bounding_box(Matrix matViewProjection)
     return bbox;
 }
 
-bool r3d_frustum_is_point_in(const r3d_frustum_t* frustum, Vector3 position)
+bool r3d_frustum_is_point_in(const r3d_frustum_t* frustum, const Vector3* position)
 {
     for (int i = 0; i < R3D_PLANE_COUNT; i++) {
-        if (r3d_frustum_distance_to_plane(frustum->planes[i], position) <= 0) {
+        if (r3d_frustum_distance_to_plane(&frustum->planes[i], position) <= 0) {
             return false;
         }
     }
@@ -149,49 +155,42 @@ bool r3d_frustum_is_point_in(const r3d_frustum_t* frustum, Vector3 position)
 bool r3d_frustum_is_point_in_xyz(const r3d_frustum_t* frustum, float x, float y, float z)
 {
     for (int i = 0; i < R3D_PLANE_COUNT; i++) {
-        if (r3d_frustum_distance_to_plane_xyz(frustum->planes[i], x, y, z) <= 0) {
+        if (r3d_frustum_distance_to_plane_xyz(&frustum->planes[i], x, y, z) <= 0) {
             return false;
         }
     }
     return true;
 }
 
-bool r3d_frustum_is_sphere_in(const r3d_frustum_t* frustum, Vector3 position, float radius)
+bool r3d_frustum_is_sphere_in(const r3d_frustum_t* frustum, const Vector3* position, float radius)
 {
     for (int i = 0; i < R3D_PLANE_COUNT; i++) {
-        if (r3d_frustum_distance_to_plane(frustum->planes[i], position) < -radius) {
+        if (r3d_frustum_distance_to_plane(&frustum->planes[i], position) < -radius) {
             return false;
         }
     }
     return true;
 }
 
-bool r3d_frustum_is_bounding_box_in(const r3d_frustum_t* frustum, BoundingBox aabb)
+bool r3d_frustum_is_bounding_box_in(const r3d_frustum_t* frustum, const BoundingBox* aabb)
 {
-    // if any point is in and we are good
-    if (r3d_frustum_is_point_in_xyz(frustum, aabb.min.x, aabb.min.y, aabb.min.z)) return true;
-    if (r3d_frustum_is_point_in_xyz(frustum, aabb.min.x, aabb.max.y, aabb.min.z)) return true;
-    if (r3d_frustum_is_point_in_xyz(frustum, aabb.max.x, aabb.max.y, aabb.min.z)) return true;
-    if (r3d_frustum_is_point_in_xyz(frustum, aabb.max.x, aabb.min.y, aabb.min.z)) return true;
-    if (r3d_frustum_is_point_in_xyz(frustum, aabb.min.x, aabb.min.y, aabb.max.z)) return true;
-    if (r3d_frustum_is_point_in_xyz(frustum, aabb.min.x, aabb.max.y, aabb.max.z)) return true;
-    if (r3d_frustum_is_point_in_xyz(frustum, aabb.max.x, aabb.max.y, aabb.max.z)) return true;
-    if (r3d_frustum_is_point_in_xyz(frustum, aabb.max.x, aabb.min.y, aabb.max.z)) return true;
+    float xMin = aabb->min.x, yMin = aabb->min.y, zMin = aabb->min.z;
+    float xMax = aabb->max.x, yMax = aabb->max.y, zMax = aabb->max.z;
 
-    // check to see if all points are outside of any one plane, if so the entire box is outside
-    for (int i = 0; i < R3D_PLANE_COUNT; i++) {
-        Vector4 plane = frustum->planes[i];
-        if (r3d_frustum_distance_to_plane_xyz(plane, aabb.min.x, aabb.min.y, aabb.min.z) >= 0) continue;
-        if (r3d_frustum_distance_to_plane_xyz(plane, aabb.max.x, aabb.min.y, aabb.min.z) >= 0) continue;
-        if (r3d_frustum_distance_to_plane_xyz(plane, aabb.max.x, aabb.max.y, aabb.min.z) >= 0) continue;
-        if (r3d_frustum_distance_to_plane_xyz(plane, aabb.min.x, aabb.max.y, aabb.min.z) >= 0) continue;
-        if (r3d_frustum_distance_to_plane_xyz(plane, aabb.min.x, aabb.min.y, aabb.max.z) >= 0) continue;
-        if (r3d_frustum_distance_to_plane_xyz(plane, aabb.max.x, aabb.min.y, aabb.max.z) >= 0) continue;
-        if (r3d_frustum_distance_to_plane_xyz(plane, aabb.max.x, aabb.max.y, aabb.max.z) >= 0) continue;
-        if (r3d_frustum_distance_to_plane_xyz(plane, aabb.min.x, aabb.max.y, aabb.max.z) >= 0) continue;
-        return false;
+    for (int i = 0; i < R3D_PLANE_COUNT; i++)
+    {
+        const Vector4* plane = &frustum->planes[i];
+
+        // Choose the optimal coordinates according to the sign of the normal
+        float x = (plane->x >= 0.0f) ? xMax : xMin;
+        float y = (plane->y >= 0.0f) ? yMax : yMin;
+        float z = (plane->z >= 0.0f) ? zMax : zMin;
+
+        float distance = r3d_frustum_distance_to_plane_xyz(plane, x, y, z);
+
+        if (distance < -EPSILON) {
+            return false;
+        }
     }
-
-    // the box extends outside the frustum but crosses it
     return true;
 }
