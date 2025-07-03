@@ -19,5 +19,5 @@ bool R3D_IsSphereInFrustum(Vector3 position, float radius)
 
 bool R3D_IsBoundingBoxInFrustum(BoundingBox aabb)
 {
-	return r3d_frustum_is_bounding_box_in(&R3D.state.frustum.shape, &aabb);
+	return r3d_frustum_is_aabb_in(&R3D.state.frustum.shape, &aabb);
 }

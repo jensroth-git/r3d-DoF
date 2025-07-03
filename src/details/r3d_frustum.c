@@ -18,6 +18,7 @@
  */
 
 #include "./r3d_frustum.h"
+#include "raylib.h"
 
 #include <raymath.h>
 #include <float.h>
@@ -56,44 +57,44 @@ r3d_frustum_t r3d_frustum_create(Matrix matrixViewProjection)
 
     frustum.planes[R3D_PLANE_RIGHT] = r3d_frustum_normalize_plane((Vector4) {
         matrixViewProjection.m3 - matrixViewProjection.m0,
-            matrixViewProjection.m7 - matrixViewProjection.m4,
-            matrixViewProjection.m11 - matrixViewProjection.m8,
-            matrixViewProjection.m15 - matrixViewProjection.m12
+        matrixViewProjection.m7 - matrixViewProjection.m4,
+        matrixViewProjection.m11 - matrixViewProjection.m8,
+        matrixViewProjection.m15 - matrixViewProjection.m12
     });
 
     frustum.planes[R3D_PLANE_LEFT] = r3d_frustum_normalize_plane((Vector4) {
         matrixViewProjection.m3 + matrixViewProjection.m0,
-            matrixViewProjection.m7 + matrixViewProjection.m4,
-            matrixViewProjection.m11 + matrixViewProjection.m8,
-            matrixViewProjection.m15 + matrixViewProjection.m12
+        matrixViewProjection.m7 + matrixViewProjection.m4,
+        matrixViewProjection.m11 + matrixViewProjection.m8,
+        matrixViewProjection.m15 + matrixViewProjection.m12
     });
 
     frustum.planes[R3D_PLANE_TOP] = r3d_frustum_normalize_plane((Vector4) {
         matrixViewProjection.m3 - matrixViewProjection.m1,
-            matrixViewProjection.m7 - matrixViewProjection.m5,
-            matrixViewProjection.m11 - matrixViewProjection.m9,
-            matrixViewProjection.m15 - matrixViewProjection.m13
+        matrixViewProjection.m7 - matrixViewProjection.m5,
+        matrixViewProjection.m11 - matrixViewProjection.m9,
+        matrixViewProjection.m15 - matrixViewProjection.m13
     });
 
     frustum.planes[R3D_PLANE_BOTTOM] = r3d_frustum_normalize_plane((Vector4) {
         matrixViewProjection.m3 + matrixViewProjection.m1,
-            matrixViewProjection.m7 + matrixViewProjection.m5,
-            matrixViewProjection.m11 + matrixViewProjection.m9,
-            matrixViewProjection.m15 + matrixViewProjection.m13
+        matrixViewProjection.m7 + matrixViewProjection.m5,
+        matrixViewProjection.m11 + matrixViewProjection.m9,
+        matrixViewProjection.m15 + matrixViewProjection.m13
     });
 
     frustum.planes[R3D_PLANE_BACK] = r3d_frustum_normalize_plane((Vector4) {
         matrixViewProjection.m3 - matrixViewProjection.m2,
-            matrixViewProjection.m7 - matrixViewProjection.m6,
-            matrixViewProjection.m11 - matrixViewProjection.m10,
-            matrixViewProjection.m15 - matrixViewProjection.m14
+        matrixViewProjection.m7 - matrixViewProjection.m6,
+        matrixViewProjection.m11 - matrixViewProjection.m10,
+        matrixViewProjection.m15 - matrixViewProjection.m14
     });
 
     frustum.planes[R3D_PLANE_FRONT] = r3d_frustum_normalize_plane((Vector4) {
         matrixViewProjection.m3 + matrixViewProjection.m2,
-            matrixViewProjection.m7 + matrixViewProjection.m6,
-            matrixViewProjection.m11 + matrixViewProjection.m10,
-            matrixViewProjection.m15 + matrixViewProjection.m14
+        matrixViewProjection.m7 + matrixViewProjection.m6,
+        matrixViewProjection.m11 + matrixViewProjection.m10,
+        matrixViewProjection.m15 + matrixViewProjection.m14
     });
 
     return frustum;
@@ -172,7 +173,7 @@ bool r3d_frustum_is_sphere_in(const r3d_frustum_t* frustum, const Vector3* posit
     return true;
 }
 
-bool r3d_frustum_is_bounding_box_in(const r3d_frustum_t* frustum, const BoundingBox* aabb)
+bool r3d_frustum_is_aabb_in(const r3d_frustum_t* frustum, const BoundingBox* aabb)
 {
     float xMin = aabb->min.x, yMin = aabb->min.y, zMin = aabb->min.z;
     float xMax = aabb->max.x, yMax = aabb->max.y, zMax = aabb->max.z;
@@ -192,5 +193,44 @@ bool r3d_frustum_is_bounding_box_in(const r3d_frustum_t* frustum, const Bounding
             return false;
         }
     }
+    return true;
+}
+
+bool r3d_frustum_is_obb_in(const r3d_frustum_t* frustum, const BoundingBox* aabb, const Matrix* transform)
+{
+    // Compute OBB center and extents in local space
+    float xCenter = (aabb->min.x + aabb->max.x) * 0.5f;
+    float yCenter = (aabb->min.y + aabb->max.y) * 0.5f;
+    float zCenter = (aabb->min.z + aabb->max.z) * 0.5f;
+    float xExtent = (aabb->max.x - aabb->min.x) * 0.5f;
+    float yExtent = (aabb->max.y - aabb->min.y) * 0.5f;
+    float zExtent = (aabb->max.z - aabb->min.z) * 0.5f;
+
+    // Transform center to world space
+    float xWorldCenter = transform->m0 * xCenter + transform->m4 * yCenter + transform->m8 * zCenter + transform->m12;
+    float yWorldCenter = transform->m1 * xCenter + transform->m5 * yCenter + transform->m10 * zCenter + transform->m13;
+    float zWorldCenter = transform->m2 * xCenter + transform->m6 * yCenter + transform->m11 * zCenter + transform->m14;
+
+    // Test OBB against each frustum plane
+    for (int i = 0; i < R3D_PLANE_COUNT; i++)
+    {
+        const Vector4* plane = &frustum->planes[i];
+
+        // Signed distance from OBB center to plane
+        float centerDistance = plane->x * xWorldCenter + plane->y * yWorldCenter + plane->z * zWorldCenter + plane->w;
+
+        // Project OBB extents onto plane normal
+        float projectedRadius =
+            fabsf(plane->x * transform->m0 + plane->y * transform->m4 + plane->z * transform->m8) * xExtent +
+            fabsf(plane->x * transform->m1 + plane->y * transform->m5 + plane->z * transform->m10) * yExtent +
+            fabsf(plane->x * transform->m2 + plane->y * transform->m6 + plane->z * transform->m11) * zExtent;
+
+        // If OBB is fully outside the plane, it's outside the frustum
+        if (centerDistance + projectedRadius < -EPSILON) {
+            return false;
+        }
+    }
+
+    // OBB is at least partially inside all planes
     return true;
 }
