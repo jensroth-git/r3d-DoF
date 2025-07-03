@@ -59,11 +59,10 @@ void BillboardFront(inout mat4 model)
     float scaleY = length(vec3(model[1]));
     float scaleZ = length(vec3(model[2]));
 
-    // Copy the inverted view vectors for the X, Y, and Z axes
-    // while applying the original scales
-    model[0] = vec4(normalize(uMatInvView[0].xyz) * scaleX, 0.0);
-    model[1] = vec4(normalize(uMatInvView[1].xyz) * scaleY, 0.0);
-    model[2] = vec4(normalize(uMatInvView[2].xyz) * scaleZ, 0.0);
+    // Copy the view basis vectors directly, applying original scales
+    model[0] = vec4(uMatInvView[0].xyz * scaleX, 0.0);
+    model[1] = vec4(uMatInvView[1].xyz * scaleY, 0.0);
+    model[2] = vec4(uMatInvView[2].xyz * scaleZ, 0.0);
 }
 
 void BillboardY(inout mat4 model)
@@ -79,8 +78,8 @@ void BillboardY(inout mat4 model)
     // Preserve the original Y-axis of the model (vertical direction)
     vec3 upVector = normalize(vec3(model[1]));
     
-    // Direction from the camera to the object
-    vec3 lookDirection = normalize(position - vec3(uMatInvView[3]));
+    // Direction from the object to the camera
+    vec3 lookDirection = normalize(vec3(uMatInvView[3]) - position);
     
     // Compute the right vector using the cross product
     vec3 rightVector = normalize(cross(upVector, lookDirection));
