@@ -20,8 +20,9 @@
 #include "./r3d_drawcall.h"
 
 #include "./r3d_primitives.h"
+#include "./r3d_frustum.h"
 #include "../r3d_state.h"
-#include "r3d.h"
+#include "./r3d_simd.h"
 
 #include <raylib.h>
 #include <raymath.h>
@@ -30,6 +31,7 @@
 
 #include <stdlib.h>
 #include <assert.h>
+#include <float.h>
 
 /* === Internal functions === */
 
@@ -56,6 +58,53 @@ void r3d_drawcall_sort_front_to_back(r3d_drawcall_t* calls, size_t count)
 void r3d_drawcall_sort_back_to_front(r3d_drawcall_t* calls, size_t count)
 {
     qsort(calls, count, sizeof(r3d_drawcall_t), r3d_drawcall_compare_back_to_front);
+}
+
+bool r3d_drawcall_geometry_is_visible(const r3d_drawcall_t* call)
+{
+    if (call->geometryType == R3D_DRAWCALL_GEOMETRY_MESH) {
+        // TODO: Need profile to determine if verification is really profitable
+        if (r3d_simd_is_matrix_identity((float*)&call->transform)) {
+            return r3d_frustum_is_aabb_in(&R3D.state.frustum.shape, &call->geometry.mesh->aabb);
+        }
+        else {
+            return r3d_frustum_is_obb_in(&R3D.state.frustum.shape, &call->geometry.mesh->aabb, &call->transform);
+        }
+    }
+    
+    if (call->geometryType == R3D_DRAWCALL_GEOMETRY_SPRITE)
+    {
+        const Matrix* transform = &call->transform;
+
+        Vector3 axisX = { transform->m0 * 0.5f, transform->m1 * 0.5f, transform->m2 * 0.5f };
+        Vector3 axisY = { transform->m4 * 0.5f, transform->m5 * 0.5f, transform->m6 * 0.5f };
+        Vector3 center = { transform->m12, transform->m13, transform->m14 };
+
+        Vector3 quad[4] = {
+            { center.x - axisX.x - axisY.x, center.y - axisX.y - axisY.y, center.z - axisX.z - axisY.z },
+            { center.x + axisX.x - axisY.x, center.y + axisX.y - axisY.y, center.z + axisX.z - axisY.z },
+            { center.x + axisX.x + axisY.x, center.y + axisX.y + axisY.y, center.z + axisX.z + axisY.z },
+            { center.x - axisX.x + axisY.x, center.y - axisX.y + axisY.y, center.z - axisX.z + axisY.z }
+        };
+
+        return r3d_frustum_is_points_in(&R3D.state.frustum.shape, quad, 4);
+    }
+
+    return false;
+}
+
+bool r3d_drawcall_instanced_geometry_is_visible(const r3d_drawcall_t* call)
+{
+    if (call->instanced.allAabb.min.x <= -FLT_MAX + 1e-4f) {
+        return true;
+    }
+
+    // TODO: Need profile to determine if verification is really profitable
+    if (r3d_simd_is_matrix_identity((float*)&call->transform)) {
+        return r3d_frustum_is_aabb_in(&R3D.state.frustum.shape, &call->instanced.allAabb);
+    }
+
+    return r3d_frustum_is_obb_in(&R3D.state.frustum.shape, &call->instanced.allAabb, &call->transform);
 }
 
 void r3d_drawcall_raster_depth(const r3d_drawcall_t* call, bool shadow)

@@ -59,14 +59,15 @@
  */
 typedef unsigned int R3D_Flags;
 
-#define R3D_FLAG_NONE           0           /**< No special rendering flags */
-#define R3D_FLAG_FXAA           (1 << 0)    /**< Enables Fast Approximate Anti-Aliasing (FXAA) */
-#define R3D_FLAG_BLIT_LINEAR    (1 << 1)    /**< Uses linear filtering when blitting the final image */
-#define R3D_FLAG_ASPECT_KEEP    (1 << 2)    /**< Maintains the aspect ratio of the internal resolution when blitting the final image */
-#define R3D_FLAG_STENCIL_TEST   (1 << 3)    /**< Performs a stencil test on each rendering pass affecting geometry */
-#define R3D_FLAG_DEPTH_PREPASS  (1 << 4)    /**< Performs a depth pre-pass before forward rendering, improving desktop GPU performance but unnecessary on mobile */
-#define R3D_FLAG_8_BIT_NORMALS  (1 << 5)    /**< Use 8-bit precision for the normals buffer (deferred); default is 16-bit float */
-#define R3D_FLAG_FORCE_FORWARD  (1 << 6)    /**< Used to force forward rendering for opaque objects, useful for tile-based devices */
+#define R3D_FLAG_NONE               0           /**< No special rendering flags */
+#define R3D_FLAG_FXAA               (1 << 0)    /**< Enables Fast Approximate Anti-Aliasing (FXAA) */
+#define R3D_FLAG_BLIT_LINEAR        (1 << 1)    /**< Uses linear filtering when blitting the final image */
+#define R3D_FLAG_ASPECT_KEEP        (1 << 2)    /**< Maintains the aspect ratio of the internal resolution when blitting the final image */
+#define R3D_FLAG_STENCIL_TEST       (1 << 3)    /**< Performs a stencil test on each rendering pass affecting geometry */
+#define R3D_FLAG_DEPTH_PREPASS      (1 << 4)    /**< Performs a depth pre-pass before forward rendering, improving desktop GPU performance but unnecessary on mobile */
+#define R3D_FLAG_8_BIT_NORMALS      (1 << 5)    /**< Use 8-bit precision for the normals buffer (deferred); default is 16-bit float */
+#define R3D_FLAG_FORCE_FORWARD      (1 << 6)    /**< Used to force forward rendering for opaque objects, useful for tile-based devices */
+#define R3D_FLAG_NO_FRUSTUM_CULLING (1 << 7)    /**< Disables internal frustum culling. Manual culling is allowed, but may break shadow visibility if objects casting shadows are skipped. */
 
 /**
  * @brief Blend modes for rendering.
@@ -402,9 +403,11 @@ typedef struct R3D_ParticleSystem {
     R3D_InterpolationCurve* opacityOverLifetime;            ///< Curve controlling the opacity evolution of the particles over their lifetime. Default: NULL.
     R3D_InterpolationCurve* angularVelocityOverLifetime;    ///< Curve controlling the angular velocity evolution of the particles over their lifetime. Default: NULL.
 
-    bool autoEmission;               /**< Indicates whether particle emission is automatic when calling `R3D_UpdateParticleSystem`.
-                                      *   If false, emission is manual using `R3D_EmitParticle`. Default: true.
-                                      */
+    BoundingBox aabb;                   ///< For frustum culling. Defaults to a large AABB; compute manually via `R3D_CalculateParticleSystemBoundingBox` after setup.
+
+    bool autoEmission;                  /**< Indicates whether particle emission is automatic when calling `R3D_UpdateParticleSystem`.
+                                         *   If false, emission is manual using `R3D_EmitParticle`. Default: true.
+                                         */
 
 } R3D_ParticleSystem;
 
@@ -601,6 +604,8 @@ R3DAPI void R3D_DrawMeshInstancedEx(const R3D_Mesh* mesh, const R3D_Material* ma
  *
  * @param mesh A pointer to the mesh to render. Cannot be NULL.
  * @param material A pointer to the material to apply to the mesh. Can be NULL, default material will be used.
+ * @param allAabb Optional bounding box encompassing all instances, in local space. Used for frustum culling.
+ *                Can be NULL to disable culling. Will be transformed by the global matrix if necessary.
  * @param transform The global transformation matrix applied to all instances.
  * @param instanceTransforms Pointer to an array of transformation matrices for each instance, allowing unique transformations. Cannot be NULL.
  * @param transformsStride The stride (in bytes) between consecutive transformation matrices in the array.
@@ -612,10 +617,10 @@ R3DAPI void R3D_DrawMeshInstancedEx(const R3D_Mesh* mesh, const R3D_Material* ma
  *                     If colors are embedded in a struct, set to the size of the struct or the actual byte offset between elements.
  * @param instanceCount The number of instances to render. Must be greater than 0.
  */
-R3DAPI void R3D_DrawMeshInstancedPro(const R3D_Mesh* mesh, const R3D_Material* material, Matrix transform,
-                                     const Matrix* instanceTransforms, int transformsStride,
-                                     const Color* instanceColors, int colorsStride,
-                                     int instanceCount);
+void R3D_DrawMeshInstancedPro(const R3D_Mesh* mesh, const R3D_Material* material, const BoundingBox* allAabb, Matrix transform,
+                              const Matrix* instanceTransforms, int transformsStride,
+                              const Color* instanceColors, int colorsStride,
+                              int instanceCount);
 
 /**
  * @brief Draws a model at a specified position and scale.
@@ -1873,17 +1878,16 @@ R3DAPI bool R3D_EmitParticle(R3D_ParticleSystem* system);
 R3DAPI void R3D_UpdateParticleSystem(R3D_ParticleSystem* system, float deltaTime);
 
 /**
- * @brief Computes and returns the AABB (Axis-Aligned Bounding Box) of the particle emitter system.
+ * @brief Computes and updates the AABB (Axis-Aligned Bounding Box) of a particle system.
  *
- * This function performs a simulation of the particle system to estimate the AABB of the particles. It calculates the
- * possible positions of each particle at both half of their lifetime and at the end of their lifetime. The resulting
- * AABB approximates the region of space the particle system occupies, which helps in determining if the system should
- * be rendered or not based on camera frustum culling.
+ * This function simulates the particle system to estimate the region of space it occupies.
+ * It considers particle positions at mid-life and end-of-life to approximate the AABB,
+ * which is then stored in the system's `aabb` field. This is useful for enabling frustum culling,
+ * especially when the bounds are not known beforehand.
  *
- * @param system A pointer to the `R3D_ParticleSystem` whose AABB is to be computed.
- * @return The computed `BoundingBox` of the particle system.
+ * @param system Pointer to the `R3D_ParticleSystem` to update.
  */
-R3DAPI BoundingBox R3D_GetParticleSystemBoundingBox(R3D_ParticleSystem* system);
+R3DAPI void R3D_CalculateParticleSystemBoundingBox(R3D_ParticleSystem* system);
 
 
 
@@ -2544,51 +2548,127 @@ R3DAPI void R3D_UnloadSkybox(R3D_Skybox sky);
 /**
  * @brief Checks if a point is inside the view frustum.
  *
- * This function determines whether a given 3D point is within the current camera's frustum.
- * It must be called between `R3D_Begin` and `R3D_End`.
+ * Tests whether a 3D point lies within the camera's frustum by checking against all six planes.
+ * Call this only between `R3D_Begin` and `R3D_End`.
  *
- * @param position The position of the point to check.
- * @return `true` if the point is inside the frustum, `false` otherwise.
+ * Useful when automatic frustum culling is disabled and you're using a custom spatial structure
+ * (e.g., octree, BVH, etc.).
+ *
+ * @param position The 3D point to test.
+ * @return `true` if inside the frustum, `false` otherwise.
+ *
+ * @note This performs an exact plane-point test. Slower than bounding box tests.
+ * @warning Frustum culling may incorrectly discard objects casting visible shadows.
+ * @todo Improve shadow-aware culling in future versions.
+ *
+ * @see R3D_IsPointInFrustumBoundingBox()
  */
 R3DAPI bool R3D_IsPointInFrustum(Vector3 position);
 
 /**
- * @brief Checks if a point is inside the view frustum (alternative XYZ version).
- *
- * This function performs the same check as `R3D_IsPointInFrustum`, but allows specifying
- * the point coordinates separately instead of using a `Vector3`.
- * It must be called between `R3D_Begin` and `R3D_End`.
- *
- * @param x The X coordinate of the point.
- * @param y The Y coordinate of the point.
- * @param z The Z coordinate of the point.
- * @return `true` if the point is inside the frustum, `false` otherwise.
- */
-R3DAPI bool R3D_IsPointInFrustumXYZ(float x, float y, float z);
-
-/**
  * @brief Checks if a sphere is inside the view frustum.
  *
- * This function tests whether a sphere, defined by a center position and radius,
- * is at least partially inside the camera's frustum.
- * It must be called between `R3D_Begin` and `R3D_End`.
+ * Tests whether a sphere intersects the camera's frustum using plane-sphere tests.
+ * Call this only between `R3D_Begin` and `R3D_End`.
+ *
+ * Useful when managing visibility manually.
  *
  * @param position The center of the sphere.
- * @param radius The radius of the sphere.
- * @return `true` if the sphere is at least partially inside the frustum, `false` otherwise.
+ * @param radius The sphere's radius (must be positive).
+ * @return `true` if at least partially inside the frustum, `false` otherwise.
+ *
+ * @note More accurate but slower than bounding box approximations.
+ * @warning May cause visual issues with shadow casters being culled too early.
+ * @todo Add support for shadow-aware visibility.
+ *
+ * @see R3D_IsSphereInFrustumBoundingBox()
  */
 R3DAPI bool R3D_IsSphereInFrustum(Vector3 position, float radius);
 
 /**
- * @brief Checks if an axis-aligned bounding box (AABB) is inside the view frustum.
+ * @brief Checks if an AABB is inside the view frustum.
  *
- * This function determines whether an AABB is at least partially visible within the camera's frustum.
- * It must be called between `R3D_Begin` and `R3D_End`.
+ * Determines whether an axis-aligned bounding box intersects the frustum.
+ * Call between `R3D_Begin` and `R3D_End`.
+ *
+ * For use in custom culling strategies or spatial partitioning systems.
  *
  * @param aabb The bounding box to test.
- * @return `true` if any part of the bounding box is inside the frustum, `false` otherwise.
+ * @return `true` if at least partially inside the frustum, `false` otherwise.
+ *
+ * @note Exact but more costly than AABB pre-tests.
+ * @warning May prematurely cull objects casting visible shadows.
+ * @todo Add support for light-aware visibility tests.
+ *
+ * @see R3D_IsAABBInFrustumBoundingBox()
  */
-R3DAPI bool R3D_IsBoundingBoxInFrustum(BoundingBox aabb);
+R3DAPI bool R3D_IsAABBInFrustum(BoundingBox aabb);
+
+/**
+ * @brief Checks if an OBB is inside the view frustum.
+ *
+ * Tests an oriented bounding box (transformed AABB) for frustum intersection.
+ * Must be called between `R3D_Begin` and `R3D_End`.
+ *
+ * Use this for objects with transformations when doing manual culling.
+ *
+ * @param aabb Local-space bounding box.
+ * @param transform World-space transform matrix.
+ * @return `true` if the transformed box intersects the frustum, `false` otherwise.
+ *
+ * @note More expensive than AABB checks due to matrix operations.
+ * @warning May incorrectly cull shadow casters.
+ * @todo Consider shadow-aware culling improvements.
+ *
+ * @see R3D_IsAABBInFrustum()
+ */
+R3DAPI bool R3D_IsOBBInFrustum(BoundingBox aabb, Matrix transform);
+
+/**
+ * @brief Fast pre-filtering test for point inside frustum bounding box.
+ *
+ * Performs an AABB check using the frustum's bounding volume.
+ * Useful for quick rejection before precise tests.
+ *
+ * @param position The 3D point to test.
+ * @return `true` if inside the frustum AABB, `false` otherwise.
+ *
+ * @note May return false positives, never false negatives.
+ * @warning Only checks against a loose AABB, not actual frustum planes.
+ * @see R3D_IsPointInFrustum()
+ */
+R3DAPI bool R3D_IsPointInFrustumBoundingBox(Vector3 position);
+
+/**
+ * @brief Fast pre-filtering test for sphere inside frustum bounding box.
+ *
+ * Performs a quick check using the frustum's AABB to approximate intersection.
+ *
+ * @param position The center of the sphere.
+ * @param radius Radius of the sphere.
+ * @return `true` if possibly intersecting the frustum AABB, `false` otherwise.
+ *
+ * @note Faster but less accurate than full frustum testing.
+ * @warning May produce false positives.
+ * @see R3D_IsSphereInFrustum()
+ */
+R3DAPI bool R3D_IsSphereInFrustumBoundingBox(Vector3 position, float radius);
+
+/**
+ * @brief Fast pre-filtering test for AABB inside frustum bounding box.
+ *
+ * Performs a bounding box vs bounding box intersection to quickly eliminate non-visible objects.
+ * Useful as an initial coarse check before calling full frustum tests.
+ *
+ * @param aabb The bounding box to test.
+ * @return `true` if intersecting the frustum AABB, `false` otherwise.
+ *
+ * @note False positives possible, but never false negatives.
+ * @warning Does not use actual frustum planes.
+ * @note No OBB variant exists due to computational cost.
+ * @see R3D_IsAABBInFrustum()
+ */
+R3DAPI bool R3D_IsAABBInFrustumBoundingBox(BoundingBox aabb);
 
 
 

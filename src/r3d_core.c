@@ -47,8 +47,9 @@ static void r3d_gbuffer_enable_stencil_write(void);
 static void r3d_gbuffer_enable_stencil_test(bool passOnGeometry);
 static void r3d_gbuffer_disable_stencil(void);
 
-static void r3d_prepare_sort_drawcalls(void);
 static void r3d_prepare_process_lights_and_batch(void);
+static void r3d_prepare_cull_drawcalls(void);
+static void r3d_prepare_sort_drawcalls(void);
 
 static void r3d_pass_shadow_maps(void);
 static void r3d_pass_gbuffer(void);
@@ -332,10 +333,20 @@ void R3D_Begin(Camera3D camera)
 
 void R3D_End(void)
 {
-    r3d_prepare_sort_drawcalls();
-    r3d_prepare_process_lights_and_batch();
+    /* --- Rendering in shadow maps --- */
 
+    r3d_prepare_process_lights_and_batch();
     r3d_pass_shadow_maps();
+
+    /* --- Cull and sort draw calls --- */
+
+    if (!(R3D.state.flags & R3D_FLAG_NO_FRUSTUM_CULLING)) {
+        r3d_prepare_cull_drawcalls();
+    }
+
+    r3d_prepare_sort_drawcalls();
+
+    /* --- Rendering! --- */
 
     if (r3d_has_deferred_calls()) {
         r3d_pass_gbuffer();
@@ -432,15 +443,15 @@ void R3D_DrawMesh(const R3D_Mesh* mesh, const R3D_Material* material, Matrix tra
 
 void R3D_DrawMeshInstanced(const R3D_Mesh* mesh, const R3D_Material* material, const Matrix* instanceTransforms, int instanceCount)
 {
-    R3D_DrawMeshInstancedPro(mesh, material, MatrixIdentity(), instanceTransforms, 0, NULL, 0, instanceCount);
+    R3D_DrawMeshInstancedPro(mesh, material, NULL, MatrixIdentity(), instanceTransforms, 0, NULL, 0, instanceCount);
 }
 
 void R3D_DrawMeshInstancedEx(const R3D_Mesh* mesh, const R3D_Material* material, const Matrix* instanceTransforms, const Color* instanceColors, int instanceCount)
 {
-    R3D_DrawMeshInstancedPro(mesh, material, MatrixIdentity(), instanceTransforms, 0, instanceColors, 0, instanceCount);
+    R3D_DrawMeshInstancedPro(mesh, material, NULL, MatrixIdentity(), instanceTransforms, 0, instanceColors, 0, instanceCount);
 }
 
-void R3D_DrawMeshInstancedPro(const R3D_Mesh* mesh, const R3D_Material* material, Matrix transform,
+void R3D_DrawMeshInstancedPro(const R3D_Mesh* mesh, const R3D_Material* material, const BoundingBox* allAabb, Matrix transform,
                               const Matrix* instanceTransforms, int transformsStride,
                               const Color* instanceColors, int colorsStride,
                               int instanceCount)
@@ -456,6 +467,12 @@ void R3D_DrawMeshInstancedPro(const R3D_Mesh* mesh, const R3D_Material* material
     drawCall.geometry.mesh = mesh;
     drawCall.geometryType = R3D_DRAWCALL_GEOMETRY_MESH;
     drawCall.renderMode = R3D_DRAWCALL_RENDER_DEFERRED;
+
+    drawCall.instanced.allAabb = allAabb ? *allAabb
+        : (BoundingBox) {
+            { -FLT_MAX, -FLT_MAX, -FLT_MAX },
+            { +FLT_MAX, +FLT_MAX, +FLT_MAX }
+        };
 
     drawCall.instanced.transforms = instanceTransforms;
     drawCall.instanced.transStride = transformsStride;
@@ -608,7 +625,7 @@ void R3D_DrawParticleSystemEx(const R3D_ParticleSystem* system, const R3D_Mesh* 
     }
 
     R3D_DrawMeshInstancedPro(
-        mesh, material, transform,
+        mesh, material, &system->aabb, transform,
         &system->particles->transform, sizeof(R3D_Particle),
         &system->particles->color, sizeof(R3D_Particle),
         system->count
@@ -676,23 +693,6 @@ void r3d_gbuffer_disable_stencil(void)
     glDisable(GL_STENCIL_TEST);
 }
 
-void r3d_prepare_sort_drawcalls(void)
-{
-    // Sort front-to-back for deferred rendering
-    // This optimizes the depth test
-    r3d_drawcall_sort_front_to_back(
-        (r3d_drawcall_t*)R3D.container.aDrawDeferred.data,
-        R3D.container.aDrawDeferred.count
-    );
-
-    // Sort back-to-front for forward rendering
-    // Ensures better transparency handling
-    r3d_drawcall_sort_back_to_front(
-        (r3d_drawcall_t*)R3D.container.aDrawForward.data,
-        R3D.container.aDrawForward.count
-    );
-}
-
 void r3d_prepare_process_lights_and_batch(void)
 {
     // Clear the previous light batch
@@ -753,6 +753,81 @@ void r3d_prepare_process_lights_and_batch(void)
         r3d_light_batched_t batched = { .data = light, .dstRect = dstRect };
         r3d_array_push_back(&R3D.container.aLightBatch, &batched);
     }
+}
+
+void r3d_prepare_cull_drawcalls(void)
+{
+    r3d_drawcall_t* calls = NULL;
+    int count = 0;
+
+    /* --- Frustum culling of deferred objects --- */
+
+    calls = (r3d_drawcall_t*)R3D.container.aDrawDeferred.data;
+    count = R3D.container.aDrawDeferred.count;
+    
+    for (int i = count - 1; i >= 0; i--) {
+        if (!r3d_drawcall_geometry_is_visible(&calls[i])) {
+            calls[i] = calls[--count];
+        }
+    }
+
+    R3D.container.aDrawDeferred.count = count;
+
+    /* --- Frustum culling of forward objects --- */
+
+    calls = (r3d_drawcall_t*)R3D.container.aDrawForward.data;
+    count = R3D.container.aDrawForward.count;
+    
+    for (int i = count - 1; i >= 0; i--) {
+        if (!r3d_drawcall_geometry_is_visible(&calls[i])) {
+            calls[i] = calls[--count];
+        }
+    }
+
+    R3D.container.aDrawForward.count = count;
+
+    /* --- Frustum culling of deferred instanced objects --- */
+
+    calls = (r3d_drawcall_t*)R3D.container.aDrawDeferredInst.data;
+    count = R3D.container.aDrawDeferredInst.count;
+    
+    for (int i = count - 1; i >= 0; i--) {
+        if (!r3d_drawcall_instanced_geometry_is_visible(&calls[i])) {
+            calls[i] = calls[--count];
+        }
+    }
+
+    R3D.container.aDrawDeferredInst.count = count;
+
+    /* --- Frustum culling of forward instanced objects --- */
+
+    calls = (r3d_drawcall_t*)R3D.container.aDrawForwardInst.data;
+    count = R3D.container.aDrawForwardInst.count;
+    
+    for (int i = count - 1; i >= 0; i--) {
+        if (!r3d_drawcall_instanced_geometry_is_visible(&calls[i])) {
+            calls[i] = calls[--count];
+        }
+    }
+
+    R3D.container.aDrawForwardInst.count = count;
+}
+
+void r3d_prepare_sort_drawcalls(void)
+{
+    // Sort front-to-back for deferred rendering
+    // This optimizes the depth test
+    r3d_drawcall_sort_front_to_back(
+        (r3d_drawcall_t*)R3D.container.aDrawDeferred.data,
+        R3D.container.aDrawDeferred.count
+    );
+
+    // Sort back-to-front for forward rendering
+    // Ensures better transparency handling
+    r3d_drawcall_sort_back_to_front(
+        (r3d_drawcall_t*)R3D.container.aDrawForward.data,
+        R3D.container.aDrawForward.count
+    );
 }
 
 void r3d_pass_shadow_maps(void)

@@ -44,11 +44,6 @@ static inline float r3d_frustum_distance_to_plane(const Vector4* plane, const Ve
     return plane->x * position->x + plane->y * position->y + plane->z * position->z + plane->w;
 }
 
-static inline float r3d_frustum_distance_to_plane_xyz(const Vector4* plane, float x, float y, float z)
-{
-    return plane->x * x + plane->y * y + plane->z * z + plane->w;
-}
-
 /* === Public functions === */
 
 r3d_frustum_t r3d_frustum_create(Matrix matrixViewProjection)
@@ -153,14 +148,15 @@ bool r3d_frustum_is_point_in(const r3d_frustum_t* frustum, const Vector3* positi
     return true;
 }
 
-bool r3d_frustum_is_point_in_xyz(const r3d_frustum_t* frustum, float x, float y, float z)
+bool r3d_frustum_is_points_in(const r3d_frustum_t* frustum, const Vector3* positions, int count)
 {
-    for (int i = 0; i < R3D_PLANE_COUNT; i++) {
-        if (r3d_frustum_distance_to_plane_xyz(&frustum->planes[i], x, y, z) <= 0) {
-            return false;
+    for (int i = 0; i < count; i++) {
+        if (r3d_frustum_is_point_in(frustum, positions)) {
+            return true;
         }
     }
-    return true;
+
+    return false;
 }
 
 bool r3d_frustum_is_sphere_in(const r3d_frustum_t* frustum, const Vector3* position, float radius)
@@ -183,11 +179,13 @@ bool r3d_frustum_is_aabb_in(const r3d_frustum_t* frustum, const BoundingBox* aab
         const Vector4* plane = &frustum->planes[i];
 
         // Choose the optimal coordinates according to the sign of the normal
-        float x = (plane->x >= 0.0f) ? xMax : xMin;
-        float y = (plane->y >= 0.0f) ? yMax : yMin;
-        float z = (plane->z >= 0.0f) ? zMax : zMin;
-
-        float distance = r3d_frustum_distance_to_plane_xyz(plane, x, y, z);
+        float distance = r3d_frustum_distance_to_plane(plane, &(Vector3)
+            {
+                .x = (plane->x >= 0.0f) ? xMax : xMin,
+                .y = (plane->y >= 0.0f) ? yMax : yMin,
+                .z = (plane->z >= 0.0f) ? zMax : zMin
+            }
+        );
 
         if (distance < -EPSILON) {
             return false;
@@ -208,8 +206,8 @@ bool r3d_frustum_is_obb_in(const r3d_frustum_t* frustum, const BoundingBox* aabb
 
     // Transform center to world space
     float xWorldCenter = transform->m0 * xCenter + transform->m4 * yCenter + transform->m8 * zCenter + transform->m12;
-    float yWorldCenter = transform->m1 * xCenter + transform->m5 * yCenter + transform->m10 * zCenter + transform->m13;
-    float zWorldCenter = transform->m2 * xCenter + transform->m6 * yCenter + transform->m11 * zCenter + transform->m14;
+    float yWorldCenter = transform->m1 * xCenter + transform->m5 * yCenter + transform->m9 * zCenter + transform->m13;
+    float zWorldCenter = transform->m2 * xCenter + transform->m6 * yCenter + transform->m10 * zCenter + transform->m14;
 
     // Test OBB against each frustum plane
     for (int i = 0; i < R3D_PLANE_COUNT; i++)
@@ -221,9 +219,9 @@ bool r3d_frustum_is_obb_in(const r3d_frustum_t* frustum, const BoundingBox* aabb
 
         // Project OBB extents onto plane normal
         float projectedRadius =
-            fabsf(plane->x * transform->m0 + plane->y * transform->m4 + plane->z * transform->m8) * xExtent +
-            fabsf(plane->x * transform->m1 + plane->y * transform->m5 + plane->z * transform->m10) * yExtent +
-            fabsf(plane->x * transform->m2 + plane->y * transform->m6 + plane->z * transform->m11) * zExtent;
+            fabsf(plane->x * transform->m0 + plane->y * transform->m1 + plane->z * transform->m2) * xExtent +
+            fabsf(plane->x * transform->m4 + plane->y * transform->m5 + plane->z * transform->m6) * yExtent +
+            fabsf(plane->x * transform->m8 + plane->y * transform->m9 + plane->z * transform->m10) * zExtent;
 
         // If OBB is fully outside the plane, it's outside the frustum
         if (centerDistance + projectedRadius < -EPSILON) {

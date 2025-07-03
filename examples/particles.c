@@ -11,7 +11,6 @@ static Camera3D camera = { 0 };
 
 static R3D_InterpolationCurve curve = { 0 };
 static R3D_ParticleSystem particles = { 0 };
-static BoundingBox particlesAabb = { 0 };
 
 /* === Example === */
 
@@ -42,7 +41,7 @@ const char* Init(void)
     particles.emissionRate = 2048;
     particles.lifetime = 2.0f;
 
-    particlesAabb = R3D_GetParticleSystemBoundingBox(&particles);
+    R3D_CalculateParticleSystemBoundingBox(&particles);
 
     camera = (Camera3D) {
         .position = (Vector3) { -7, 7, -7 },
@@ -68,7 +67,7 @@ void Draw(void)
     R3D_End();
 
     BeginMode3D(camera);
-        DrawBoundingBox(particlesAabb, GREEN);
+        DrawBoundingBox(particles.aabb, GREEN);
     EndMode3D();
 
     DrawFPS(10, 10);

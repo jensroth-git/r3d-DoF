@@ -77,6 +77,11 @@ R3D_ParticleSystem R3D_LoadParticleSystem(int maxParticles)
     system.opacityOverLifetime = NULL;
     system.angularVelocityOverLifetime = NULL;
 
+    system.aabb = (BoundingBox) {
+        .min = (Vector3) { -FLT_MAX, -FLT_MAX, -FLT_MAX },
+        .max = (Vector3) { +FLT_MAX, +FLT_MAX, +FLT_MAX }
+    };
+
     system.autoEmission = true;
 
     return system;
@@ -246,7 +251,7 @@ void R3D_UpdateParticleSystem(R3D_ParticleSystem* system, float deltaTime)
     }
 }
 
-BoundingBox R3D_GetParticleSystemBoundingBox(R3D_ParticleSystem* system)
+void R3D_CalculateParticleSystemBoundingBox(R3D_ParticleSystem* system)
 {
     // Initialize the AABB with extreme values (max for max bounds, min for min bounds)
     Vector3 aabbMin = { FLT_MAX, FLT_MAX, FLT_MAX };
@@ -290,5 +295,5 @@ BoundingBox R3D_GetParticleSystemBoundingBox(R3D_ParticleSystem* system)
     system->count = 0;
 
     // Update the particle system's AABB with the calculated bounds
-    return (BoundingBox){ aabbMin, aabbMax };
+    system->aabb = (BoundingBox){ aabbMin, aabbMax };
 }
