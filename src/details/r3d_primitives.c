@@ -55,6 +55,8 @@ r3d_primitive_t r3d_primitive_load_quad(void)
     quad.ebo = rlLoadVertexBufferElement(INDICES, sizeof(INDICES), false);
     quad.vbo = rlLoadVertexBuffer(VERTICES, sizeof(VERTICES), false);
     
+    quad.indexCount = sizeof(INDICES) / sizeof(*INDICES);
+
     const size_t stride = sizeof(VERTICES[0]);
     
     // Attribute 0: Positions (vec3)
@@ -152,6 +154,8 @@ r3d_primitive_t r3d_primitive_load_cube(void)
     
     cube.ebo = rlLoadVertexBufferElement(INDICES, sizeof(INDICES), false);
     cube.vbo = rlLoadVertexBuffer(VERTICES, sizeof(VERTICES), false);
+
+    cube.indexCount = sizeof(INDICES) / sizeof(*INDICES);
     
     const size_t stride = sizeof(VERTICES[0]);
     
@@ -180,45 +184,54 @@ r3d_primitive_t r3d_primitive_load_cube(void)
     return cube;
 }
 
-void r3d_primitive_unload(r3d_primitive_t* primitive)
+void r3d_primitive_unload(const r3d_primitive_t* primitive)
 {
     rlUnloadVertexBuffer(primitive->vbo);
     rlUnloadVertexBuffer(primitive->ebo);
     rlUnloadVertexArray(primitive->vao);
 }
 
-void r3d_primitive_draw(r3d_primitive_t* primitive)
+void r3d_primitive_bind(const r3d_primitive_t* primitive)
 {
-    bool vaoEnabled = rlEnableVertexArray(primitive->vao);
-
-    if (!vaoEnabled) {
-        rlEnableVertexBuffer(primitive->vbo);
-
-        rlSetVertexAttribute(0, 3, RL_FLOAT, 0, 0, 0);
-        rlEnableVertexAttribute(0);
-
-        rlSetVertexAttribute(1, 2, RL_FLOAT, 0, 0, 0);
-        rlEnableVertexAttribute(1);
-
-        rlSetVertexAttribute(2, 3, RL_FLOAT, 0, 0, 0);
-        rlEnableVertexAttribute(2);
-
-        rlSetVertexAttribute(3, 3, RL_FLOAT, 0, 0, 0);
-        rlEnableVertexAttribute(3);
-
-        rlSetVertexAttribute(4, 3, RL_FLOAT, 0, 0, 0);
-        rlEnableVertexAttribute(4);
-
-        rlEnableVertexBufferElement(primitive->ebo);
+    if (rlEnableVertexArray(primitive->vao)) {
+        return;
     }
 
-    rlDrawVertexArrayElements(0, 36, 0);
+    rlEnableVertexBuffer(primitive->vbo);
 
-    if (vaoEnabled) {
-        rlDisableVertexArray();
-    }
-    else {
-        rlDisableVertexBuffer();
-        rlDisableVertexBufferElement();
-    }
+    rlSetVertexAttribute(0, 3, RL_FLOAT, 0, 0, 0);
+    rlEnableVertexAttribute(0);
+
+    rlSetVertexAttribute(1, 2, RL_FLOAT, 0, 0, 0);
+    rlEnableVertexAttribute(1);
+
+    rlSetVertexAttribute(2, 3, RL_FLOAT, 0, 0, 0);
+    rlEnableVertexAttribute(2);
+
+    rlSetVertexAttribute(3, 3, RL_FLOAT, 0, 0, 0);
+    rlEnableVertexAttribute(3);
+
+    rlSetVertexAttribute(4, 3, RL_FLOAT, 0, 0, 0);
+    rlEnableVertexAttribute(4);
+
+    rlEnableVertexBufferElement(primitive->ebo);
+}
+
+void r3d_primitive_unbind(void)
+{
+    rlDisableVertexArray();
+    rlDisableVertexBuffer();
+    rlDisableVertexBufferElement();
+}
+
+void r3d_primitive_draw(const r3d_primitive_t* primitive)
+{
+    rlDrawVertexArrayElements(0, primitive->indexCount, 0);
+}
+
+void r3d_primitive_bind_and_draw(const r3d_primitive_t* primitive)
+{
+    r3d_primitive_bind(primitive);
+    r3d_primitive_draw(primitive);
+    r3d_primitive_unbind();
 }
