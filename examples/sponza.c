@@ -30,9 +30,9 @@ const char* Init(void)
     R3D_SetSceneBounds(sponza.aabb);
 
     for (int i = 0; i < 2; i++) {
-        lights[i] = R3D_CreateLight(R3D_LIGHT_SPOT);
+        lights[i] = R3D_CreateLight(R3D_LIGHT_OMNI);
 
-        R3D_LightLookAt(lights[i], (Vector3) { i ? -10 : 10, 20, 0 }, Vector3Zero());
+        R3D_SetLightPosition(lights[i], (Vector3) { i ? -10 : 10, 20, 0 });
         R3D_SetLightActive(lights[i], true);
         R3D_SetLightEnergy(lights[i], 1.0f);
 
