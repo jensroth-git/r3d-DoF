@@ -19,6 +19,7 @@
 
 #include "./r3d_primitives.h"
 #include <stddef.h>
+#include <glad.h>
 
 r3d_primitive_t r3d_primitive_load_quad(void)
 {
@@ -226,7 +227,12 @@ void r3d_primitive_unbind(void)
 
 void r3d_primitive_draw(const r3d_primitive_t* primitive)
 {
-    rlDrawVertexArrayElements(0, primitive->indexCount, 0);
+    glDrawElements(GL_TRIANGLES, primitive->indexCount, GL_UNSIGNED_SHORT, NULL);
+}
+
+void r3d_primitive_draw_instanced(const r3d_primitive_t* primitive, int instances)
+{
+    glDrawElementsInstanced(GL_TRIANGLES, primitive->indexCount, GL_UNSIGNED_SHORT, NULL, instances);
 }
 
 void r3d_primitive_bind_and_draw(const r3d_primitive_t* primitive)

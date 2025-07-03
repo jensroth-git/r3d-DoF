@@ -1,4 +1,3 @@
-- Implement instanced sprite
 - Review two-sided material and transparency...
 - PBR ambient lighting (without skybox)
 - Automatic frustum culling (can be disabled with a flag)

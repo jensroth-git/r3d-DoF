@@ -41,7 +41,7 @@
 static bool r3d_has_deferred_calls(void);
 static bool r3d_has_forward_calls(void);
 
-static void r3d_sprite_get_uv_scale_offset(const R3D_Sprite* sprite, Vector2* uvScale, Vector2* uvOffset, float sgnX, float sgnY);
+static void r3d_sprite_get_uv_scale_offset(Vector2* uvScale, Vector2* uvOffset, const R3D_Sprite* sprite, float sgnX, float sgnY);
 
 static void r3d_gbuffer_enable_stencil_write(void);
 static void r3d_gbuffer_enable_stencil_test(bool passOnGeometry);
@@ -531,7 +531,7 @@ void R3D_DrawSpritePro(const R3D_Sprite* sprite, Vector3 position, Vector2 size,
     drawCall.renderMode = R3D_DRAWCALL_RENDER_DEFERRED;
 
     r3d_sprite_get_uv_scale_offset(
-        sprite, &drawCall.geometry.sprite.uvScale, &drawCall.geometry.sprite.uvOffset,
+        &drawCall.geometry.sprite.uvScale, &drawCall.geometry.sprite.uvOffset, sprite,
         (size.x > 0) ? 1.0f : -1.0f, (size.y > 0) ? 1.0f : -1.0f
     );
 
@@ -540,6 +540,51 @@ void R3D_DrawSpritePro(const R3D_Sprite* sprite, Vector3 position, Vector2 size,
     if (sprite->material.blendMode != R3D_BLEND_OPAQUE || R3D.state.flags & R3D_FLAG_FORCE_FORWARD) {
         drawCall.renderMode = R3D_DRAWCALL_RENDER_FORWARD;
         arr = &R3D.container.aDrawForward;
+    }
+
+    r3d_array_push_back(arr, &drawCall);
+}
+
+void R3D_DrawSpriteInstanced(const R3D_Sprite* sprite, const Matrix* instanceTransforms, int instanceCount)
+{
+    R3D_DrawSpriteInstancedPro(sprite, MatrixIdentity(), instanceTransforms, 0, NULL, 0, instanceCount);
+}
+
+void R3D_DrawSpriteInstancedEx(const R3D_Sprite* sprite, const Matrix* instanceTransforms, const Color* instanceColors, int instanceCount)
+{
+    R3D_DrawSpriteInstancedPro(sprite, MatrixIdentity(), instanceTransforms, 0, instanceColors, 0, instanceCount);
+}
+
+void R3D_DrawSpriteInstancedPro(const R3D_Sprite* sprite, Matrix transform, const Matrix* instanceTransforms, int transformsStride, const Color* instanceColors, int colorsStride, int instanceCount)
+{
+    r3d_drawcall_t drawCall = { 0 };
+
+    if (instanceCount == 0 || instanceTransforms == NULL) {
+        return;
+    }
+
+    drawCall.transform = transform;
+    drawCall.material = &sprite->material;
+    drawCall.geometryType = R3D_DRAWCALL_GEOMETRY_SPRITE;
+    drawCall.renderMode = R3D_DRAWCALL_RENDER_DEFERRED;
+
+    r3d_sprite_get_uv_scale_offset(
+        &drawCall.geometry.sprite.uvScale,
+        &drawCall.geometry.sprite.uvOffset,
+        sprite, 1.0f, -1.0f
+    );
+
+    drawCall.instanced.transforms = instanceTransforms;
+    drawCall.instanced.transStride = transformsStride;
+    drawCall.instanced.colStride = colorsStride;
+    drawCall.instanced.colors = instanceColors;
+    drawCall.instanced.count = instanceCount;
+
+    r3d_array_t* arr = &R3D.container.aDrawDeferredInst;
+
+    if (sprite->material.blendMode != R3D_BLEND_OPAQUE || R3D.state.flags & R3D_FLAG_FORCE_FORWARD) {
+        drawCall.renderMode = R3D_DRAWCALL_RENDER_FORWARD;
+        arr = &R3D.container.aDrawForwardInst;
     }
 
     r3d_array_push_back(arr, &drawCall);
@@ -573,7 +618,7 @@ static bool r3d_has_forward_calls(void)
     return (R3D.container.aDrawForward.count > 0 || R3D.container.aDrawForwardInst.count > 0);
 }
 
-void r3d_sprite_get_uv_scale_offset(const R3D_Sprite* sprite, Vector2* uvScale, Vector2* uvOffset, float sgnX, float sgnY)
+void r3d_sprite_get_uv_scale_offset(Vector2* uvScale, Vector2* uvOffset, const R3D_Sprite* sprite, float sgnX, float sgnY)
 {
     uvScale->x = sgnX / sprite->xFrameCount;
     uvScale->y = sgnY / sprite->yFrameCount;
@@ -973,7 +1018,7 @@ void r3d_pass_ssao(void)
             r3d_shader_bind_sampler1D(screen.ssao, uTexKernel, R3D.texture.ssaoKernel);
             r3d_shader_bind_sampler2D(screen.ssao, uTexNoise, R3D.texture.ssaoNoise);
 
-            r3d_primitive_draw_screen();
+            r3d_primitive_bind_and_draw_screen();
 
             r3d_shader_unbind_sampler2D(screen.ssao, uTexDepth);
             r3d_shader_unbind_sampler2D(screen.ssao, uTexNormal);
@@ -996,7 +1041,7 @@ void r3d_pass_ssao(void)
                     generate.gaussianBlurDualPass, uTexture,
                     R3D.framebuffer.pingPongSSAO.source
                 );
-                r3d_primitive_draw_screen();
+                r3d_primitive_bind_and_draw_screen();
             }
         }
         r3d_shader_disable();
@@ -1055,7 +1100,7 @@ void r3d_pass_deferred_ambient(void)
                 r3d_shader_set_mat4(screen.ambientIbl, uMatInvView, R3D.state.transform.invView);
                 r3d_shader_set_vec4(screen.ambientIbl, uQuatSkybox, R3D.env.quatSky);
 
-                r3d_primitive_draw_screen();
+                r3d_primitive_bind_and_draw_screen();
 
                 r3d_shader_unbind_sampler2D(screen.ambientIbl, uTexAlbedo);
                 r3d_shader_unbind_sampler2D(screen.ambientIbl, uTexNormal);
@@ -1098,7 +1143,7 @@ void r3d_pass_deferred_ambient(void)
                     0.0f
                 }));
 
-                r3d_primitive_draw_screen();
+                r3d_primitive_bind_and_draw_screen();
 
                 r3d_shader_unbind_sampler2D(screen.ambient, uTexSSAO);
                 r3d_shader_unbind_sampler2D(screen.ambient, uTexORM);
@@ -1203,7 +1248,7 @@ void r3d_pass_deferred_lights(void)
                 //    );
                 //}
 
-                r3d_primitive_draw_screen();
+                r3d_primitive_bind_and_draw_screen();
 
                 //if (light->data->type != R3D_LIGHT_DIR) {
                 //    glDisable(GL_SCISSOR_TEST);
@@ -1335,7 +1380,7 @@ void r3d_pass_scene_deferred(void)
             r3d_shader_bind_sampler2D(screen.scene, uTexDiffuse, R3D.framebuffer.deferred.diffuse);
             r3d_shader_bind_sampler2D(screen.scene, uTexSpecular, R3D.framebuffer.deferred.specular);
 
-            r3d_primitive_draw_screen();
+            r3d_primitive_bind_and_draw_screen();
 
             r3d_shader_unbind_sampler2D(screen.scene, uTexAlbedo);
             r3d_shader_unbind_sampler2D(screen.scene, uTexEmission);
@@ -1728,7 +1773,7 @@ void r3d_pass_post_bloom(void)
                 glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, mip->id, 0);
 
                 // Render screen-filled quad of resolution of current mip
-                r3d_primitive_draw_screen();
+                r3d_primitive_bind_and_draw_screen();
 
                 // Set current mip resolution as srcResolution for next iteration
                 r3d_shader_set_vec2(generate.downsampling, uResolution, (
@@ -1771,7 +1816,7 @@ void r3d_pass_post_bloom(void)
                 glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, nextMip->id, 0);
 
                 // Render screen-filled quad of resolution of current mip
-                r3d_primitive_draw_screen();
+                r3d_primitive_bind_and_draw_screen();
             }
         
             // Disable additive blending
@@ -1795,7 +1840,7 @@ void r3d_pass_post_bloom(void)
             r3d_shader_set_int(screen.bloom, uBloomMode, R3D.env.bloomMode);
             r3d_shader_set_float(screen.bloom, uBloomIntensity, R3D.env.bloomIntensity);
 
-            r3d_primitive_draw_screen();
+            r3d_primitive_bind_and_draw_screen();
         }
         r3d_shader_disable();
     }
@@ -1824,7 +1869,7 @@ void r3d_pass_post_fog(void)
             r3d_shader_set_float(screen.fog, uFogEnd, R3D.env.fogEnd);
             r3d_shader_set_float(screen.fog, uFogDensity, R3D.env.fogDensity);
 
-            r3d_primitive_draw_screen();
+            r3d_primitive_bind_and_draw_screen();
         }
         r3d_shader_disable();
     }
@@ -1848,7 +1893,7 @@ void r3d_pass_post_tonemap(void)
             r3d_shader_set_float(screen.tonemap, uTonemapExposure, R3D.env.tonemapExposure);
             r3d_shader_set_float(screen.tonemap, uTonemapWhite, R3D.env.tonemapWhite);
 
-            r3d_primitive_draw_screen();
+            r3d_primitive_bind_and_draw_screen();
         }
         r3d_shader_disable();
     }
@@ -1872,7 +1917,7 @@ void r3d_pass_post_adjustment(void)
             r3d_shader_set_float(screen.adjustment, uContrast, R3D.env.contrast);
             r3d_shader_set_float(screen.adjustment, uSaturation, R3D.env.saturation);
 
-            r3d_primitive_draw_screen();
+            r3d_primitive_bind_and_draw_screen();
         }
         r3d_shader_disable();
     }
@@ -1897,7 +1942,7 @@ void r3d_pass_post_fxaa(void)
                 R3D.state.resolution.texelY
             }));
 
-            r3d_primitive_draw_screen();
+            r3d_primitive_bind_and_draw_screen();
         }
         r3d_shader_disable();
     }

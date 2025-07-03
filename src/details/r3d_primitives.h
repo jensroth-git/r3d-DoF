@@ -36,6 +36,10 @@ typedef struct {
 r3d_primitive_t r3d_primitive_load_quad(void);
 r3d_primitive_t r3d_primitive_load_cube(void);
 void r3d_primitive_unload(const r3d_primitive_t* primitive);
+void r3d_primitive_bind(const r3d_primitive_t* primitive);
+void r3d_primitive_unbind(void);
+void r3d_primitive_draw_instanced(const r3d_primitive_t* primitive, int instances);
+void r3d_primitive_draw(const r3d_primitive_t* primitive);
 void r3d_primitive_bind_and_draw(const r3d_primitive_t* primitive);
 
 #endif // R3D_DETAIL_PRIMITIVES_H
