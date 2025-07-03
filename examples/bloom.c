@@ -41,6 +41,10 @@ const char* Init(void)
     cube = R3D_GenMeshCube(1.0f, 1.0f, 1.0f, true);
     material = R3D_GetDefaultMaterial();
 
+    material.emission.color = ColorFromHSV(hueCube, 1.0f, 1.0f);
+    material.emission.multiplier = 1.0f;
+    material.albedo.color = BLACK;
+
     camera = (Camera3D){
         .position = (Vector3) { 0, 3.5, 5 },
         .target = (Vector3) { 0, 0, 0 },
@@ -58,7 +62,7 @@ void Update(float delta)
     int hueDir = IsMouseButtonDown(MOUSE_BUTTON_RIGHT) - IsMouseButtonDown(MOUSE_BUTTON_LEFT);
     if (hueDir != 0) {
         hueCube = Wrap(hueCube + hueDir * 90.0f * delta, 0, 360);
-        material.albedo.color = ColorFromHSV(hueCube, 1.0f, 1.0f);
+        material.emission.color = ColorFromHSV(hueCube, 1.0f, 1.0f);
     }
 
     int intensityDir = (IsKeyPressedRepeat(KEY_RIGHT) || IsKeyPressed(KEY_RIGHT)) -
