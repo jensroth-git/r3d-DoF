@@ -721,46 +721,100 @@ void r3d_drawcall_instanced(const r3d_drawcall_t* call, int locInstanceModel, in
     }
 }
 
+// Helper function to calculate AABB center distance in view space
+static float r3d_drawcall_calculate_center_distance_to_camera(const r3d_drawcall_t* drawCall)
+{
+    // Calculate AABB center in local space
+    Vector3 center = { 0 };
+    if (drawCall->geometryType == R3D_DRAWCALL_GEOMETRY_MESH) {
+        center.x = (drawCall->geometry.mesh->aabb.min.x + drawCall->geometry.mesh->aabb.max.x) * 0.5f;
+        center.y = (drawCall->geometry.mesh->aabb.min.y + drawCall->geometry.mesh->aabb.max.y) * 0.5f;
+        center.z = (drawCall->geometry.mesh->aabb.min.z + drawCall->geometry.mesh->aabb.max.z) * 0.5f;
+    }
+    
+    // Transform to world space
+    Vector3 worldCenter = Vector3Transform(center, drawCall->transform);
+    
+    // Transform to camera/view space
+    Vector3 camSpace = Vector3Transform(worldCenter, R3D.state.transform.view);
+    
+    // Return squared distance for performance
+    return Vector3LengthSqr(camSpace);
+}
+
+// Helper function to calculate maximum AABB corner distance in view space
+static float r3d_drawcall_calculate_max_distance_to_camera(const r3d_drawcall_t* drawCall)
+{
+    if (drawCall->geometryType == R3D_DRAWCALL_GEOMETRY_SPRITE) {
+        Vector3 worldCenter = { drawCall->transform.m12, drawCall->transform.m13, drawCall->transform.m14 };
+        Vector3 camCenter = Vector3Transform(worldCenter, R3D.state.transform.view);
+        return Vector3LengthSqr(camCenter); // distSq
+    }
+
+    Vector3 corners[8] = {
+        {drawCall->geometry.mesh->aabb.min.x, drawCall->geometry.mesh->aabb.min.y, drawCall->geometry.mesh->aabb.min.z},
+        {drawCall->geometry.mesh->aabb.max.x, drawCall->geometry.mesh->aabb.min.y, drawCall->geometry.mesh->aabb.min.z},
+        {drawCall->geometry.mesh->aabb.min.x, drawCall->geometry.mesh->aabb.max.y, drawCall->geometry.mesh->aabb.min.z},
+        {drawCall->geometry.mesh->aabb.max.x, drawCall->geometry.mesh->aabb.max.y, drawCall->geometry.mesh->aabb.min.z},
+        {drawCall->geometry.mesh->aabb.min.x, drawCall->geometry.mesh->aabb.min.y, drawCall->geometry.mesh->aabb.max.z},
+        {drawCall->geometry.mesh->aabb.max.x, drawCall->geometry.mesh->aabb.min.y, drawCall->geometry.mesh->aabb.max.z},
+        {drawCall->geometry.mesh->aabb.min.x, drawCall->geometry.mesh->aabb.max.y, drawCall->geometry.mesh->aabb.max.z},
+        {drawCall->geometry.mesh->aabb.max.x, drawCall->geometry.mesh->aabb.max.y, drawCall->geometry.mesh->aabb.max.z}
+    };
+
+    float maxDistSq = 0.0f;
+    for (int i = 0; i < 8; ++i) {
+        Vector3 worldCorner = Vector3Transform(corners[i], drawCall->transform);
+        Vector3 camCorner = Vector3Transform(worldCorner, R3D.state.transform.view);
+        float distSq = Vector3LengthSqr(camCorner);
+        if (distSq > maxDistSq) {
+            maxDistSq = distSq;
+        }
+    }
+    return maxDistSq;
+}
+
+// Comparison function for opaque objects (front-to-back, using center distance)
 int r3d_drawcall_compare_front_to_back(const void* a, const void* b)
 {
     const r3d_drawcall_t* drawCallA = a;
     const r3d_drawcall_t* drawCallB = b;
 
-    Vector3 posA = { 0 };
-    Vector3 posB = { 0 };
+    float distA = r3d_drawcall_calculate_center_distance_to_camera(drawCallA);
+    float distB = r3d_drawcall_calculate_center_distance_to_camera(drawCallB);
 
-    posA.x = drawCallA->transform.m12;
-    posA.y = drawCallA->transform.m13;
-    posA.z = drawCallA->transform.m14;
-
-    posB.x = drawCallB->transform.m12;
-    posB.y = drawCallB->transform.m13;
-    posB.z = drawCallB->transform.m14;
-
-    float distA = Vector3DistanceSqr(R3D.state.transform.position, posA);
-    float distB = Vector3DistanceSqr(R3D.state.transform.position, posB);
-
+    // Front-to-back: smaller distance first
     return (distA > distB) - (distA < distB);
 }
 
+// Comparison function for transparent objects (back-to-front, using max distance with fallback)
 int r3d_drawcall_compare_back_to_front(const void* a, const void* b)
 {
     const r3d_drawcall_t* drawCallA = a;
     const r3d_drawcall_t* drawCallB = b;
+    
+    const float EPSILON_SQ = 0.001f * 0.001f;
 
-    Vector3 posA = { 0 };
-    Vector3 posB = { 0 };
+    // Sort by max distance
+    float maxDistA = r3d_drawcall_calculate_max_distance_to_camera(drawCallA);
+    float maxDistB = r3d_drawcall_calculate_max_distance_to_camera(drawCallB);
+    
+    float distDiff = maxDistA - maxDistB;
+    if (fabsf(distDiff) >= EPSILON_SQ) {
+        // Back-to-front: larger distance first
+        return (maxDistA < maxDistB) - (maxDistA > maxDistB);
+    }
 
-    posA.x = drawCallA->transform.m12;
-    posA.y = drawCallA->transform.m13;
-    posA.z = drawCallA->transform.m14;
+    // Secondary: sort by center distance
+    float centerDistA = r3d_drawcall_calculate_center_distance_to_camera(drawCallA);
+    float centerDistB = r3d_drawcall_calculate_center_distance_to_camera(drawCallB);
+    
+    float centerDiff = centerDistA - centerDistB;
+    if (fabsf(centerDiff) >= EPSILON_SQ) {
+        // Back-to-front: larger distance first
+        return (centerDistA < centerDistB) - (centerDistA > centerDistB);
+    }
 
-    posB.x = drawCallB->transform.m12;
-    posB.y = drawCallB->transform.m13;
-    posB.z = drawCallB->transform.m14;
-
-    float distA = Vector3DistanceSqr(R3D.state.transform.position, posA);
-    float distB = Vector3DistanceSqr(R3D.state.transform.position, posB);
-
-    return (distA < distB) - (distA > distB);
+    // Tertiary: deterministic fallback using pointer comparison
+    return (drawCallA < drawCallB) - (drawCallA > drawCallB);
 }
