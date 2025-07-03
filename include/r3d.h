@@ -1267,11 +1267,10 @@ R3DAPI void R3D_UnloadMaterial(const R3D_Material* material);
  * and automatically parses meshes, materials, and texture references.
  *
  * @param filePath Path to the 3D model file to load.
- * @param upload If true, automatically uploads all meshes to GPU memory.
  *
  * @return Loaded model structure containing meshes and materials.
  */
-R3DAPI R3D_Model R3D_LoadModel(const char* filePath, bool upload);
+R3DAPI R3D_Model R3D_LoadModel(const char* filePath);
 
 /**
  * @brief Load a 3D model from memory buffer.
@@ -1282,11 +1281,13 @@ R3DAPI R3D_Model R3D_LoadModel(const char* filePath, bool upload);
  * @param fileType String indicating the file format (e.g., "obj", "fbx", "gltf").
  * @param data Pointer to the memory buffer containing the model data.
  * @param size Size of the data buffer in bytes.
- * @param upload If true, automatically uploads all meshes to GPU memory.
  *
  * @return Loaded model structure containing meshes and materials.
+ *
+ * @note External dependencies (e.g., textures or linked resources) are not supported.
+ *       The model data must be fully self-contained. Use embedded formats like .glb to ensure compatibility.
  */
-R3DAPI R3D_Model R3D_LoadModelFromMemory(const char* fileType, const void* data, unsigned int size, bool upload);
+R3DAPI R3D_Model R3D_LoadModelFromMemory(const char* fileType, const void* data, unsigned int size);
 
 /**
  * @brief Create a model from a single mesh.

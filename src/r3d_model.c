@@ -2574,7 +2574,7 @@ bool process_assimp_materials(const struct aiScene* scene, R3D_Material** materi
     aiProcess_SortByPType           |   \
     aiProcess_GlobalScale
 
-R3D_Model R3D_LoadModel(const char* filePath, bool upload)
+R3D_Model R3D_LoadModel(const char* filePath)
 {
     R3D_Model model = { 0 };
 
@@ -2625,7 +2625,7 @@ R3D_Model R3D_LoadModel(const char* filePath, bool upload)
     /* --- Process all meshes --- */
 
     for (uint32_t i = 0; i < model.meshCount; i++) {
-        if (!r3d_process_assimp_mesh(&model, i, scene->mMeshes[i], scene, upload)) {
+        if (!r3d_process_assimp_mesh(&model, i, scene->mMeshes[i], scene, true)) {
             TraceLog(LOG_ERROR, "R3D: Unable to load mesh [%d]; The model will be invalid", i);
             R3D_UnloadModel(&model, true);
             aiReleaseImport(scene);
@@ -2644,7 +2644,7 @@ R3D_Model R3D_LoadModel(const char* filePath, bool upload)
     return model;
 }
 
-R3D_Model R3D_LoadModelFromMemory(const char* fileType, const void* data, unsigned int size, bool upload)
+R3D_Model R3D_LoadModelFromMemory(const char* fileType, const void* data, unsigned int size)
 {
     R3D_Model model = { 0 };
 
@@ -2693,7 +2693,7 @@ R3D_Model R3D_LoadModelFromMemory(const char* fileType, const void* data, unsign
     /* --- Process all meshes --- */
 
     for (uint32_t i = 0; i < model.meshCount; i++) {
-        if (!r3d_process_assimp_mesh(&model, i, scene->mMeshes[i], scene, upload)) {
+        if (!r3d_process_assimp_mesh(&model, i, scene->mMeshes[i], scene, true)) {
             TraceLog(LOG_ERROR, "R3D: Unable to load mesh [%d]; The model will be invalid", i);
             R3D_UnloadModel(&model, true);
             aiReleaseImport(scene);
