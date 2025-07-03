@@ -558,8 +558,8 @@ R3DAPI void R3D_End(void);
  * 
  * This function renders a mesh with the provided material and transformation matrix.
  * 
- * @param mesh A pointer to the mesh to render.
- * @param material A pointer to the material to apply to the mesh.
+ * @param mesh A pointer to the mesh to render. Cannot be NULL.
+ * @param material A pointer to the material to apply to the mesh. Can be NULL, default material will be used.
  * @param transform The transformation matrix to apply to the mesh.
  */
 R3DAPI void R3D_DrawMesh(const R3D_Mesh* mesh, const R3D_Material* material, Matrix transform);
@@ -571,7 +571,7 @@ R3DAPI void R3D_DrawMesh(const R3D_Mesh* mesh, const R3D_Material* material, Mat
  * for each instance.
  * 
  * @param mesh A pointer to the mesh to render. Cannot be NULL.
- * @param material A pointer to the material to apply to the mesh. Cannot be NULL.
+ * @param material A pointer to the material to apply to the mesh. Can be NULL, default material will be used.
  * @param instanceTransforms Array of transformation matrices for each instance. Cannot be NULL.
  * @param instanceCount The number of instances to render. Must be greater than 0.
  */
@@ -584,7 +584,7 @@ R3DAPI void R3D_DrawMeshInstanced(const R3D_Mesh* mesh, const R3D_Material* mate
  * and different colors for each instance.
  * 
  * @param mesh A pointer to the mesh to render. Cannot be NULL.
- * @param material A pointer to the material to apply to the mesh. Cannot be NULL.
+ * @param material A pointer to the material to apply to the mesh. Can be NULL, default material will be used.
  * @param instanceTransforms Array of transformation matrices for each instance. Cannot be NULL.
  * @param instanceColors Array of colors for each instance. Can be NULL if no per-instance colors are needed.
  * @param instanceCount The number of instances to render. Must be greater than 0.
@@ -600,7 +600,7 @@ R3DAPI void R3D_DrawMeshInstancedEx(const R3D_Mesh* mesh, const R3D_Material* ma
  * and material.
  *
  * @param mesh A pointer to the mesh to render. Cannot be NULL.
- * @param material A pointer to the material to apply to the mesh. Cannot be NULL.
+ * @param material A pointer to the material to apply to the mesh. Can be NULL, default material will be used.
  * @param transform The global transformation matrix applied to all instances.
  * @param instanceTransforms Pointer to an array of transformation matrices for each instance, allowing unique transformations. Cannot be NULL.
  * @param transformsStride The stride (in bytes) between consecutive transformation matrices in the array.
@@ -750,8 +750,8 @@ R3DAPI void R3D_DrawSpriteInstancedPro(const R3D_Sprite* sprite, Matrix transfor
  * @param system A pointer to the `R3D_ParticleSystem` to be rendered.
  *               The particle system must be properly initialized and updated
  *               to the desired state before calling this function.
- * @param mesh A pointer to the mesh used to represent each particle.
- * @param material A pointer to the material applied to the particle mesh.
+ * @param mesh A pointer to the mesh used to represent each particle. Cannot be NULL.
+ * @param material A pointer to the material applied to the particle mesh. Can be NULL, default material will be used.
  */
 R3DAPI void R3D_DrawParticleSystem(const R3D_ParticleSystem* system, const R3D_Mesh* mesh, const R3D_Material* material);
 
@@ -765,8 +765,8 @@ R3DAPI void R3D_DrawParticleSystem(const R3D_ParticleSystem* system, const R3D_M
  * @param system A pointer to the `R3D_ParticleSystem` to be rendered.
  *               The particle system must be properly initialized and updated
  *               to the desired state before calling this function.
- * @param mesh A pointer to the mesh used to represent each particle.
- * @param material A pointer to the material applied to the particle mesh.
+ * @param mesh A pointer to the mesh used to represent each particle. Cannot be NULL.
+ * @param material A pointer to the material applied to the particle mesh. Can be NULL, default material will be used.
  * @param transform A transformation matrix applied to all particles.
  */
 R3DAPI void R3D_DrawParticleSystemEx(const R3D_ParticleSystem* system, const R3D_Mesh* mesh, const R3D_Material* material, Matrix transform);

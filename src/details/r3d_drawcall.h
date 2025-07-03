@@ -41,7 +41,7 @@ typedef struct {
 
     Matrix transform;
 
-    const R3D_Material* material;
+    R3D_Material material;
 
     union {
 
