@@ -1871,9 +1871,9 @@ R3D_Material R3D_GetDefaultMaterial(void)
     material.albedo.color = WHITE;
 
     // Emission map
-    material.emission.texture = R3D_GetBlackTexture();
+    material.emission.texture = R3D_GetWhiteTexture();
     material.emission.color = WHITE;
-    material.emission.multiplier = 1.0f;
+    material.emission.multiplier = 0.0f;
 
     // Normal map
     material.normal.texture = R3D_GetNormalTexture();
