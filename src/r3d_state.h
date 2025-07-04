@@ -111,14 +111,14 @@ extern struct R3D_State {
     // Containers
     struct {
 
-        r3d_array_t aDrawDeferred;
-        r3d_array_t aDrawDeferredInst;
+        r3d_array_t aDrawDeferred;          //< Contains all deferred draw calls
+        r3d_array_t aDrawDeferredInst;      //< Contains all deferred instanced draw calls
 
-        r3d_array_t aDrawForward;
-        r3d_array_t aDrawForwardInst;
+        r3d_array_t aDrawForward;           //< Contains all forward draw calls
+        r3d_array_t aDrawForwardInst;       //< Contains all forward instanced draw calls
 
-        r3d_registry_t rLights;
-        r3d_array_t aLightBatch;
+        r3d_registry_t rLights;             //< Contains all created lights
+        r3d_array_t aLightBatch;            //< Contains all lights visible on screen
 
     } container;
 
@@ -544,6 +544,11 @@ void r3d_texture_load_ibl_brdf_lut(void);
 #define r3d_shader_set_mat4(shader_name, uniform, value)                                        \
 {                                                                                               \
     rlSetUniformMatrix(R3D.shader.shader_name.uniform.loc, value);                              \
+}
+
+#define r3d_shader_set_mat4_v(shader_name, uniform, array, count)                               \
+{                                                                                               \
+    rlSetUniformMatrices(R3D.shader.shader_name.uniform.loc, array, count);                     \
 }
 
 

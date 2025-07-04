@@ -1,6 +1,8 @@
+#include "details/r3d_shaders.h"
 #include "r3d.h"
 
 #include "./details/r3d_primitives.h"
+#include "./details/r3d_simd.h"
 #include "./r3d_state.h"
 #include "raylib.h"
 
@@ -23,7 +25,7 @@
 
 R3D_Mesh R3D_GenMeshPoly(int sides, float radius, bool upload)
 {
-    R3D_Mesh mesh = {0};
+    R3D_Mesh mesh = { 0 };
 
     // Validation of parameters
     if (sides < 3 || radius <= 0.0f) return mesh;
@@ -109,7 +111,7 @@ R3D_Mesh R3D_GenMeshPoly(int sides, float radius, bool upload)
 
 R3D_Mesh R3D_GenMeshPlane(float width, float length, int resX, int resZ, bool upload)
 {
-    R3D_Mesh mesh = {0};
+    R3D_Mesh mesh = { 0 };
 
     // Validation of parameters
     if (width <= 0.0f || length <= 0.0f || resX < 1 || resZ < 1) return mesh;
@@ -602,7 +604,7 @@ R3D_Mesh R3D_GenMeshHemiSphere(float radius, int rings, int slices, bool upload)
 
 R3D_Mesh R3D_GenMeshCylinder(float radius, float height, int slices, bool upload)
 {
-    R3D_Mesh mesh = {0};
+    R3D_Mesh mesh = { 0 };
 
     // Validate parameters
     if (radius <= 0.0f || height <= 0.0f || slices < 3) return mesh;
@@ -832,7 +834,7 @@ R3D_Mesh R3D_GenMeshCylinder(float radius, float height, int slices, bool upload
 
 R3D_Mesh R3D_GenMeshCone(float radius, float height, int slices, bool upload)
 {
-    R3D_Mesh mesh = {0};
+    R3D_Mesh mesh = { 0 };
 
     // Validate parameters
     if (radius <= 0.0f || height <= 0.0f || slices < 3) return mesh;
@@ -968,7 +970,7 @@ R3D_Mesh R3D_GenMeshCone(float radius, float height, int slices, bool upload)
 
 R3D_Mesh R3D_GenMeshTorus(float radius, float size, int radSeg, int sides, bool upload)
 {
-    R3D_Mesh mesh = {0};
+    R3D_Mesh mesh = { 0 };
 
     if (radius <= 0.0f || size <= 0.0f || radSeg < 3 || sides < 3) {
         return mesh;
@@ -1080,7 +1082,7 @@ R3D_Mesh R3D_GenMeshTorus(float radius, float size, int radSeg, int sides, bool 
 
 R3D_Mesh R3D_GenMeshKnot(float radius, float tubeRadius, int segments, int sides, bool upload)
 {
-    R3D_Mesh mesh = {0};
+    R3D_Mesh mesh = { 0 };
 
     if (radius <= 0.0f || tubeRadius <= 0.0f || segments < 6 || sides < 3) {
         return mesh;
@@ -1239,7 +1241,7 @@ R3D_Mesh R3D_GenMeshKnot(float radius, float tubeRadius, int segments, int sides
 
 R3D_Mesh R3D_GenMeshHeightmap(Image heightmap, Vector3 size, bool upload)
 {
-    R3D_Mesh mesh = {0};
+    R3D_Mesh mesh = { 0 };
 
     // Parameter validation
     if (heightmap.data == NULL || heightmap.width <= 1 || heightmap.height <= 1 ||
@@ -1390,7 +1392,7 @@ R3D_Mesh R3D_GenMeshHeightmap(Image heightmap, Vector3 size, bool upload)
 
 R3D_Mesh R3D_GenMeshCubicmap(Image cubicmap, Vector3 cubeSize, bool upload)
 {
-    R3D_Mesh mesh = {0};
+    R3D_Mesh mesh = { 0 };
 
     // Validation of parameters
     if (cubicmap.width <= 0 || cubicmap.height <= 0 || 
@@ -1739,6 +1741,7 @@ void R3D_UnloadMesh(const R3D_Mesh* mesh)
 
     free(mesh->indices);
     free(mesh->vertices);
+    free(mesh->boneMatrices);
 }
 
 bool R3D_UploadMesh(R3D_Mesh* mesh, bool dynamic)
@@ -1784,6 +1787,14 @@ bool R3D_UploadMesh(R3D_Mesh* mesh, bool dynamic)
     // tangent (vec4)
     glEnableVertexAttribArray(4);
     glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(R3D_Vertex), (void*)offsetof(R3D_Vertex, tangent));
+
+    // boneIds (ivec4)
+    glEnableVertexAttribArray(5);
+    glVertexAttribIPointer(5, 4, GL_INT, sizeof(R3D_Vertex), (void*)offsetof(R3D_Vertex, boneIds));
+
+    // weights (vec4)
+    glEnableVertexAttribArray(6);
+    glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, sizeof(R3D_Vertex), (void*)offsetof(R3D_Vertex, weights));
 
     // EBO if indices present
     if (mesh->indexCount > 0 && mesh->indices) {
@@ -1911,7 +1922,7 @@ void R3D_UnloadMaterial(const R3D_Material* material)
 #undef UNLOAD_TEXTURE_IF_VALID
 }
 
-/* === Internal Model Functions === */
+/* === Common Assimp Helper Functions === */
 
 static inline Vector3 r3d_vec3_from_ai_vec3(const struct aiVector3D* aiVec)
 {
@@ -1937,6 +1948,18 @@ static inline Color r3d_color_from_ai_color(const struct aiColor4D* aiCol)
         Clamp(aiCol->a, 0.0f, 1.0f) * 255
     };
 }
+
+static inline Matrix r3d_matrix_from_ai_matrix(const struct aiMatrix4x4* aiMat)
+{
+    return (Matrix) {
+        aiMat->a1, aiMat->a2, aiMat->a3, aiMat->a4,
+        aiMat->b1, aiMat->b2, aiMat->b3, aiMat->b4,
+        aiMat->c1, aiMat->c2, aiMat->c3, aiMat->c4,
+        aiMat->d1, aiMat->d2, aiMat->d3, aiMat->d4,
+    };
+}
+
+/* === Assimp Mesh Processing === */
 
 static bool r3d_process_assimp_mesh(R3D_Model* model, int meshIndex, const struct aiMesh* aiMesh, const struct aiScene* scene, bool upload)
 {
@@ -1988,13 +2011,13 @@ static bool r3d_process_assimp_mesh(R3D_Model* model, int meshIndex, const struc
 
     /* --- Allocate vertex and index buffers --- */
 
-    mesh->vertices = malloc(mesh->vertexCount * sizeof(R3D_Vertex));
+    mesh->vertices = calloc(mesh->vertexCount, sizeof(R3D_Vertex));
     if (!mesh->vertices) {
         TraceLog(LOG_ERROR, "R3D: Unable to allocate memory for vertices");
         return false;
     }
 
-    mesh->indices = malloc(mesh->indexCount * sizeof(unsigned int));
+    mesh->indices = calloc(mesh->indexCount, sizeof(unsigned int));
     if (!mesh->indices) {
         TraceLog(LOG_ERROR, "R3D: Unable to allocate memory for indices");
         free(mesh->vertices);
@@ -2003,7 +2026,7 @@ static bool r3d_process_assimp_mesh(R3D_Model* model, int meshIndex, const struc
 
     /* --- Initialize bounding box --- */
 
-    Vector3 minBounds = {FLT_MAX, FLT_MAX, FLT_MAX};
+    Vector3 minBounds = {+FLT_MAX, +FLT_MAX, +FLT_MAX};
     Vector3 maxBounds = {-FLT_MAX, -FLT_MAX, -FLT_MAX};
 
     /* --- Process vertex attributes --- */
@@ -2065,6 +2088,95 @@ static bool r3d_process_assimp_mesh(R3D_Model* model, int meshIndex, const struc
         }
     }
 
+    /* --- Process bone data --- */
+
+    if (aiMesh->mNumBones > 0) {
+        for (size_t boneIndex = 0; boneIndex < aiMesh->mNumBones; boneIndex++) {
+            const struct aiBone* bone = aiMesh->mBones[boneIndex];
+
+            if (!bone) {
+                TraceLog(LOG_WARNING, "R3D: Null bone at index %zu", boneIndex);
+                continue;
+            }
+
+            // Process all vertex weights for this bone
+            for (size_t weightIndex = 0; weightIndex < bone->mNumWeights; weightIndex++) {
+                const struct aiVertexWeight* weight = &bone->mWeights[weightIndex];
+
+                unsigned int vertexId = weight->mVertexId;
+                float weightValue = weight->mWeight;
+
+                // Validate vertex ID
+                if (vertexId >= mesh->vertexCount) {
+                    TraceLog(LOG_ERROR, "R3D: Invalid vertex ID %u in bone weights (max: %zu)", 
+                             vertexId, mesh->vertexCount);
+                    continue;
+                }
+
+                // Skip weights that are too small to matter
+                if (weightValue < 0.001f) {
+                    continue;
+                }
+
+                // Find an empty slot in the vertex bone data (max 4 bones per vertex)
+                R3D_Vertex* vertex = &mesh->vertices[vertexId];
+                bool slotFound = false;
+
+                for (int slot = 0; slot < 4; slot++) {
+                    if (vertex->weights[slot] == 0.0f) {
+                        vertex->weights[slot] = weightValue;
+                        vertex->boneIds[slot] = (int)boneIndex;
+                        slotFound = true;
+                        break;
+                    }
+                }
+
+                if (!slotFound) {
+                    // If all 4 slots are occupied, replace the smallest weight
+                    int minWeightIndex = 0;
+                    for (int slot = 1; slot < 4; slot++) {
+                        if (vertex->weights[slot] < vertex->weights[minWeightIndex]) {
+                            minWeightIndex = slot;
+                        }
+                    }
+
+                    if (weightValue > vertex->weights[minWeightIndex]) {
+                        vertex->weights[minWeightIndex] = weightValue;
+                        vertex->boneIds[minWeightIndex] = (int)boneIndex;
+                    }
+                }
+            }
+        }
+
+        // Normalize bone weights for each vertex
+        for (size_t i = 0; i < mesh->vertexCount; i++) {
+            R3D_Vertex* boneVertex = &mesh->vertices[i];
+            float totalWeight = 0.0f;
+
+            // Calculate total weight
+            for (int j = 0; j < 4; j++) {
+                totalWeight += boneVertex->weights[j];
+            }
+
+            // Normalize weights if total > 0
+            if (totalWeight > 0.0f) {
+                for (int j = 0; j < 4; j++) {
+                    boneVertex->weights[j] /= totalWeight;
+                }
+            } else {
+                // If no bone weights, assign to first bone with weight 1.0
+                boneVertex->weights[0] = 1.0f;
+                boneVertex->boneIds[0] = 0;
+            }
+        }
+    } else {
+        TraceLog(LOG_INFO, "R3D: No bones found for mesh %d", meshIndex);
+        for (size_t i = 0; i < mesh->vertexCount; i++) {
+            mesh->vertices[i].weights[0] = 1.0f;
+            mesh->vertices[i].boneIds[0] = 0;
+        }
+    }
+
     /* --- Set bounding box --- */
 
     mesh->aabb.min = minBounds;
@@ -2116,6 +2228,8 @@ static bool r3d_process_assimp_mesh(R3D_Model* model, int meshIndex, const struc
 
 #undef CLEANUP
 }
+
+/* === Assimp Material Processing === */
 
 static Image r3d_load_assimp_image(
     const struct aiScene* scene, const struct aiMaterial* aiMat,
@@ -2589,6 +2703,417 @@ bool process_assimp_materials(const struct aiScene* scene, R3D_Material** materi
     return true;
 }
 
+/* === Assimp Bones / Bind Poses Processing === */
+
+// Finds a bone's index by name. Returns -1 if not found.
+static int find_bone_index(const char* name, BoneInfo* bones, int count)
+{
+    for (int i = 0; i < count; i++) {
+        if (strcmp(name, bones[i].name) == 0) return i;
+    }
+    return -1;
+}
+
+// Recursively builds the bone hierarchy using the final bone array.
+static void build_hierarchy_recursive(const struct aiNode* node, BoneInfo* bones, int boneCount, int parentIndex)
+{
+    int currentIndex = find_bone_index(node->mName.data, bones, boneCount);
+
+    if (currentIndex != -1) {
+        bones[currentIndex].parent = parentIndex;
+        parentIndex = currentIndex; // This node becomes the parent for its children
+    }
+
+    for (unsigned int i = 0; i < node->mNumChildren; i++) {
+        build_hierarchy_recursive(node->mChildren[i], bones, boneCount, parentIndex);
+    }
+}
+
+// Processes bones and offsets for an R3D_Model.
+bool r3d_process_bones_and_offsets(R3D_Model* model, const struct aiScene* scene)
+{
+    if (!model || !scene || scene->mNumMeshes <= 0) {
+        return false;
+    }
+
+    // Determine maximum possible bones to pre-allocate, avoiding temporary heap buffers.
+    int maxPossibleBones = 0;
+    for (unsigned int m = 0; m < scene->mNumMeshes; m++) {
+        maxPossibleBones += scene->mMeshes[m]->mNumBones;
+    }
+
+    // Early exit if no bones are found across all meshes.
+    if (maxPossibleBones == 0) {
+        model->boneCount = 0;
+        model->bones = NULL;
+        model->boneOffsets = NULL;
+        return true;
+    }
+
+    // Allocate final bone and offset arrays directly in the model.
+    model->bones = (BoneInfo*)calloc(maxPossibleBones, sizeof(BoneInfo));
+    model->boneOffsets = (Matrix*)calloc(maxPossibleBones, sizeof(Matrix));
+    if (!model->bones || !model->boneOffsets) {
+        free(model->bones);
+        free(model->boneOffsets);
+        model->bones = NULL;
+        model->boneOffsets = NULL;
+        model->boneCount = 0;
+        return false;
+    }
+
+    // Collect unique bones and their offset matrices directly into the model's arrays.
+    int uniqueBoneCount = 0;
+    for (unsigned int m = 0; m < scene->mNumMeshes; m++) {
+        const struct aiMesh* mesh = scene->mMeshes[m];
+        for (unsigned int b = 0; b < mesh->mNumBones; b++) {
+            const struct aiBone* bone = mesh->mBones[b];
+
+            // Add bone if it's unique.
+            if (find_bone_index(bone->mName.data, model->bones, uniqueBoneCount) == -1) {
+                strncpy(model->bones[uniqueBoneCount].name, bone->mName.data, 31);
+                model->bones[uniqueBoneCount].name[31] = '\0';
+                model->bones[uniqueBoneCount].parent = -1; // Initialize parent
+
+                model->boneOffsets[uniqueBoneCount] = r3d_matrix_from_ai_matrix(&bone->mOffsetMatrix);
+
+                uniqueBoneCount++;
+            }
+        }
+    }
+    model->boneCount = uniqueBoneCount; // Update the actual number of unique bones.
+
+    // Build the bone hierarchy by traversing the Assimp scene graph.
+    build_hierarchy_recursive(scene->mRootNode, model->bones, model->boneCount, -1);
+
+    // Allocate a boneMatrices cache array for all meshes
+    // Which will be used to calculate only one of the matrices and be reused between passes
+    for (int i = 0; i < model->meshCount; i++) {
+        model->meshes[i].boneMatrices = malloc(R3D_SHADER_MAX_BONES * sizeof(Matrix));
+    }
+    
+    return true;
+}
+
+/* === Assimp Animation Processing === */
+
+Vector3 r3d_interpolate_animation_keys_vec3(const struct aiVectorKey* keys, unsigned int numKeys, float time)
+{
+    /* --- Case where there is only one key --- */
+
+    if (numKeys == 1) {
+        return (Vector3){
+            keys[0].mValue.x,
+            keys[0].mValue.y,
+            keys[0].mValue.z
+        };
+    }
+    
+    /* --- Find surrounding keys --- */
+
+    unsigned int index = 0;
+    for (unsigned int i = 0; i < numKeys - 1; i++) {
+        if (time < keys[i + 1].mTime) {
+            index = i;
+            break;
+        }
+    }
+    
+    /* --- Clamp to last key --- */
+
+    if (index >= numKeys - 1) {
+        return (Vector3){
+            keys[numKeys - 1].mValue.x,
+            keys[numKeys - 1].mValue.y,
+            keys[numKeys - 1].mValue.z
+        };
+    }
+    
+    /* --- Linear interpolation between the two surrounding keyframes --- */
+
+    float deltaTime = keys[index + 1].mTime - keys[index].mTime;
+    float factor = (time - keys[index].mTime) / deltaTime;
+    
+    Vector3 pos1 = {keys[index].mValue.x, keys[index].mValue.y, keys[index].mValue.z};
+    Vector3 pos2 = {keys[index + 1].mValue.x, keys[index + 1].mValue.y, keys[index + 1].mValue.z};
+    
+    return (Vector3){
+        pos1.x + factor * (pos2.x - pos1.x),
+        pos1.y + factor * (pos2.y - pos1.y),
+        pos1.z + factor * (pos2.z - pos1.z)
+    };
+}
+
+Quaternion r3d_interpolate_animation_keys_quat(const struct aiQuatKey* keys, unsigned int numKeys, float time)
+{
+    /* --- Case where there is only one key --- */
+
+    if (numKeys == 1) {
+        return (Quaternion){
+            keys[0].mValue.x, keys[0].mValue.y,
+            keys[0].mValue.z, keys[0].mValue.w
+        };
+    }
+    
+    /* --- Find surrounding keys --- */
+
+    unsigned int index = 0;
+    for (unsigned int i = 0; i < numKeys - 1; i++) {
+        if (time < keys[i + 1].mTime) {
+            index = i;
+            break;
+        }
+    }
+    
+    /* --- Clamp to last key --- */
+
+    if (index >= numKeys - 1) {
+        return (Quaternion){
+            keys[numKeys - 1].mValue.x, keys[numKeys - 1].mValue.y, 
+            keys[numKeys - 1].mValue.z, keys[numKeys - 1].mValue.w
+        };
+    }
+    
+    /* --- Spherical interpolation (SLERP) between the two surrounding keyframes --- */
+
+    float deltaTime = keys[index + 1].mTime - keys[index].mTime;
+    float factor = (time - keys[index].mTime) / deltaTime;
+    
+    Quaternion q1 = {
+        keys[index].mValue.x,
+        keys[index].mValue.y,
+        keys[index].mValue.z,
+        keys[index].mValue.w
+    };
+    
+    Quaternion q2 = {
+        keys[index + 1].mValue.x,
+        keys[index + 1].mValue.y,
+        keys[index + 1].mValue.z,
+        keys[index + 1].mValue.w
+    };
+    
+    return QuaternionSlerp(q1, q2, factor);
+}
+
+Matrix r3d_get_node_transform_at_time(const struct aiAnimation* aiAnim, const char* nodeName, float time)
+{
+    /* --- Search for the animation channel corresponding to the given node --- */
+
+    for (unsigned int i = 0; i < aiAnim->mNumChannels; i++) {
+        const struct aiNodeAnim* nodeAnim = aiAnim->mChannels[i];
+        if (strcmp(nodeAnim->mNodeName.data, nodeName) == 0) {
+
+            /* --- Interpolate position, rotation, and scale at the specified time --- */
+
+            Vector3 position = r3d_interpolate_animation_keys_vec3(
+                nodeAnim->mPositionKeys,
+                nodeAnim->mNumPositionKeys,
+                time
+            );
+
+            Quaternion rotation = r3d_interpolate_animation_keys_quat(
+                nodeAnim->mRotationKeys,
+                nodeAnim->mNumRotationKeys,
+                time
+            );
+
+            Vector3 scale = r3d_interpolate_animation_keys_vec3(
+                nodeAnim->mScalingKeys,
+                nodeAnim->mNumScalingKeys,
+                time
+            );
+
+            /* --- Combine transformations: Scale * Rotation * Translation --- */
+
+            return MatrixMultiply(
+                MatrixMultiply(
+                    MatrixScale(scale.x, scale.y, scale.z),
+                    QuaternionToMatrix(rotation)
+                ),
+                MatrixTranslate(position.x, position.y, position.z)
+            );
+        }
+    }
+
+    /* --- No animation channel found for the node: return identity matrix --- */
+
+    return MatrixIdentity();
+}
+
+void r3d_calculate_animation_global_transforms(
+    const struct aiNode* node, const struct aiAnimation* aiAnim, float time,
+    Matrix parentTransform, Matrix* globalTransforms,
+    const BoneInfo* bones, int totalBones)
+{
+    /* --- Get the node's local transform at the specified time --- */
+
+    Matrix localTransform = r3d_get_node_transform_at_time(aiAnim, node->mName.data, time);
+
+    /* --- Fallback: use default transformation if no animation is found for this node --- */
+
+    if (r3d_simd_is_matrix_identity((float*)&localTransform)) {
+        localTransform = r3d_matrix_from_ai_matrix(&node->mTransformation);
+    }
+
+    /* --- Compute the global transformation by combining with the parent's transform --- */
+
+    Matrix globalTransform = MatrixMultiply(localTransform, parentTransform);
+
+    /* --- Check if this node corresponds to a bone and store its global transform --- */
+
+    for (int i = 0; i < totalBones; i++) {
+        if (strcmp(node->mName.data, bones[i].name) == 0) {
+            globalTransforms[i] = globalTransform;
+            break;
+        }
+    }
+
+    /* --- Recursively compute global transforms for all child nodes --- */
+
+    for (unsigned int i = 0; i < node->mNumChildren; i++) {
+        r3d_calculate_animation_global_transforms(
+            node->mChildren[i], aiAnim, time, 
+            globalTransform, globalTransforms, 
+            bones, totalBones);
+    }
+}
+
+bool r3d_process_animation(R3D_ModelAnimation* animation, const struct aiScene* scene, const struct aiAnimation* aiAnim, int targetFrameRate)
+{
+    /* --- Validate input --- */
+
+    if (!animation || !scene || !aiAnim) {
+        return false;
+    }
+
+    /* --- Initialize animation name --- */
+
+    strncpy(animation->name, aiAnim->mName.data, 31);
+    animation->name[31] = '\0';
+
+    /* --- Compute duration in frames based on ticks per second --- */
+
+    float ticksPerSecond = aiAnim->mTicksPerSecond ?: 25.0f;
+    float durationInSeconds = (float)aiAnim->mDuration / ticksPerSecond;
+    animation->frameCount = (int)(durationInSeconds * targetFrameRate + 0.5f);
+
+    TraceLog(LOG_INFO, "R3D: Animation '%s' - Duration: %.2fs, Frames: %d", 
+             animation->name, durationInSeconds, animation->frameCount);
+
+    /* --- Count unique bones used across all meshes --- */
+
+    int boneCounter = 0;
+    for (unsigned int meshIndex = 0; meshIndex < scene->mNumMeshes; meshIndex++) {
+        const struct aiMesh* mesh = scene->mMeshes[meshIndex];
+
+        for (unsigned int boneIndex = 0; boneIndex < mesh->mNumBones; boneIndex++) {
+            const struct aiBone* bone = mesh->mBones[boneIndex];
+            bool boneExists = false;
+
+            // Check in previous meshes
+            for (unsigned int prevMeshIndex = 0; prevMeshIndex < meshIndex && !boneExists; prevMeshIndex++) {
+                const struct aiMesh* prevMesh = scene->mMeshes[prevMeshIndex];
+                for (unsigned int prevBoneIndex = 0; prevBoneIndex < prevMesh->mNumBones && !boneExists; prevBoneIndex++) {
+                    boneExists = (strcmp(bone->mName.data, prevMesh->mBones[prevBoneIndex]->mName.data) == 0);
+                }
+            }
+
+            // Check in previous bones of the same mesh
+            if (!boneExists) {
+                for (unsigned int prevBoneIndex = 0; prevBoneIndex < boneIndex && !boneExists; prevBoneIndex++) {
+                    boneExists = (strcmp(bone->mName.data, mesh->mBones[prevBoneIndex]->mName.data) == 0);
+                }
+            }
+
+            if (!boneExists) boneCounter++;
+        }
+    }
+
+    /* --- Abort if no bones found --- */
+
+    if (boneCounter == 0) {
+        TraceLog(LOG_WARNING, "R3D: No bones found for animation '%s'", animation->name);
+        return false;
+    }
+
+    animation->boneCount = boneCounter;
+
+    /* --- Allocate memory for bones and frame poses --- */
+
+    animation->bones = calloc(animation->boneCount, sizeof(BoneInfo));
+    animation->framePoses = calloc(animation->frameCount, sizeof(Matrix*));
+
+    if (!animation->bones || !animation->framePoses) {
+        TraceLog(LOG_ERROR, "R3D: Failed to allocate memory for animation data");
+        free(animation->framePoses);
+        free(animation->bones);
+        return false;
+    }
+
+    /* --- Collect unique bone names --- */
+
+    boneCounter = 0;
+    for (unsigned int meshIndex = 0; meshIndex < scene->mNumMeshes; meshIndex++) {
+        const struct aiMesh* mesh = scene->mMeshes[meshIndex];
+
+        for (unsigned int boneIndex = 0; boneIndex < mesh->mNumBones; boneIndex++) {
+            const struct aiBone* bone = mesh->mBones[boneIndex];
+            bool boneExists = false;
+
+            for (int i = 0; i < boneCounter && !boneExists; i++) {
+                boneExists = (strcmp(bone->mName.data, animation->bones[i].name) == 0);
+            }
+
+            if (!boneExists) {
+                strncpy(animation->bones[boneCounter].name, bone->mName.data, 31);
+                animation->bones[boneCounter].name[31] = '\0';
+                animation->bones[boneCounter].parent = -1;
+                boneCounter++;
+            }
+        }
+    }
+
+    /* --- Allocate matrices for each animation frame --- */
+
+    for (int frame = 0; frame < animation->frameCount; frame++) {
+        animation->framePoses[frame] = calloc(animation->boneCount, sizeof(Matrix));
+        if (!animation->framePoses[frame]) {
+            TraceLog(LOG_ERROR, "R3D: Failed to allocate memory for frame %d", frame);
+            for (int i = 0; i < frame; i++) free(animation->framePoses[i]);
+            free(animation->framePoses);
+            free(animation->bones);
+            return false;
+        }
+    }
+
+    /* --- Compute global bone transforms for each frame --- */
+
+    for (int frame = 0; frame < animation->frameCount; frame++) {
+        float timeInTicks = fminf(
+            ((float)frame / targetFrameRate) * ticksPerSecond,
+            (float)aiAnim->mDuration);
+
+        // Initialize all bones to identity before calculating
+        for (int i = 0; i < animation->boneCount; i++) {
+            animation->framePoses[frame][i] = MatrixIdentity();
+        }
+
+        r3d_calculate_animation_global_transforms(
+            scene->mRootNode, aiAnim, timeInTicks,
+            MatrixIdentity(), animation->framePoses[frame],
+            animation->bones, animation->boneCount
+        );
+    }
+
+    /* --- Final success log --- */
+
+    TraceLog(LOG_INFO, "R3D: Successfully processed animation '%s' with %d bones and %d frames", 
+             animation->name, animation->boneCount, animation->frameCount);
+
+    return true;
+}
+
 /* === Public Model Functions === */
 
 #define R3D_ASSIMP_FLAGS                \
@@ -2659,6 +3184,12 @@ R3D_Model R3D_LoadModel(const char* filePath)
         }
     }
 
+    /* --- Process bones and bind poses --- */
+
+    if (!r3d_process_bones_and_offsets(&model, scene)) {
+        TraceLog(LOG_WARNING, "R3D: Failed to process bones, model will not be animated");
+    }
+
     /* --- Calculate model bounding box --- */
 
     R3D_UpdateModelBoundingBox(&model, false);
@@ -2727,6 +3258,12 @@ R3D_Model R3D_LoadModelFromMemory(const char* fileType, const void* data, unsign
         }
     }
 
+    /* --- Process bones and bind poses --- */
+
+    if (!r3d_process_bones_and_offsets(&model, scene)) {
+        TraceLog(LOG_WARNING, "R3D: Failed to process bones, model will not be animated");
+    }
+
     /* --- Calculate model bounding box --- */
 
     R3D_UpdateModelBoundingBox(&model, false);
@@ -2777,6 +3314,9 @@ void R3D_UnloadModel(const R3D_Model* model, bool unloadMaterials)
     free(model->meshMaterials);
     free(model->materials);
     free(model->meshes);
+
+    free(model->boneOffsets);
+    free(model->bones);
 }
 
 void R3D_UpdateModelBoundingBox(R3D_Model* model, bool updateMeshBoundingBoxes)
@@ -2799,4 +3339,129 @@ void R3D_UpdateModelBoundingBox(R3D_Model* model, bool updateMeshBoundingBoxes)
 
     model->aabb.min = minVertex;
     model->aabb.max = maxVertex;
+}
+
+R3D_ModelAnimation* R3D_LoadModelAnimations(const char* fileName, int* animCount, int targetFrameRate)
+{
+    *animCount = 0;
+
+    /* --- Configure Assimp properties --- */
+
+    struct aiPropertyStore* props = aiCreatePropertyStore();
+    aiSetImportPropertyFloat(props, AI_CONFIG_GLOBAL_SCALE_FACTOR_KEY, 0.01f);
+
+    /* --- Import scene using Assimp --- */
+
+    const struct aiScene* scene = aiImportFileExWithProperties(fileName, R3D_ASSIMP_FLAGS, NULL, props);
+    if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
+        TraceLog(LOG_ERROR, "R3D: Assimp error loading animations: %s", aiGetErrorString());
+        aiReleasePropertyStore(props);
+        return NULL;
+    }
+
+    aiReleasePropertyStore(props);
+
+    /* --- Check if there are animations --- */
+
+    if (scene->mNumAnimations == 0) {
+        TraceLog(LOG_INFO, "R3D: No animations found in model '%s'", fileName);
+        aiReleaseImport(scene);
+        return NULL;
+    }
+
+    TraceLog(LOG_INFO, "R3D: Found %d animations in model '%s'", scene->mNumAnimations, fileName);
+
+    /* --- Allocate animations array --- */
+
+    R3D_ModelAnimation* animations = calloc(scene->mNumAnimations, sizeof(R3D_ModelAnimation));
+    if (!animations) {
+        TraceLog(LOG_ERROR, "R3D: Unable to allocate memory for animations");
+        aiReleaseImport(scene);
+        return NULL;
+    }
+
+    /* --- Process each animation --- */
+
+    int successCount = 0;
+    for (unsigned int i = 0; i < scene->mNumAnimations; i++) {
+        const struct aiAnimation* aiAnim = scene->mAnimations[i];
+
+        TraceLog(LOG_INFO, "R3D: Processing animation %d: '%s'", i, aiAnim->mName.data);
+
+        if (r3d_process_animation(&animations[successCount], scene, aiAnim, targetFrameRate)) {
+            successCount++;
+        } else {
+            TraceLog(LOG_ERROR, "R3D: Failed to process animation %d", i);
+        }
+    }
+
+    /* --- Clean up and return --- */
+
+    aiReleaseImport(scene);
+
+    if (successCount == 0) {
+        TraceLog(LOG_ERROR, "R3D: No animations were successfully loaded");
+        free(animations);
+        return NULL;
+    }
+
+    if (successCount < (int)scene->mNumAnimations) {
+        TraceLog(LOG_WARNING, "R3D: Only %d out of %d animations were successfully loaded", successCount, scene->mNumAnimations);
+        R3D_ModelAnimation* resizedAnims = realloc(animations, successCount * sizeof(R3D_ModelAnimation));
+        if (resizedAnims) animations = resizedAnims;
+    }
+
+    *animCount = successCount;
+    TraceLog(LOG_INFO, "R3D: Successfully loaded %d animations", successCount);
+
+    return animations;
+}
+
+void R3D_UnloadModelAnimations(R3D_ModelAnimation* animations, int animCount)
+{
+    if (!animations) return;
+    
+    for (int i = 0; i < animCount; i++) {
+        R3D_ModelAnimation* anim = &animations[i];
+        
+        // Free frame poses
+        if (anim->framePoses) {
+            for (int frame = 0; frame < anim->frameCount; frame++) {
+                free(anim->framePoses[frame]);
+            }
+            free(anim->framePoses);
+        }
+        
+        // Free bones
+        free(anim->bones);
+    }
+    
+    free(animations);
+}
+
+R3D_ModelAnimation* R3D_GetModelAnimation(R3D_ModelAnimation* animations, int animCount, const char* name)
+{
+    if (!animations || !name) return NULL;
+    
+    for (int i = 0; i < animCount; i++) {
+        if (strcmp(animations[i].name, name) == 0) {
+            return &animations[i];
+        }
+    }
+    
+    return NULL;
+}
+
+void R3D_ListModelAnimations(R3D_ModelAnimation* animations, int animCount)
+{
+    if (!animations) {
+        TraceLog(LOG_INFO, "R3D: No animations available");
+        return;
+    }
+    
+    TraceLog(LOG_INFO, "R3D: Available animations (%d):", animCount);
+    for (int i = 0; i < animCount; i++) {
+        TraceLog(LOG_INFO, "  [%d] '%s' - %d frames, %d bones", 
+                 i, animations[i].name, animations[i].frameCount, animations[i].boneCount);
+    }
 }

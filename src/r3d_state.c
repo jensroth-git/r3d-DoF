@@ -744,6 +744,13 @@ void r3d_shader_load_raster_geometry(void)
         GEOMETRY_VERT, GEOMETRY_FRAG
     );
 
+    for (int i = 0; i < R3D_SHADER_MAX_BONES; i++) {
+        R3D.shader.raster.geometry.uBoneMatrices[i].loc = rlGetLocationUniform(
+            R3D.shader.raster.geometry.id, TextFormat("uBoneMatrices[%i]", i)
+        );
+    }
+
+    r3d_shader_get_location(raster.geometry, uUseSkinning);
     r3d_shader_get_location(raster.geometry, uMatNormal);
     r3d_shader_get_location(raster.geometry, uMatModel);
     r3d_shader_get_location(raster.geometry, uMatMVP);
@@ -807,6 +814,13 @@ void r3d_shader_load_raster_forward(void)
 
     r3d_shader_raster_forward_t* shader = &R3D.shader.raster.forward;
 
+    for (int i = 0; i < R3D_SHADER_MAX_BONES; i++) {
+        R3D.shader.raster.forward.uBoneMatrices[i].loc = rlGetLocationUniform(
+            R3D.shader.raster.forward.id, TextFormat("uBoneMatrices[%i]", i)
+        );
+    }
+
+    r3d_shader_get_location(raster.forward, uUseSkinning);
     r3d_shader_get_location(raster.forward, uMatNormal);
     r3d_shader_get_location(raster.forward, uMatModel);
     r3d_shader_get_location(raster.forward, uMatMVP);
@@ -970,6 +984,13 @@ void r3d_shader_load_raster_depth(void)
         DEPTH_VERT, DEPTH_FRAG
     );
 
+    for (int i = 0; i < R3D_SHADER_MAX_BONES; i++) {
+        R3D.shader.raster.depth.uBoneMatrices[i].loc = rlGetLocationUniform(
+            R3D.shader.raster.depth.id, TextFormat("uBoneMatrices[%i]", i)
+        );
+    }
+
+    r3d_shader_get_location(raster.depth, uUseSkinning);
     r3d_shader_get_location(raster.depth, uMatMVP);
     r3d_shader_get_location(raster.depth, uAlpha);
     r3d_shader_get_location(raster.depth, uTexAlbedo);
@@ -997,6 +1018,13 @@ void r3d_shader_load_raster_depth_cube(void)
         DEPTH_CUBE_VERT, DEPTH_CUBE_FRAG
     );
 
+    for (int i = 0; i < R3D_SHADER_MAX_BONES; i++) {
+        R3D.shader.raster.depthCube.uBoneMatrices[i].loc = rlGetLocationUniform(
+            R3D.shader.raster.depthCube.id, TextFormat("uBoneMatrices[%i]", i)
+        );
+    }
+
+    r3d_shader_get_location(raster.depthCube, uUseSkinning);
     r3d_shader_get_location(raster.depthCube, uViewPosition);
     r3d_shader_get_location(raster.depthCube, uMatModel);
     r3d_shader_get_location(raster.depthCube, uMatMVP);

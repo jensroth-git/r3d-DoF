@@ -50,6 +50,7 @@ static void r3d_gbuffer_disable_stencil(void);
 static void r3d_prepare_process_lights_and_batch(void);
 static void r3d_prepare_cull_drawcalls(void);
 static void r3d_prepare_sort_drawcalls(void);
+static void r3d_prepare_anim_drawcalls(void);
 
 static void r3d_pass_shadow_maps(void);
 static void r3d_pass_gbuffer(void);
@@ -338,13 +339,14 @@ void R3D_End(void)
     r3d_prepare_process_lights_and_batch();
     r3d_pass_shadow_maps();
 
-    /* --- Cull and sort draw calls --- */
+    /* --- Prcoess all draw calls before rendering --- */
 
     if (!(R3D.state.flags & R3D_FLAG_NO_FRUSTUM_CULLING)) {
         r3d_prepare_cull_drawcalls();
     }
 
     r3d_prepare_sort_drawcalls();
+    r3d_prepare_anim_drawcalls();
 
     /* --- Rendering! --- */
 
@@ -427,12 +429,11 @@ void R3D_DrawMesh(const R3D_Mesh* mesh, const R3D_Material* material, Matrix tra
 
     drawCall.transform = transform;
     drawCall.material = material ? *material : R3D_GetDefaultMaterial();
-    drawCall.geometry.mesh = mesh;
-    drawCall.geometryType = R3D_DRAWCALL_GEOMETRY_MESH;
+    drawCall.geometry.model.mesh = mesh;
+    drawCall.geometryType = R3D_DRAWCALL_GEOMETRY_MODEL;
     drawCall.renderMode = R3D_DRAWCALL_RENDER_DEFERRED;
 
     r3d_array_t* arr = &R3D.container.aDrawDeferred;
-
     if (material->blendMode != R3D_BLEND_OPAQUE || R3D.state.flags & R3D_FLAG_FORCE_FORWARD) {
         drawCall.renderMode = R3D_DRAWCALL_RENDER_FORWARD;
         arr = &R3D.container.aDrawForward;
@@ -465,8 +466,8 @@ void R3D_DrawMeshInstancedPro(const R3D_Mesh* mesh, const R3D_Material* material
 
     drawCall.transform = globalTransform;
     drawCall.material = material ? *material : R3D_GetDefaultMaterial();
-    drawCall.geometry.mesh = mesh;
-    drawCall.geometryType = R3D_DRAWCALL_GEOMETRY_MESH;
+    drawCall.geometry.model.mesh = mesh;
+    drawCall.geometryType = R3D_DRAWCALL_GEOMETRY_MODEL;
     drawCall.renderMode = R3D_DRAWCALL_RENDER_DEFERRED;
 
     drawCall.instanced.allAabb = globalAabb ? *globalAabb
@@ -482,7 +483,6 @@ void R3D_DrawMeshInstancedPro(const R3D_Mesh* mesh, const R3D_Material* material
     drawCall.instanced.count = instanceCount;
 
     r3d_array_t* arr = &R3D.container.aDrawDeferredInst;
-
     if (material->blendMode != R3D_BLEND_OPAQUE || R3D.state.flags & R3D_FLAG_FORCE_FORWARD) {
         drawCall.renderMode = R3D_DRAWCALL_RENDER_FORWARD;
         arr = &R3D.container.aDrawForwardInst;
@@ -512,8 +512,43 @@ void R3D_DrawModelPro(const R3D_Model* model, Matrix transform)
 {
     if (model == NULL) return;
 
-    for (int i = 0; i < model->meshCount; i++) {
-        R3D_DrawMesh(&model->meshes[i], &model->materials[model->meshMaterials[i]], transform);
+    for (int i = 0; i < model->meshCount; i++)
+    {
+        const R3D_Material* material = &model->materials[model->meshMaterials[i]];
+        const R3D_Mesh* mesh = &model->meshes[i];
+
+        r3d_drawcall_t drawCall = { 0 };
+
+        if (mesh == NULL) return;
+
+        switch (material->billboardMode) {
+        case R3D_BILLBOARD_FRONT:
+            r3d_transform_to_billboard_front(&transform, &R3D.state.transform.invView);
+            break;
+        case R3D_BILLBOARD_Y_AXIS:
+            r3d_transform_to_billboard_y(&transform, &R3D.state.transform.invView);
+            break;
+        default:
+            break;
+        }
+
+        drawCall.transform = transform;
+        drawCall.material = material ? *material : R3D_GetDefaultMaterial();
+        drawCall.geometry.model.mesh = mesh;
+        drawCall.geometryType = R3D_DRAWCALL_GEOMETRY_MODEL;
+        drawCall.renderMode = R3D_DRAWCALL_RENDER_DEFERRED;
+
+        drawCall.geometry.model.anim = model->anim;
+        drawCall.geometry.model.frame = model->animFrame;
+        drawCall.geometry.model.boneOffsets = model->boneOffsets;
+
+        r3d_array_t* arr = &R3D.container.aDrawDeferred;
+        if (material->blendMode != R3D_BLEND_OPAQUE || R3D.state.flags & R3D_FLAG_FORCE_FORWARD) {
+            drawCall.renderMode = R3D_DRAWCALL_RENDER_FORWARD;
+            arr = &R3D.container.aDrawForward;
+        }
+
+        r3d_array_push_back(arr, &drawCall);
     }
 }
 
@@ -560,7 +595,6 @@ void R3D_DrawSpritePro(const R3D_Sprite* sprite, Vector3 position, Vector2 size,
     );
 
     r3d_array_t* arr = &R3D.container.aDrawDeferred;
-
     if (sprite->material.blendMode != R3D_BLEND_OPAQUE || R3D.state.flags & R3D_FLAG_FORCE_FORWARD) {
         drawCall.renderMode = R3D_DRAWCALL_RENDER_FORWARD;
         arr = &R3D.container.aDrawForward;
@@ -840,6 +874,36 @@ void r3d_prepare_sort_drawcalls(void)
             (r3d_drawcall_t*)R3D.container.aDrawForward.data,
             R3D.container.aDrawForward.count
         );
+    }
+}
+
+void r3d_prepare_anim_drawcalls(void)
+{
+    const r3d_array_t* arrays[2] = {
+        &R3D.container.aDrawDeferred,
+        &R3D.container.aDrawForward,
+    };
+
+    for (int i = 0; i < sizeof(arrays) / sizeof(*arrays); i++)
+    {
+        const r3d_drawcall_t* calls = arrays[i]->data;
+        int count = arrays[i]->count;
+
+        for (int j = 0; j < count; j++)
+        {
+            const r3d_drawcall_t* call = &calls[j];
+
+            if (call->geometryType != R3D_DRAWCALL_GEOMETRY_MODEL || call->geometry.model.anim == NULL) {
+                continue;
+            }
+
+            if (call->geometry.model.mesh->boneMatrices == NULL) {
+                // Only meshes belonging to a model with bones have a boneMatrices cache
+                TraceLog(LOG_WARNING, "Attempting to play animation on mesh without bone matrix cache");
+            }
+
+            r3d_drawcall_update_model_animation(call);
+        }
     }
 }
 

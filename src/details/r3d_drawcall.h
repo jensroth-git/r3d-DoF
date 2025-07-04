@@ -22,13 +22,15 @@
 
 #include "r3d.h"
 
+#include "./containers/r3d_array.h"
+
 #include <raylib.h>
 #include <stddef.h>
 
 /* === Types === */
 
 typedef enum {
-    R3D_DRAWCALL_GEOMETRY_MESH,
+    R3D_DRAWCALL_GEOMETRY_MODEL,    //< Simple meshes are also considered as model here
     R3D_DRAWCALL_GEOMETRY_SPRITE
 } r3d_drawcall_geometry_e;
 
@@ -40,12 +42,19 @@ typedef enum {
 typedef struct {
 
     Matrix transform;
-
     R3D_Material material;
+
+    r3d_drawcall_geometry_e geometryType;
+    r3d_drawcall_render_mode_e renderMode;
 
     union {
 
-        const R3D_Mesh* mesh;
+        struct {
+            const R3D_Mesh* mesh;
+            const R3D_ModelAnimation* anim;
+            const Matrix* boneOffsets;
+            int frame;
+        } model;
 
         struct {
             Vector2 uvOffset;
@@ -53,9 +62,6 @@ typedef struct {
         } sprite;
 
     } geometry;
-
-    r3d_drawcall_geometry_e geometryType;
-    r3d_drawcall_render_mode_e renderMode;
 
     struct {
         const Matrix* transforms;
@@ -75,6 +81,8 @@ void r3d_drawcall_sort_back_to_front(r3d_drawcall_t* calls, size_t count);
 
 bool r3d_drawcall_geometry_is_visible(const r3d_drawcall_t* call);
 bool r3d_drawcall_instanced_geometry_is_visible(const r3d_drawcall_t* call);
+
+void r3d_drawcall_update_model_animation(const r3d_drawcall_t* call);
 
 void r3d_drawcall_raster_depth(const r3d_drawcall_t* call, bool shadow);
 void r3d_drawcall_raster_depth_inst(const r3d_drawcall_t* call, bool shadow);

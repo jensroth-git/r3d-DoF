@@ -25,6 +25,7 @@
 /* === Shader defines === */
 
 #define R3D_SHADER_FORWARD_NUM_LIGHTS 8
+#define R3D_SHADER_MAX_BONES 128
 
 /* === Uniform types === */
 
@@ -86,6 +87,8 @@ typedef struct {
 
 typedef struct {
     unsigned int id;
+    r3d_shader_uniform_mat4_t uBoneMatrices[R3D_SHADER_MAX_BONES];
+    r3d_shader_uniform_int_t uUseSkinning;
     r3d_shader_uniform_mat4_t uMatNormal;
     r3d_shader_uniform_mat4_t uMatModel;
     r3d_shader_uniform_mat4_t uMatMVP;
@@ -133,6 +136,8 @@ typedef struct {
 
 typedef struct {
     unsigned int id;
+    r3d_shader_uniform_mat4_t uBoneMatrices[R3D_SHADER_MAX_BONES];
+    r3d_shader_uniform_int_t uUseSkinning;
     r3d_shader_uniform_mat4_t uMatMVP;
     r3d_shader_uniform_float_t uAlpha;
     r3d_shader_uniform_sampler2D_t uTexAlbedo;
@@ -152,6 +157,8 @@ typedef struct {
 
 typedef struct {
     unsigned int id;
+    r3d_shader_uniform_mat4_t uBoneMatrices[R3D_SHADER_MAX_BONES];
+    r3d_shader_uniform_int_t uUseSkinning;
     r3d_shader_uniform_vec3_t uViewPosition;
     r3d_shader_uniform_mat4_t uMatModel;
     r3d_shader_uniform_mat4_t uMatMVP;
@@ -197,6 +204,8 @@ typedef struct {
         r3d_shader_uniform_int_t enabled;
         r3d_shader_uniform_int_t shadow;
     } uLights[R3D_SHADER_FORWARD_NUM_LIGHTS];
+    r3d_shader_uniform_mat4_t uBoneMatrices[R3D_SHADER_MAX_BONES];
+    r3d_shader_uniform_int_t uUseSkinning;
     r3d_shader_uniform_mat4_t uMatLightVP[R3D_SHADER_FORWARD_NUM_LIGHTS];
     r3d_shader_uniform_mat4_t uMatNormal;
     r3d_shader_uniform_mat4_t uMatModel;

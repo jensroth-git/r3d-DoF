@@ -192,6 +192,8 @@ typedef struct R3D_Vertex {
     Vector3 normal;         /**< The normal vector used for lighting calculations. */
     Vector4 color;          /**< Vertex color, typically RGBA. */
     Vector4 tangent;        /**< The tangent vector, used in normal mapping (often with a handedness in w). */
+    int boneIds[4];         /**< Indices of up to 4 bones that influence this vertex (for GPU skinning). */
+    float weights[4];       /**< Corresponding bone weights (should sum to 1.0). Defines the influence of each bone. */
 } R3D_Vertex;
 
 /**
@@ -201,19 +203,18 @@ typedef struct R3D_Vertex {
  */
 typedef struct R3D_Mesh {
 
-    R3D_Vertex* vertices;      /**< Pointer to the array of vertices. */
-    unsigned int* indices;     /**< Pointer to the array of indices. */
+    R3D_Vertex* vertices;   /**< Pointer to the array of vertices. */
+    unsigned int* indices;  /**< Pointer to the array of indices. */
 
-    int vertexCount;           /**< Number of vertices. */
-    int indexCount;            /**< Number of indices. */
+    int vertexCount;        /**< Number of vertices. */
+    int indexCount;         /**< Number of indices. */
 
-    unsigned int vbo;          /**< Vertex Buffer Object (GPU handle). */
-    unsigned int ebo;          /**< Element Buffer Object (GPU handle). */
-    unsigned int vao;          /**< Vertex Array Object (GPU handle). */
+    unsigned int vbo;       /**< Vertex Buffer Object (GPU handle). */
+    unsigned int ebo;       /**< Element Buffer Object (GPU handle). */
+    unsigned int vao;       /**< Vertex Array Object (GPU handle). */
 
-    BoundingBox aabb;          /**< Axis-Aligned Bounding Box in local space. */
-
-    int reserved0;             /**< Reserved for future use (must be zero-initialized). */
+    Matrix* boneMatrices;   /**< Cached animation matrices for all passes. */
+    BoundingBox aabb;       /**< Axis-Aligned Bounding Box in local space. */
 
 } R3D_Mesh;
 
@@ -257,23 +258,46 @@ typedef struct R3D_Material {
 } R3D_Material;
 
 /**
+ * @brief Represents a skeletal animation for a model.
+ *
+ * This structure holds the animation data for a skinned model,
+ * including per-frame bone transformation poses.
+ */
+typedef struct R3D_ModelAnimation {
+
+    int boneCount;          /**< Number of bones in the skeleton affected by this animation. */
+    int frameCount;         /**< Total number of frames in the animation sequence. */
+
+    BoneInfo* bones;        /**< Array of bone metadata (name, parent index, etc.) that defines the skeleton hierarchy. */
+    Matrix** framePoses;    /**< 2D array of transformation matrices: [frame][bone].
+                                 Each matrix represents the pose of a bone in a specific frame, typically in local space. */
+
+    char name[32];          /**< Name identifier for the animation (e.g., "Walk", "Jump", etc.). */
+
+} R3D_ModelAnimation;
+
+/**
  * @brief Represents a complete 3D model with meshes and materials.
  *
  * Contains multiple meshes and their associated materials, along with bounding information.
  */
 typedef struct R3D_Model {
 
-    R3D_Mesh* meshes;              /**< Array of meshes composing the model. */
-    R3D_Material* materials;       /**< Array of materials used by the model. */
-    int* meshMaterials;            /**< Array of material indices, one per mesh. */
+    R3D_Mesh* meshes;               /**< Array of meshes composing the model. */
+    R3D_Material* materials;        /**< Array of materials used by the model. */
+    int* meshMaterials;             /**< Array of material indices, one per mesh. */
 
-    int meshCount;                 /**< Number of meshes. */
-    int materialCount;             /**< Number of materials. */
+    int meshCount;                  /**< Number of meshes. */
+    int materialCount;              /**< Number of materials. */
 
-    BoundingBox aabb;              /**< Axis-Aligned Bounding Box encompassing the whole model. */
+    BoundingBox aabb;               /**< Axis-Aligned Bounding Box encompassing the whole model. */
 
-    int reserved0;                 /**< Reserved for future use (must be zero-initialized). */
-    int reserved1;                 /**< Reserved for future use (must be zero-initialized). */
+    Matrix* boneOffsets;            /**< Array of offset (inverse bind) matrices, one per bone.
+                                         Transforms mesh-space vertices to bone space. Used in skinning. */
+    BoneInfo* bones;                /**< Bones information (skeleton). Defines the hierarchy and names of bones. */
+
+    const R3D_ModelAnimation* anim; /**< Pointer to the currently assigned animation for this model (optional). */
+    int animFrame;                  /**< Current animation frame index. Used for sampling bone poses from the animation. */
 
 } R3D_Model;
 
@@ -1337,6 +1361,52 @@ R3DAPI void R3D_UnloadModel(const R3D_Model* model, bool unloadMaterials);
  * individual mesh within the model before calculating the model's overall bounding box.
  */
 R3DAPI void R3D_UpdateModelBoundingBox(R3D_Model* model, bool updateMeshBoundingBoxes);
+
+/**
+ * @brief Loads model animations from a supported file format (e.g., GLTF, IQM).
+ *
+ * This function parses animation data from the given model file and returns an array
+ * of R3D_ModelAnimation structs. The caller is responsible for freeing the returned data
+ * using R3D_UnloadModelAnimations().
+ *
+ * @param fileName Path to the model file containing animation(s).
+ * @param animCount Pointer to an integer that will receive the number of animations loaded.
+ * @param targetFrameRate Desired frame rate (FPS) to sample the animation at. For example, 30 or 60.
+ * @return Pointer to a dynamically allocated array of R3D_ModelAnimation. NULL on failure.
+ */
+R3DAPI R3D_ModelAnimation* R3D_LoadModelAnimations(const char* fileName, int* animCount, int targetFrameRate);
+
+/**
+ * @brief Frees memory allocated for model animations.
+ *
+ * This should be called after you're done using animations loaded via R3D_LoadModelAnimations().
+ *
+ * @param animations Pointer to the animation array to free.
+ * @param animCount Number of animations in the array.
+ */
+R3DAPI void R3D_UnloadModelAnimations(R3D_ModelAnimation* animations, int animCount);
+
+/**
+ * @brief Finds and returns a pointer to a named animation within the array.
+ *
+ * Searches the given array of animations for one that matches the specified name.
+ *
+ * @param animations Array of animations to search.
+ * @param animCount Number of animations in the array.
+ * @param name Name of the animation to find (case-sensitive).
+ * @return Pointer to the matching animation, or NULL if not found.
+ */
+R3DAPI R3D_ModelAnimation* R3D_GetModelAnimation(R3D_ModelAnimation* animations, int animCount, const char* name);
+
+/**
+ * @brief Logs the names of all animations in the array (for debugging or inspection).
+ *
+ * Prints the animation names (and possibly other info) to the standard output or debug console.
+ *
+ * @param animations Array of animations to list.
+ * @param animCount Number of animations in the array.
+ */
+R3DAPI void R3D_ListModelAnimations(R3D_ModelAnimation* animations, int animCount);
 
 
 

@@ -19,16 +19,25 @@
 
 #version 330 core
 
+/* === Constants === */
+
+const int MAX_BONES = 128;
+
 /* === Attributes === */
 
 layout(location = 0) in vec3 aPosition;
 layout(location = 1) in vec2 aTexCoord;
 layout(location = 3) in vec4 aColor;
+layout(location = 5) in ivec4 aBoneIDs;
+layout(location = 6) in vec4 aWeights;
 
 /* === Uniforms === */
 
 uniform mat4 uMatMVP;
 uniform float uAlpha;
+
+uniform mat4 uBoneMatrices[MAX_BONES];
+uniform bool uUseSkinning;
 
 /* === Varyings === */
 
@@ -39,8 +48,21 @@ out float vAlpha;
 
 void main()
 {
+    vec3 skinnedPosition = aPosition;
+
+    if (uUseSkinning)
+    {
+        mat4 skinMatrix =
+              aWeights.x * uBoneMatrices[aBoneIDs.x] +
+              aWeights.y * uBoneMatrices[aBoneIDs.y] +
+              aWeights.z * uBoneMatrices[aBoneIDs.z] +
+              aWeights.w * uBoneMatrices[aBoneIDs.w];
+
+        skinnedPosition = vec3(skinMatrix * vec4(aPosition, 1.0));
+    }
+
     vTexCoord = aTexCoord;
     vAlpha = uAlpha * aColor.a;
 
-    gl_Position = uMatMVP * vec4(aPosition, 1.0);
+    gl_Position = uMatMVP * vec4(skinnedPosition, 1.0);
 }

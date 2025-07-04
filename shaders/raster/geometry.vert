@@ -19,6 +19,10 @@
 
 #version 330 core
 
+/* === Constants === */
+
+const int MAX_BONES = 128;
+
 /* === Attributes === */
 
 layout(location = 0) in vec3 aPosition;
@@ -26,6 +30,8 @@ layout(location = 1) in vec2 aTexCoord;
 layout(location = 2) in vec3 aNormal;
 layout(location = 3) in vec4 aColor;
 layout(location = 4) in vec4 aTangent;
+layout(location = 5) in ivec4 aBoneIDs;
+layout(location = 6) in vec4 aWeights;
 
 /* === Uniforms === */
 
@@ -40,6 +46,9 @@ uniform vec3 uColAlbedo;
 uniform vec2 uTexCoordOffset;
 uniform vec2 uTexCoordScale;
 
+uniform mat4 uBoneMatrices[MAX_BONES];
+uniform bool uUseSkinning;
+
 /* === Varyings === */
 
 flat out vec3 vEmission;
@@ -51,16 +60,31 @@ out mat3 vTBN;
 
 void main()
 {
+    vec3 skinnedPosition = aPosition;
+    vec3 skinnedNormal = aNormal;
+    vec3 skinnedTangent = aTangent.xyz;
+
+    if (uUseSkinning)
+    {
+        mat4 skinMatrix = 
+              aWeights.x * uBoneMatrices[aBoneIDs.x] +
+              aWeights.y * uBoneMatrices[aBoneIDs.y] +
+              aWeights.z * uBoneMatrices[aBoneIDs.z] +
+              aWeights.w * uBoneMatrices[aBoneIDs.w];
+
+        skinnedPosition = vec3(skinMatrix * vec4(aPosition, 1.0));
+        skinnedNormal   = mat3(skinMatrix) * aNormal;
+        skinnedTangent  = mat3(skinMatrix) * aTangent.xyz;
+    }
+
     vTexCoord = uTexCoordOffset + aTexCoord * uTexCoordScale;
     vColor = aColor.rgb * uColAlbedo;
-    vEmission = uColEmission * uValEmission; // NOTE: Calculated here, in case we add different emission modes later.
+    vEmission = uColEmission * uValEmission;
 
-    // The TBN matrix is used to transform vectors from tangent space to world space
-    // It is currently used to transform normals from a normal map to world space normals
-    vec3 T = normalize(vec3(uMatModel * vec4(aTangent.xyz, 0.0)));
-    vec3 N = normalize(vec3(uMatNormal * vec4(aNormal, 0.0)));
+    vec3 T = normalize(vec3(uMatModel * vec4(skinnedTangent, 0.0)));
+    vec3 N = normalize(vec3(uMatNormal * vec4(skinnedNormal, 0.0)));
     vec3 B = normalize(cross(N, T)) * aTangent.w;
     vTBN = mat3(T, B, N);
 
-    gl_Position = uMatMVP * vec4(aPosition, 1.0);
+    gl_Position = uMatMVP * vec4(skinnedPosition, 1.0);
 }
