@@ -295,6 +295,7 @@ typedef struct R3D_Model {
     Matrix* boneOffsets;            /**< Array of offset (inverse bind) matrices, one per bone.
                                          Transforms mesh-space vertices to bone space. Used in skinning. */
     BoneInfo* bones;                /**< Bones information (skeleton). Defines the hierarchy and names of bones. */
+    int boneCount;                  /**< Number of bones. */
 
     const R3D_ModelAnimation* anim; /**< Pointer to the currently assigned animation for this model (optional). */
     int animFrame;                  /**< Current animation frame index. Used for sampling bone poses from the animation. */
