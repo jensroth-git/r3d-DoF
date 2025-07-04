@@ -1,6 +1,5 @@
-- Review two-sided material and transparency...
 - PBR ambient lighting (without skybox)
-- Automatic frustum culling (can be disabled with a flag)
+- Adding intensity factor or something else for the skybox
 - Adding texcoord scale/offset and normal scale to R3D_Material
 
 - Apply the alpha scissor test directly in the depth shaders (this will work for both forward rendering and shadow maps).  
