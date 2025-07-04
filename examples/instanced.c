@@ -61,7 +61,7 @@ const char* Init(void)
 
     DisableCursor();
 
-    return "[r3d] - instanced example";
+    return "[r3d] - Instanced rendering example";
 }
 
 void Update(float delta)

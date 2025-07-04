@@ -52,7 +52,7 @@ const char* Init(void)
         .fovy = 60,
     };
 
-    return "[r3d] - bloom example";
+    return "[r3d] - Bloom example";
 }
 
 void Update(float delta)

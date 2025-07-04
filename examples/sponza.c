@@ -49,7 +49,7 @@ const char* Init(void)
 
     DisableCursor();
 
-    return "[r3d] - sponza example";
+    return "[r3d] - Sponza example";
 }
 
 void Update(float delta)

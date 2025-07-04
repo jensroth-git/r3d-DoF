@@ -51,7 +51,7 @@ const char* Init(void)
         .projection = CAMERA_PERSPECTIVE
     };
 
-    return "[r3d] - particles example";
+    return "[r3d] - Particles example";
 }
 
 void Update(float delta)

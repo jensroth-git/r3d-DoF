@@ -63,7 +63,7 @@ const char* Init(void)
 
     DisableCursor();
 
-    return "[r3d] - basic example";
+    return "[r3d] - Animation example";
 }
 
 void Update(float delta)

@@ -52,7 +52,7 @@ const char* Init(void)
         }
     }
 
-    return "[r3d] - lights example";
+    return "[r3d] - Many lights example";
 }
 
 void Update(float delta)

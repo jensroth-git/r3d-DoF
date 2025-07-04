@@ -36,7 +36,7 @@ const char* Init(void)
         R3D_SetLightActive(light, true);
     }
 
-    return "[r3d] - resize example";
+    return "[r3d] - Resize example";
 }
 
 void Update(float delta)

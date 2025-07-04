@@ -50,7 +50,7 @@ const char* Init(void)
 
     DisableCursor();
 
-    return "[r3d] - directional example";
+    return "[r3d] - Directional light example";
 }
 
 void Update(float delta)

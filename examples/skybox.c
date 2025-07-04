@@ -40,7 +40,7 @@ const char* Init(void)
 
     DisableCursor();
 
-    return "[r3d] - skybox example";
+    return "[r3d] - Skybox example";
 }
 
 void Update(float delta)

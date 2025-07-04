@@ -53,7 +53,7 @@ const char* Init(void)
 		R3D_SetLightActive(light, true);
 	}
 
-	return "[r3d] - PBR example";
+	return "[r3d] - PBR musket example";
 }
 
 void Update(float delta)

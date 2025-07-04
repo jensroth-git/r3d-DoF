@@ -29,7 +29,7 @@ const char* Init(void)
 
     DisableCursor();
 
-    return "[r3d] - fog example";
+    return "[r3d] - Fog example";
 }
 
 void Update(float delta)

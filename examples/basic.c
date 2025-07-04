@@ -34,7 +34,7 @@ const char* Init(void)
         R3D_EnableShadow(light, 4096);
     }
 
-    return "[r3d] - basic example";
+    return "[r3d] - Basic example";
 }
 
 void Update(float delta)
