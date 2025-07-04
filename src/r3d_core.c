@@ -1392,17 +1392,17 @@ void r3d_pass_deferred_lights(void)
                     r3d_shader_set_int(screen.lighting, uLight.shadow, false);
                 }
 
-                //if (light->data->type != R3D_LIGHT_DIR) {
+                //if (!light->pResult.coversEntireScreen) {
                 //    glEnable(GL_SCISSOR_TEST);
                 //    glScissor(
-                //        light->dstRect.x, light->dstRect.y,
-                //        light->dstRect.width, light->dstRect.height
+                //        light->pResult.screenRect.x, light->pResult.screenRect.y,
+                //        light->pResult.screenRect.width, light->pResult.screenRect.height
                 //    );
                 //}
 
                 r3d_primitive_bind_and_draw_screen();
 
-                //if (light->data->type != R3D_LIGHT_DIR) {
+                //if (!light->pResult.coversEntireScreen) {
                 //    glDisable(GL_SCISSOR_TEST);
                 //}
             }
