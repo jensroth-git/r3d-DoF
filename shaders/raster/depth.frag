@@ -27,7 +27,7 @@ in float vAlpha;
 /* === Uniforms === */
 
 uniform sampler2D uTexAlbedo;
-uniform float uAlphaScissorThreshold;
+uniform float uAlphaCutoff;
 
 /* === Main function === */
 
@@ -36,5 +36,5 @@ void main()
     // NOTE: The depth is automatically written
 
     float alpha = vAlpha * texture(uTexAlbedo, vTexCoord).a;
-    if (alpha < uAlphaScissorThreshold) discard;
+    if (alpha < uAlphaCutoff) discard;
 }

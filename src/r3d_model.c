@@ -1889,7 +1889,7 @@ R3D_Material R3D_GetDefaultMaterial(void)
     material.cullMode = R3D_CULL_BACK;
     material.shadowCastMode = R3D_SHADOW_CAST_FRONT_FACES;
     material.billboardMode = R3D_BILLBOARD_DISABLED;
-    material.alphaScissorThreshold = 0.01f;
+    material.alphaCutoff = 0.01f;
 
     return material;
 }
@@ -2468,17 +2468,25 @@ bool process_assimp_materials(const struct aiScene* scene, R3D_Material** materi
 
         *mat = R3D_GetDefaultMaterial();
 
-        /* --- Load albedo color and map --- */
+        /* --- Calculate the albedo --- */
 
-        struct aiColor4D color;
-        if (aiGetMaterialColor(aiMat, AI_MATKEY_COLOR_DIFFUSE, &color) == AI_SUCCESS) {
-            mat->albedo.color = r3d_color_from_ai_color(&color);
-        }
+        struct aiColor4D diffuseColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+        struct aiColor4D baseColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+        float transparency = 0.0f;
+        float opacity = 1.0f;
 
-        float opacity;
-        if (aiGetMaterialFloat(aiMat, AI_MATKEY_OPACITY, &opacity) == AI_SUCCESS) {
-            mat->albedo.color.a *= opacity;
-        }
+        (void)aiGetMaterialColor(aiMat, AI_MATKEY_COLOR_DIFFUSE, &diffuseColor);
+        (void)aiGetMaterialColor(aiMat, AI_MATKEY_BASE_COLOR, &baseColor);
+        (void)aiGetMaterialFloat(aiMat, AI_MATKEY_TRANSPARENCYFACTOR, &transparency);
+        (void)aiGetMaterialFloat(aiMat, AI_MATKEY_OPACITY, &opacity);
+
+        mat->albedo.color.r = 255 * (diffuseColor.r * baseColor.r);
+        mat->albedo.color.g = 255 * (diffuseColor.g * baseColor.g);
+        mat->albedo.color.b = 255 * (diffuseColor.b * baseColor.b);
+        mat->albedo.color.a = 255 * (diffuseColor.a * baseColor.a);
+        mat->albedo.color.a *= opacity * (1.0f - transparency);
+
+        /* --- Load albedo texture --- */
 
         mat->albedo.texture = r3d_load_assimp_texture(scene, aiMat, aiTextureType_DIFFUSE, 0, basePath);
 
@@ -2529,15 +2537,33 @@ bool process_assimp_materials(const struct aiScene* scene, R3D_Material** materi
 
         int twoSided = 0;
         if (aiGetMaterialInteger(aiMat, AI_MATKEY_TWOSIDED, &twoSided) == AI_SUCCESS) {
-            if (twoSided) {
-                mat->blendMode = R3D_BLEND_ALPHA;
-                mat->cullMode = R3D_CULL_NONE;
+            if (twoSided) mat->cullMode = R3D_CULL_NONE;
+        }
+
+        /* --- Handle the alpha mode for glTF models --- */
+
+        bool glTFTransparency = false;
+
+        struct aiString alphaMode;
+        if (aiGetMaterialString(aiMat, "$mat.gltf.alphaMode", 0, 0, &alphaMode) == AI_SUCCESS) {
+            // NOTE: Do not pay attention to 'BLEND' as it can sometimes be misleading...
+            if (strcmp(alphaMode.data, "MASK") == 0) {
+                float alphaCutoff = mat->alphaCutoff;
+                if (aiGetMaterialFloat(aiMat, "$mat.gltf.alphaCutoff", 0, 0, &alphaCutoff) == AI_SUCCESS) {
+                    mat->alphaCutoff = alphaCutoff;
+                }
+                glTFTransparency = true;
             }
         }
 
         /* --- Adjust blend mode based on alpha --- */
 
-        if (mat->albedo.color.a < 1.0f) {
+        // Check also the transmission factor
+        // Indicates light passes through material (glass, transparent plastics)
+        float transmission = 0.0f;
+        (void)aiGetMaterialFloat(aiMat, AI_MATKEY_TRANSMISSION_FACTOR, &transmission);
+
+        if (glTFTransparency || mat->albedo.color.a < 1.0f || transmission > 0.01f) {
             mat->blendMode = R3D_BLEND_ALPHA;
             mat->cullMode = R3D_CULL_NONE;
         }

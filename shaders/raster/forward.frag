@@ -88,7 +88,7 @@ uniform bool uHasSkybox;
 
 uniform Light uLights[NUM_LIGHTS];
 
-uniform float uAlphaScissorThreshold;
+uniform float uAlphaCutoff;
 uniform vec3 uViewPosition;
 uniform float uFar;
 
@@ -322,7 +322,7 @@ void main()
     vec4 albedo = vColor * texture(uTexAlbedo, vTexCoord);
 
     // TODO: Alpha scissor is unnecessary after a depth pre-pass
-    if (albedo.a < uAlphaScissorThreshold) discard;
+    if (albedo.a < uAlphaCutoff) discard;
 
     /* Sample emission texture */
 

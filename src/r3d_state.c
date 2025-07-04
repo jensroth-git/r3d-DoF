@@ -829,7 +829,7 @@ void r3d_shader_load_raster_forward(void)
     r3d_shader_get_location(raster.forward, uTexBrdfLut);
     r3d_shader_get_location(raster.forward, uQuatSkybox);
     r3d_shader_get_location(raster.forward, uHasSkybox);
-    r3d_shader_get_location(raster.forward, uAlphaScissorThreshold);
+    r3d_shader_get_location(raster.forward, uAlphaCutoff);
     r3d_shader_get_location(raster.forward, uViewPosition);
 
     r3d_shader_enable(raster.forward);
@@ -904,7 +904,7 @@ void r3d_shader_load_raster_forward_inst(void)
     r3d_shader_get_location(raster.forwardInst, uTexBrdfLut);
     r3d_shader_get_location(raster.forwardInst, uQuatSkybox);
     r3d_shader_get_location(raster.forwardInst, uHasSkybox);
-    r3d_shader_get_location(raster.forwardInst, uAlphaScissorThreshold);
+    r3d_shader_get_location(raster.forwardInst, uAlphaCutoff);
     r3d_shader_get_location(raster.forwardInst, uViewPosition);
 
     r3d_shader_enable(raster.forwardInst);
@@ -973,7 +973,7 @@ void r3d_shader_load_raster_depth(void)
     r3d_shader_get_location(raster.depth, uMatMVP);
     r3d_shader_get_location(raster.depth, uAlpha);
     r3d_shader_get_location(raster.depth, uTexAlbedo);
-    r3d_shader_get_location(raster.depth, uAlphaScissorThreshold);
+    r3d_shader_get_location(raster.depth, uAlphaCutoff);
 }
 
 void r3d_shader_load_raster_depth_inst(void)
@@ -988,7 +988,7 @@ void r3d_shader_load_raster_depth_inst(void)
     r3d_shader_get_location(raster.depthInst, uBillboardMode);
     r3d_shader_get_location(raster.depthInst, uAlpha);
     r3d_shader_get_location(raster.depthInst, uTexAlbedo);
-    r3d_shader_get_location(raster.depthInst, uAlphaScissorThreshold);
+    r3d_shader_get_location(raster.depthInst, uAlphaCutoff);
 }
 
 void r3d_shader_load_raster_depth_cube(void)
@@ -1003,7 +1003,7 @@ void r3d_shader_load_raster_depth_cube(void)
     r3d_shader_get_location(raster.depthCube, uFar);
     r3d_shader_get_location(raster.depthCube, uAlpha);
     r3d_shader_get_location(raster.depthCube, uTexAlbedo);
-    r3d_shader_get_location(raster.depthCube, uAlphaScissorThreshold);
+    r3d_shader_get_location(raster.depthCube, uAlphaCutoff);
 }
 
 void r3d_shader_load_raster_depth_cube_inst(void)
@@ -1020,7 +1020,7 @@ void r3d_shader_load_raster_depth_cube_inst(void)
     r3d_shader_get_location(raster.depthCubeInst, uBillboardMode);
     r3d_shader_get_location(raster.depthCubeInst, uAlpha);
     r3d_shader_get_location(raster.depthCubeInst, uTexAlbedo);
-    r3d_shader_get_location(raster.depthCubeInst, uAlphaScissorThreshold);
+    r3d_shader_get_location(raster.depthCubeInst, uAlphaCutoff);
 }
 
 void r3d_shader_load_screen_ssao(void)
