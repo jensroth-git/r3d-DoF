@@ -36,112 +36,195 @@ r3d_project_point_result_t r3d_project_point(Vector3 point, Matrix viewProj, int
     return result;
 }
 
-Rectangle r3d_project_sphere_bounding_box(Vector3 center, float radius, Vector3 viewPos, Matrix viewProj, int screenWidth, int screenHeight)
-{
-    Rectangle boundingBox = { 0 };
+// Utility function to check if a point is in front of the near plane
+static inline bool r3d_is_point_in_front_of_near_plane(Vector3 point, Matrix viewProj, float nearPlane) {
+    // Transform the point into view space
+    Vector4 viewPoint = {
+        viewProj.m0 * point.x + viewProj.m4 * point.y + viewProj.m8 * point.z + viewProj.m12,
+        viewProj.m1 * point.x + viewProj.m5 * point.y + viewProj.m9 * point.z + viewProj.m13,
+        viewProj.m2 * point.x + viewProj.m6 * point.y + viewProj.m10 * point.z + viewProj.m14,
+        viewProj.m3 * point.x + viewProj.m7 * point.y + viewProj.m11 * point.z + viewProj.m15
+    };
+    return viewPoint.z > nearPlane;
+}
 
-    // If the camera is inside the projected sphere, assume the entire screen is affected.
-    // This is not entirely accurate, but the result would be the same if we performed
-    // the full projection, with a potential additional margin of error.
+r3d_project_light_result_t r3d_project_sphere_light(Vector3 center, float radius, Vector3 viewPos, Matrix viewProj, int screenWidth, int screenHeight, float nearPlane)
+{
+    r3d_project_light_result_t result = { 0 };
+    
+    // If the camera is inside the sphere, all the light is visible
     if (r3d_collision_check_point_in_sphere(viewPos, center, radius)) {
-        boundingBox.width = (float)screenWidth;
-        boundingBox.height = (float)screenHeight;
-        return boundingBox;
+        result.isVisible = true;
+        result.coversEntireScreen = true;
+        result.screenRect.x = 0;
+        result.screenRect.y = 0;
+        result.screenRect.width = (float)screenWidth;
+        result.screenRect.height = (float)screenHeight;
+        return result;
     }
 
-    // Create 8 points representing the corners of a cube that encloses the sphere.
-    Vector3 points[8];
-    points[0] = (Vector3) { center.x - radius, center.y - radius, center.z - radius };
-    points[1] = (Vector3) { center.x + radius, center.y - radius, center.z - radius };
-    points[2] = (Vector3) { center.x - radius, center.y + radius, center.z - radius };
-    points[3] = (Vector3) { center.x + radius, center.y + radius, center.z - radius };
-    points[4] = (Vector3) { center.x - radius, center.y - radius, center.z + radius };
-    points[5] = (Vector3) { center.x + radius, center.y - radius, center.z + radius };
-    points[6] = (Vector3) { center.x - radius, center.y + radius, center.z + radius };
-    points[7] = (Vector3) { center.x + radius, center.y + radius, center.z + radius };
+    // Create points to sample the sphere
+    Vector3 points[26]; // 6 axial points + 20 points on circles
+    int pointCount = 0;
 
-    // Initialize min/max values for computing the bounding rectangle.
-    float minX = (float)screenWidth;
-    float minY = (float)screenHeight;
-    float maxX = 0, maxY = 0;
+    // Axial points (6 main directions)
+    points[pointCount++] = (Vector3){center.x + radius, center.y, center.z};
+    points[pointCount++] = (Vector3){center.x - radius, center.y, center.z};
+    points[pointCount++] = (Vector3){center.x, center.y + radius, center.z};
+    points[pointCount++] = (Vector3){center.x, center.y - radius, center.z};
+    points[pointCount++] = (Vector3){center.x, center.y, center.z + radius};
+    points[pointCount++] = (Vector3){center.x, center.y, center.z - radius};
 
-    // Project each point and determine the min/max screen coordinates.
-    for (int i = 0; i < 8; i++) {
-        r3d_project_point_result_t result = r3d_project_point(
+    // Points on circles for better coverage
+    for (int ring = 0; ring < 2; ring++) {
+        float z = center.z + radius * (ring == 0 ? 0.5f : -0.5f);
+        float ringRadius = radius * sqrtf(1.0f - 0.25f); // radius at this height
+        
+        for (int i = 0; i < 10; i++) {
+            float angle = i * (2.0f * PI / 10.0f);
+            points[pointCount++] = (Vector3){
+                center.x + ringRadius * cosf(angle),
+                center.y + ringRadius * sinf(angle),
+                z
+            };
+        }
+    }
+
+    // Initialize min/max values
+    float minX = FLT_MAX;
+    float minY = FLT_MAX;
+    float maxX = -FLT_MAX;
+    float maxY = -FLT_MAX;
+    
+    bool hasValidPoints = false;
+
+    // Project each point
+    for (int i = 0; i < pointCount; i++) {
+        r3d_project_point_result_t projResult = r3d_project_point(
             points[i], viewProj, screenWidth, screenHeight
         );
 
-        // Ignore points that are behind the near plane.
-        if (result.outNear) continue;
-
-        if (result.position.x < minX) minX = result.position.x;
-        if (result.position.x > maxX) maxX = result.position.x;
-        if (result.position.y < minY) minY = result.position.y;
-        if (result.position.y > maxY) maxY = result.position.y;
+        // Do not completely ignore points behind the near plane
+        // Instead, clamp them to the edges of the screen
+        if (projResult.outNear) {
+            // Point behind the camera - potentially contributes to edges
+            hasValidPoints = true;
+            
+            // Conservative expansion for points behind
+            minX = fminf(minX, 0.0f);
+            minY = fminf(minY, 0.0f);
+            maxX = fmaxf(maxX, (float)screenWidth);
+            maxY = fmaxf(maxY, (float)screenHeight);
+        } else {
+            // Point in front of the camera - use normal projection
+            hasValidPoints = true;
+            
+            if (projResult.position.x < minX) minX = projResult.position.x;
+            if (projResult.position.x > maxX) maxX = projResult.position.x;
+            if (projResult.position.y < minY) minY = projResult.position.y;
+            if (projResult.position.y > maxY) maxY = projResult.position.y;
+        }
     }
 
-    // Construct the bounding rectangle using the computed min/max values.
-    boundingBox.x = minX;
-    boundingBox.y = minY;
-    boundingBox.width = maxX - minX;
-    boundingBox.height = maxY - minY;
+    // Check if any part of the sphere crosses the near plane
+    float distanceToCenter = sqrtf(
+        (center.x - viewPos.x) * (center.x - viewPos.x) +
+        (center.y - viewPos.y) * (center.y - viewPos.y) +
+        (center.z - viewPos.z) * (center.z - viewPos.z)
+    );
+    
+    bool intersectsNearPlane = (distanceToCenter < radius + nearPlane);
 
-    return boundingBox;
+    if (!hasValidPoints && !intersectsNearPlane) {
+        result.isVisible = false;
+        return result;
+    }
+
+    // If the sphere crosses the near plane, be more conservative
+    if (intersectsNearPlane) {
+        minX = fminf(minX, 0.0f);
+        minY = fminf(minY, 0.0f);
+        maxX = fmaxf(maxX, (float)screenWidth);
+        maxY = fmaxf(maxY, (float)screenHeight);
+    }
+
+    // Clamp at the screen limits
+    minX = fmaxf(0.0f, minX);
+    minY = fmaxf(0.0f, minY);
+    maxX = fminf((float)screenWidth, maxX);
+    maxY = fminf((float)screenHeight, maxY);
+
+    // Build the final rectangle
+    result.isVisible = (maxX > minX) && (maxY > minY);
+    result.coversEntireScreen = (minX <= 0.0f && minY <= 0.0f && 
+                                maxX >= screenWidth && maxY >= screenHeight);
+    
+    if (result.isVisible) {
+        result.screenRect.x = minX;
+        result.screenRect.y = minY;
+        result.screenRect.width = maxX - minX;
+        result.screenRect.height = maxY - minY;
+    }
+
+    return result;
 }
 
-Rectangle r3d_project_cone_bounding_box(Vector3 tip, Vector3 dir, float length, float radius, Vector3 viewPos, Matrix viewProj, int screenWidth, int screenHeight)
+r3d_project_light_result_t r3d_project_cone_light(Vector3 tip, Vector3 dir, float length, float radius, Vector3 viewPos, Matrix viewProj, int screenWidth, int screenHeight, float nearPlane)
 {
-    Rectangle boundingBox = { 0 };
+    r3d_project_light_result_t result = { 0 };
 
-    // If the camera is inside the projected cone, assume the entire screen is affected.
-    // This is not entirely accurate, but the result would be the same if we performed
-    // the full projection, with a potential additional margin of error.
+    // If the camera is inside the cone, all the light is visible
     if (r3d_collision_check_point_in_cone(viewPos, tip, dir, length, radius)) {
-        boundingBox.width = (float)screenWidth;
-        boundingBox.height = (float)screenHeight;
-        return boundingBox;
+        result.isVisible = true;
+        result.coversEntireScreen = true;
+        result.screenRect.x = 0;
+        result.screenRect.y = 0;
+        result.screenRect.width = (float)screenWidth;
+        result.screenRect.height = (float)screenHeight;
+        return result;
     }
 
-    // Compute the position of the cone's base.
+    // Normalize the direction vector
+    float dirLen = sqrtf(dir.x * dir.x + dir.y * dir.y + dir.z * dir.z);
+    Vector3 normalizedDir = { dir.x / dirLen, dir.y / dirLen, dir.z / dirLen };
+
+    // Calculate the position of the base of the cone
     Vector3 base = {
-        tip.x + dir.x * length,
-        tip.y + dir.y * length,
-        tip.z + dir.z * length
+        tip.x + normalizedDir.x * length,
+        tip.y + normalizedDir.y * length,
+        tip.z + normalizedDir.z * length
     };
 
-    // Find two perpendicular vectors to the direction vector.
+    // Find two vectors perpendicular to the direction vector
     Vector3 right = { 0 };
     Vector3 up = { 0 };
 
-    // Find a vector perpendicular to dir.
-    if (fabsf(dir.x) < fabsf(dir.y) && fabsf(dir.x) < fabsf(dir.z)) {
-        right = (Vector3){ 0, -dir.z, dir.y };
+    if (fabsf(normalizedDir.x) < fabsf(normalizedDir.y) && fabsf(normalizedDir.x) < fabsf(normalizedDir.z)) {
+        right = (Vector3){ 0, -normalizedDir.z, normalizedDir.y };
     }
-    else if (fabsf(dir.y) < fabsf(dir.z)) {
-        right = (Vector3){ -dir.z, 0, dir.x };
+    else if (fabsf(normalizedDir.y) < fabsf(normalizedDir.z)) {
+        right = (Vector3){ -normalizedDir.z, 0, normalizedDir.x };
     }
     else {
-        right = (Vector3){ -dir.y, dir.x, 0 };
+        right = (Vector3){ -normalizedDir.y, normalizedDir.x, 0 };
     }
 
-    // Normalize the right vector.
     float rightLen = sqrtf(right.x * right.x + right.y * right.y + right.z * right.z);
     right.x /= rightLen;
     right.y /= rightLen;
     right.z /= rightLen;
 
-    // Compute the up vector (perpendicular to dir and right).
-    up.x = dir.y * right.z - dir.z * right.y;
-    up.y = dir.z * right.x - dir.x * right.z;
-    up.z = dir.x * right.y - dir.y * right.x;
+    up.x = normalizedDir.y * right.z - normalizedDir.z * right.y;
+    up.y = normalizedDir.z * right.x - normalizedDir.x * right.z;
+    up.z = normalizedDir.x * right.y - normalizedDir.y * right.x;
 
-    // Define the points of the cone to be projected.
-    Vector3 points[9];
-    points[0] = tip;  // Cone's apex.
+    // Define the points of the cone to be projected
+    Vector3 points[17];  // 1 vertex + 16 points on the base
+    points[0] = tip;  // Top of the cone
 
-    // Generate 8 evenly spaced points around the base circle.
-    for (int i = 0; i < 8; i++) {
-        float angle = i * (2.0f * PI / 8.0f);
+    // Generate 16 points evenly distributed around the base circle
+    for (int i = 0; i < 16; i++) {
+        float angle = i * (2.0f * PI / 16.0f);
         float cosA = cosf(angle);
         float sinA = sinf(angle);
 
@@ -152,31 +235,80 @@ Rectangle r3d_project_cone_bounding_box(Vector3 tip, Vector3 dir, float length, 
         };
     }
 
-    // Initialize min/max values for computing the bounding rectangle.
-    float minX = (float)screenWidth;
-    float minY = (float)screenHeight;
-    float maxX = 0, maxY = 0;
+    // Initialize min/max values
+    float minX = FLT_MAX;
+    float minY = FLT_MAX;
+    float maxX = -FLT_MAX;
+    float maxY = -FLT_MAX;
+    
+    bool hasValidPoints = false;
 
-    // Project each point and determine the min/max screen coordinates.
-    for (int i = 0; i < 9; i++) {
-        r3d_project_point_result_t result = r3d_project_point(
+    // Project each point
+    for (int i = 0; i < 17; i++) {
+        r3d_project_point_result_t projResult = r3d_project_point(
             points[i], viewProj, screenWidth, screenHeight
         );
 
-        // Ignore points that are behind the near plane.
-        if (result.outNear) continue;
-
-        if (result.position.x < minX) minX = result.position.x;
-        if (result.position.x > maxX) maxX = result.position.x;
-        if (result.position.y < minY) minY = result.position.y;
-        if (result.position.y > maxY) maxY = result.position.y;
+        if (projResult.outNear) {
+            // Point behind the camera - potentially contributes to edges
+            hasValidPoints = true;
+            
+            // Conservative expansion for points behind
+            minX = fminf(minX, 0.0f);
+            minY = fminf(minY, 0.0f);
+            maxX = fmaxf(maxX, (float)screenWidth);
+            maxY = fmaxf(maxY, (float)screenHeight);
+        } else {
+            // Point in front of the camera - use normal projection
+            hasValidPoints = true;
+            
+            if (projResult.position.x < minX) minX = projResult.position.x;
+            if (projResult.position.x > maxX) maxX = projResult.position.x;
+            if (projResult.position.y < minY) minY = projResult.position.y;
+            if (projResult.position.y > maxY) maxY = projResult.position.y;
+        }
     }
 
-    // Construct the bounding rectangle using the computed min/max values.
-    boundingBox.x = minX;
-    boundingBox.y = minY;
-    boundingBox.width = maxX - minX;
-    boundingBox.height = maxY - minY;
+    // Check if the cone crosses the near plane
+    float tipDistance = sqrtf(
+        (tip.x - viewPos.x) * (tip.x - viewPos.x) +
+        (tip.y - viewPos.y) * (tip.y - viewPos.y) +
+        (tip.z - viewPos.z) * (tip.z - viewPos.z)
+    );
+    
+    bool intersectsNearPlane = (tipDistance < nearPlane) || 
+                               (tipDistance < length + radius);
 
-    return boundingBox;
+    if (!hasValidPoints && !intersectsNearPlane) {
+        result.isVisible = false;
+        return result;
+    }
+
+    // If the cone crosses the near plane, be more conservative
+    if (intersectsNearPlane) {
+        minX = fminf(minX, 0.0f);
+        minY = fminf(minY, 0.0f);
+        maxX = fmaxf(maxX, (float)screenWidth);
+        maxY = fmaxf(maxY, (float)screenHeight);
+    }
+
+    // Clamp at the screen limits
+    minX = fmaxf(0.0f, minX);
+    minY = fmaxf(0.0f, minY);
+    maxX = fminf((float)screenWidth, maxX);
+    maxY = fminf((float)screenHeight, maxY);
+
+    // Build the final rectangle
+    result.isVisible = (maxX > minX) && (maxY > minY);
+    result.coversEntireScreen = (minX <= 0.0f && minY <= 0.0f && 
+                                maxX >= screenWidth && maxY >= screenHeight);
+    
+    if (result.isVisible) {
+        result.screenRect.x = minX;
+        result.screenRect.y = minY;
+        result.screenRect.width = maxX - minX;
+        result.screenRect.height = maxY - minY;
+    }
+
+    return result;
 }

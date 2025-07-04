@@ -10,8 +10,14 @@ typedef struct {
     bool outFar;
 } r3d_project_point_result_t;
 
+typedef struct {
+    Rectangle screenRect;
+    bool isVisible;
+    bool coversEntireScreen;
+} r3d_project_light_result_t;
+
 r3d_project_point_result_t r3d_project_point(Vector3 point, Matrix viewProj, int screenWidth, int screenHeight);
-Rectangle r3d_project_sphere_bounding_box(Vector3 center, float radius, Vector3 viewPos, Matrix viewProj, int screenWidth, int screenHeight);
-Rectangle r3d_project_cone_bounding_box(Vector3 tip, Vector3 dir, float length, float cosTheta, Vector3 viewPos, Matrix viewProj, int screenWidth, int screenHeight);
+r3d_project_light_result_t r3d_project_sphere_light(Vector3 center, float radius, Vector3 viewPos, Matrix viewProj, int screenWidth, int screenHeight, float nearPlane);
+r3d_project_light_result_t r3d_project_cone_light(Vector3 tip, Vector3 dir, float length, float radius, Vector3 viewPos, Matrix viewProj, int screenWidth, int screenHeight, float nearPlane);
 
 #endif // R3D_PROJECTION_H

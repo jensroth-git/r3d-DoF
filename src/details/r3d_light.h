@@ -21,6 +21,7 @@
 #define R3D_LIGHT_H
 
 #include "r3d.h"
+#include "r3d_projection.h"
 #include <raylib.h>
 
 /* === Types === */
@@ -67,7 +68,7 @@ typedef struct {
 
 typedef struct {
     r3d_light_t* data;
-    Rectangle dstRect;
+    r3d_project_light_result_t pResult;
 } r3d_light_batched_t;
 
 /* === Functions === */

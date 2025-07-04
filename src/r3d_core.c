@@ -759,42 +759,32 @@ void r3d_prepare_process_lights_and_batch(void)
         }
 
         // Compute the projected area of the light into the screen
-        Rectangle dstRect = { 0 };
+        r3d_project_light_result_t pLightResult = { 0 };
         switch (light->type) {
         case R3D_LIGHT_DIR:
-            dstRect.x = 0, dstRect.y = 0;
-            dstRect.width = (float)R3D.state.resolution.width;
-            dstRect.height = (float)R3D.state.resolution.height;
+            pLightResult.coversEntireScreen = true;
+            pLightResult.isVisible = true;
             break;
         case R3D_LIGHT_SPOT: {
-            dstRect = r3d_project_cone_bounding_box(
+            pLightResult = r3d_project_cone_light(
                 light->position, light->direction, light->range, fabsf(light->range * light->outerCutOff), //< r = h * cos(phi)
-                R3D.state.transform.position, viewProj, R3D.state.resolution.width, R3D.state.resolution.height
+                R3D.state.transform.position, viewProj, R3D.state.resolution.width, R3D.state.resolution.height,
+                0.05f
             );
         } break;
         case R3D_LIGHT_OMNI:
-            dstRect = r3d_project_sphere_bounding_box(
+            pLightResult = r3d_project_sphere_light(
                 light->position, light->range, R3D.state.transform.position, viewProj,
-                R3D.state.resolution.width, R3D.state.resolution.height
+                R3D.state.resolution.width, R3D.state.resolution.height, 0.05f
             );
             break;
         }
 
         // Determine if the light illuminates a part visible to the screen
-        int screenW = R3D.state.resolution.width;
-        int screenH = R3D.state.resolution.height;
-        if (!CheckCollisionRecs(dstRect, (Rectangle) { 0, 0, (float)screenW, (float)screenH })) {
-            continue;
-        }
-
-        // Clamp light screen area to the screen dimensions
-        if (dstRect.x < 0) dstRect.width += dstRect.x, dstRect.x = 0;
-        if (dstRect.y < 0) dstRect.height += dstRect.y, dstRect.y = 0;
-        dstRect.width = Clamp(dstRect.width, 0, screenW - dstRect.x);
-        dstRect.height = Clamp(dstRect.height, 0, screenH - dstRect.y);
+        if (!pLightResult.isVisible) continue;
 
         // Here the light is supposed to be visible
-        r3d_light_batched_t batched = { .data = light, .dstRect = dstRect };
+        r3d_light_batched_t batched = { .data = light, .pResult = pLightResult };
         r3d_array_push_back(&R3D.container.aLightBatch, &batched);
     }
 }
