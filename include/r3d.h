@@ -1504,6 +1504,7 @@ R3DAPI Vector3 R3D_GetLightDirection(R3D_Light id);
  *
  * @param id The ID of the light.
  * @param direction The new direction to set for the light.
+ *                  The vector is automatically normalized.
  */
 R3DAPI void R3D_SetLightDirection(R3D_Light id, Vector3 direction);
 
