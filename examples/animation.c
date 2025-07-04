@@ -28,7 +28,7 @@ const char* Init(void)
     R3D_SetTonemapMode(R3D_TONEMAP_ACES);
 
     R3D_SetBackgroundColor(BLACK);
-    R3D_SetAmbientColor(BLACK);
+    R3D_SetAmbientColor((Color) { 7, 7, 7, 255 });
 
     plane = R3D_GenMeshPlane(32, 32, 1, 1, true);
     robot = R3D_LoadModel(RESOURCES_PATH "dancer.glb");
