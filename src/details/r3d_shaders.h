@@ -94,9 +94,7 @@ typedef struct {
     r3d_shader_uniform_sampler2D_t uTexAlbedo;
     r3d_shader_uniform_sampler2D_t uTexNormal;
     r3d_shader_uniform_sampler2D_t uTexEmission;
-    r3d_shader_uniform_sampler2D_t uTexOcclusion;
-    r3d_shader_uniform_sampler2D_t uTexRoughness;
-    r3d_shader_uniform_sampler2D_t uTexMetalness;
+    r3d_shader_uniform_sampler2D_t uTexORM;
     r3d_shader_uniform_float_t uValEmission;
     r3d_shader_uniform_float_t uValOcclusion;
     r3d_shader_uniform_float_t uValRoughness;
@@ -116,9 +114,7 @@ typedef struct {
     r3d_shader_uniform_sampler2D_t uTexAlbedo;
     r3d_shader_uniform_sampler2D_t uTexNormal;
     r3d_shader_uniform_sampler2D_t uTexEmission;
-    r3d_shader_uniform_sampler2D_t uTexOcclusion;
-    r3d_shader_uniform_sampler2D_t uTexRoughness;
-    r3d_shader_uniform_sampler2D_t uTexMetalness;
+    r3d_shader_uniform_sampler2D_t uTexORM;
     r3d_shader_uniform_float_t uValEmission;
     r3d_shader_uniform_float_t uValOcclusion;
     r3d_shader_uniform_float_t uValRoughness;
@@ -140,7 +136,7 @@ typedef struct {
     r3d_shader_uniform_mat4_t uMatMVP;
     r3d_shader_uniform_float_t uAlpha;
     r3d_shader_uniform_sampler2D_t uTexAlbedo;
-    r3d_shader_uniform_float_t uAlphaScissorThreshold;
+    r3d_shader_uniform_float_t uAlphaCutoff;
 } r3d_shader_raster_depth_t;
 
 typedef struct {
@@ -151,7 +147,7 @@ typedef struct {
     r3d_shader_uniform_int_t uBillboardMode;
     r3d_shader_uniform_float_t uAlpha;
     r3d_shader_uniform_sampler2D_t uTexAlbedo;
-    r3d_shader_uniform_float_t uAlphaScissorThreshold;
+    r3d_shader_uniform_float_t uAlphaCutoff;
 } r3d_shader_raster_depth_inst_t;
 
 typedef struct {
@@ -162,7 +158,7 @@ typedef struct {
     r3d_shader_uniform_float_t uFar;
     r3d_shader_uniform_float_t uAlpha;
     r3d_shader_uniform_sampler2D_t uTexAlbedo;
-    r3d_shader_uniform_float_t uAlphaScissorThreshold;
+    r3d_shader_uniform_float_t uAlphaCutoff;
 } r3d_shader_raster_depth_cube_t;
 
 typedef struct {
@@ -175,7 +171,7 @@ typedef struct {
     r3d_shader_uniform_int_t uBillboardMode;
     r3d_shader_uniform_float_t uAlpha;
     r3d_shader_uniform_sampler2D_t uTexAlbedo;
-    r3d_shader_uniform_float_t uAlphaScissorThreshold;
+    r3d_shader_uniform_float_t uAlphaCutoff;
 } r3d_shader_raster_depth_cube_inst_t;
 
 typedef struct {
@@ -210,9 +206,7 @@ typedef struct {
     r3d_shader_uniform_sampler2D_t uTexAlbedo;
     r3d_shader_uniform_sampler2D_t uTexEmission;
     r3d_shader_uniform_sampler2D_t uTexNormal;
-    r3d_shader_uniform_sampler2D_t uTexOcclusion;
-    r3d_shader_uniform_sampler2D_t uTexRoughness;
-    r3d_shader_uniform_sampler2D_t uTexMetalness;
+    r3d_shader_uniform_sampler2D_t uTexORM;
     r3d_shader_uniform_sampler2D_t uTexNoise;
     r3d_shader_uniform_float_t uValEmission;
     r3d_shader_uniform_float_t uValOcclusion;
@@ -226,7 +220,7 @@ typedef struct {
     r3d_shader_uniform_sampler2D_t uTexBrdfLut;
     r3d_shader_uniform_vec4_t uQuatSkybox;
     r3d_shader_uniform_int_t uHasSkybox;
-    r3d_shader_uniform_float_t uAlphaScissorThreshold;
+    r3d_shader_uniform_float_t uAlphaCutoff;
     r3d_shader_uniform_vec3_t uViewPosition;
 } r3d_shader_raster_forward_t;
 
@@ -263,9 +257,7 @@ typedef struct {
     r3d_shader_uniform_sampler2D_t uTexAlbedo;
     r3d_shader_uniform_sampler2D_t uTexEmission;
     r3d_shader_uniform_sampler2D_t uTexNormal;
-    r3d_shader_uniform_sampler2D_t uTexOcclusion;
-    r3d_shader_uniform_sampler2D_t uTexRoughness;
-    r3d_shader_uniform_sampler2D_t uTexMetalness;
+    r3d_shader_uniform_sampler2D_t uTexORM;
     r3d_shader_uniform_sampler2D_t uTexNoise;
     r3d_shader_uniform_float_t uValEmission;
     r3d_shader_uniform_float_t uValOcclusion;
@@ -279,7 +271,7 @@ typedef struct {
     r3d_shader_uniform_sampler2D_t uTexBrdfLut;
     r3d_shader_uniform_vec4_t uQuatSkybox;
     r3d_shader_uniform_int_t uHasSkybox;
-    r3d_shader_uniform_float_t uAlphaScissorThreshold;
+    r3d_shader_uniform_float_t uAlphaCutoff;
     r3d_shader_uniform_vec3_t uViewPosition;
 } r3d_shader_raster_forward_inst_t;
 

@@ -25,14 +25,14 @@ in float vAlpha;
 
 uniform sampler2D uTexAlbedo;
 
-uniform float uAlphaScissorThreshold;
+uniform float uAlphaCutoff;
 uniform vec3 uViewPosition;
 uniform float uFar;
 
 void main()
 {
     float alpha = vAlpha * texture(uTexAlbedo, vTexCoord).a;
-    if (alpha < uAlphaScissorThreshold) discard;
+    if (alpha < uAlphaCutoff) discard;
 
     gl_FragDepth = length(vPosition - uViewPosition) / uFar;
 }

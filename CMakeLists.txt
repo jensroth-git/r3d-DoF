@@ -22,6 +22,7 @@ endif()
 
 option(R3D_BUILD_EXAMPLES "Build the examples" ${R3D_IS_MAIN})
 option(R3D_RAYLIB_VENDORED "Use vendored raylib from submodule" OFF)
+option(R3D_ASSIMP_VENDORED "Use vendored assimp from submodule" OFF)
 
 # Set the cmake module path
 
@@ -33,6 +34,95 @@ include(CheckLibraryExists)
 include(EmbedShaders)
 include(EmbedAssets)
 
+# Checks for assimp installation
+
+if(R3D_ASSIMP_VENDORED)
+    set(R3D_ASSIMP_SUBMODULE_PATH "${R3D_ROOT_PATH}/external/assimp")
+    set(R3D_ASSIMP_CMAKELISTS "${R3D_ASSIMP_SUBMODULE_PATH}/CMakeLists.txt")
+
+    # Vendored assimp configuration here!
+    if(EXISTS "${R3D_ASSIMP_CMAKELISTS}")
+        message(STATUS "Using vendored assimp from: ${R3D_ASSIMP_SUBMODULE_PATH}")
+
+        set(ASSIMP_INJECT_DEBUG_POSTFIX     OFF CACHE BOOL "")
+        set(ASSIMP_WARNINGS_AS_ERRORS       OFF CACHE BOOL "")
+        set(ASSIMP_IGNORE_GIT_HASH          ON CACHE BOOL "")
+        set(ASSIMP_BUILD_TESTS              OFF CACHE BOOL "")
+        set(ASSIMP_NO_EXPORT                ON CACHE BOOL "")
+        set(ASSIMP_INSTALL                  OFF CACHE BOOL "")
+
+        set(ASSIMP_BUILD_COLLADA_IMPORTER   ON CACHE BOOL "")
+        set(ASSIMP_BUILD_GLTF_IMPORTER      ON CACHE BOOL "")
+        set(ASSIMP_BUILD_OBJ_IMPORTER       ON CACHE BOOL "")
+        set(ASSIMP_BUILD_M3D_IMPORTER       ON CACHE BOOL "")
+        set(ASSIMP_BUILD_FBX_IMPORTER       ON CACHE BOOL "")
+        set(ASSIMP_BUILD_IQM_IMPORTER       ON CACHE BOOL "")
+
+        set(ASSIMP_BUILD_AMF_IMPORTER       OFF CACHE BOOL "")
+        set(ASSIMP_BUILD_BVH_IMPORTER       OFF CACHE BOOL "")
+        set(ASSIMP_BUILD_OFF_IMPORTER       OFF CACHE BOOL "")
+        set(ASSIMP_BUILD_COB_IMPORTER       OFF CACHE BOOL "")
+        set(ASSIMP_BUILD_STL_IMPORTER       OFF CACHE BOOL "")
+        set(ASSIMP_BUILD_3DS_IMPORTER       OFF CACHE BOOL "")
+        set(ASSIMP_BUILD_AC_IMPORTER        OFF CACHE BOOL "")
+        set(ASSIMP_BUILD_ASE_IMPORTER       OFF CACHE BOOL "")
+        set(ASSIMP_BUILD_ASSBIN_IMPORTER    OFF CACHE BOOL "")
+        set(ASSIMP_BUILD_B3D_IMPORTER       OFF CACHE BOOL "")
+        set(ASSIMP_BUILD_DXF_IMPORTER       OFF CACHE BOOL "")
+        set(ASSIMP_BUILD_CSM_IMPORTER       OFF CACHE BOOL "")
+        set(ASSIMP_BUILD_HMP_IMPORTER       OFF CACHE BOOL "")
+        set(ASSIMP_BUILD_IRRMESH_IMPORTER   OFF CACHE BOOL "")
+        set(ASSIMP_BUILD_IRR_IMPORTER       OFF CACHE BOOL "")
+        set(ASSIMP_BUILD_LWO_IMPORTER       OFF CACHE BOOL "")
+        set(ASSIMP_BUILD_LWS_IMPORTER       OFF CACHE BOOL "")
+        set(ASSIMP_BUILD_MD2_IMPORTER       OFF CACHE BOOL "")
+        set(ASSIMP_BUILD_MD3_IMPORTER       OFF CACHE BOOL "")
+        set(ASSIMP_BUILD_MD5_IMPORTER       OFF CACHE BOOL "")
+        set(ASSIMP_BUILD_MDC_IMPORTER       OFF CACHE BOOL "")
+        set(ASSIMP_BUILD_MDL_IMPORTER       OFF CACHE BOOL "")
+        set(ASSIMP_BUILD_NFF_IMPORTER       OFF CACHE BOOL "")
+        set(ASSIMP_BUILD_NDO_IMPORTER       OFF CACHE BOOL "")
+        set(ASSIMP_BUILD_OGRE_IMPORTER      OFF CACHE BOOL "")
+        set(ASSIMP_BUILD_OPENGEX_IMPORTER   OFF CACHE BOOL "")
+        set(ASSIMP_BUILD_PLY_IMPORTER       OFF CACHE BOOL "")
+        set(ASSIMP_BUILD_MS3D_IMPORTER      OFF CACHE BOOL "")
+        set(ASSIMP_BUILD_BLEND_IMPORTER     OFF CACHE BOOL "")
+        set(ASSIMP_BUILD_IFC_IMPORTER       OFF CACHE BOOL "")
+        set(ASSIMP_BUILD_XGL_IMPORTER       OFF CACHE BOOL "")
+        set(ASSIMP_BUILD_Q3D_IMPORTER       OFF CACHE BOOL "")
+        set(ASSIMP_BUILD_Q3BSP_IMPORTER     OFF CACHE BOOL "")
+        set(ASSIMP_BUILD_RAW_IMPORTER       OFF CACHE BOOL "")
+        set(ASSIMP_BUILD_SIB_IMPORTER       OFF CACHE BOOL "")
+        set(ASSIMP_BUILD_SMD_IMPORTER       OFF CACHE BOOL "")
+        set(ASSIMP_BUILD_TERRAGEN_IMPORTER  OFF CACHE BOOL "")
+        set(ASSIMP_BUILD_3D_IMPORTER        OFF CACHE BOOL "")
+        set(ASSIMP_BUILD_X_IMPORTER         OFF CACHE BOOL "")
+        set(ASSIMP_BUILD_X3D_IMPORTER       OFF CACHE BOOL "")
+        set(ASSIMP_BUILD_3MF_IMPORTER       OFF CACHE BOOL "")
+        set(ASSIMP_BUILD_MMD_IMPORTER       OFF CACHE BOOL "")
+
+        add_subdirectory("${R3D_ASSIMP_SUBMODULE_PATH}")
+
+        set(R3D_ASSIMP_INC_PATH "${R3D_ASSIMP_SUBMODULE_PATH}/src" CACHE STRING "Path to assimp includes" FORCE)
+    else()
+        message(FATAL_ERROR "Vendored assimp not found!
+Missing: ${R3D_ASSIMP_CMAKELISTS}
+Please initialize the submodule with:
+    git submodule update --init --recursive")
+    endif()
+else()
+    find_package(assimp QUIET)
+
+    if(TARGET assimp)
+        message(STATUS "Using system-installed assimp")
+        get_target_property(RAYLIB_INCLUDE_DIR assimp INTERFACE_INCLUDE_DIRECTORIES)
+        set(R3D_ASSIMP_INC_PATH "${RAYLIB_INCLUDE_DIR}" CACHE STRING "Path to assimp includes" FORCE)
+    else()
+        message(FATAL_ERROR "System assimp not found.
+Make sure assimp is installed and discoverable by CMake (e.g. via CMAKE_PREFIX_PATH or pkg-config).")
+    endif()
+endif()
+
 # Checks for raylib installation
 
 # TODO: Add a version check for raylib, currently compatible with 5.6 dev
@@ -42,9 +132,25 @@ if(R3D_RAYLIB_VENDORED)
     set(R3D_RAYLIB_SUBMODULE_PATH "${R3D_ROOT_PATH}/external/raylib")
     set(R3D_RAYLIB_CMAKELISTS "${R3D_RAYLIB_SUBMODULE_PATH}/CMakeLists.txt")
 
+    # Vendored assimp configuration here!
     if(EXISTS "${R3D_RAYLIB_CMAKELISTS}")
         message(STATUS "Using vendored raylib from: ${R3D_RAYLIB_SUBMODULE_PATH}")
+
+        # Disable model loading and mesh generation support
+        # to avoid symbol redefinition errors with Assimp,
+        # and because it's not needed with r3d
+
+        set(CUSTOMIZE_BUILD ON CACHE BOOL "" FORCE)
+        set(SUPPORT_FILEFORMAT_OBJ OFF CACHE BOOL "" FORCE)
+        set(SUPPORT_FILEFORMAT_MTL OFF CACHE BOOL "" FORCE)
+        set(SUPPORT_FILEFORMAT_IQM OFF CACHE BOOL "" FORCE)
+        set(SUPPORT_FILEFORMAT_GLTF OFF CACHE BOOL "" FORCE)
+        set(SUPPORT_FILEFORMAT_VOX OFF CACHE BOOL "" FORCE)
+        set(SUPPORT_FILEFORMAT_M3D OFF CACHE BOOL "" FORCE)
+        set(SUPPORT_MESH_GENERATION OFF CACHE BOOL "" FORCE)
+
         add_subdirectory("${R3D_RAYLIB_SUBMODULE_PATH}")
+
         set(R3D_RAYLIB_INC_PATH "${R3D_RAYLIB_SUBMODULE_PATH}/src" CACHE STRING "Path to raylib includes" FORCE)
     else()
         message(FATAL_ERROR "Vendored raylib not found!
@@ -87,6 +193,7 @@ add_library(${PROJECT_NAME}
     "${R3D_ROOT_PATH}/src/r3d_skybox.c"
     "${R3D_ROOT_PATH}/src/r3d_curves.c"
     "${R3D_ROOT_PATH}/src/r3d_sprite.c"
+    "${R3D_ROOT_PATH}/src/r3d_model.c"
     "${R3D_ROOT_PATH}/src/r3d_utils.c"
     "${R3D_ROOT_PATH}/src/r3d_state.c"
     "${R3D_ROOT_PATH}/src/r3d_core.c"
@@ -133,7 +240,7 @@ EmbedAssets(${PROJECT_NAME}
 
 # Link project dependencies
 
-target_link_libraries(${PROJECT_NAME} PUBLIC raylib)
+target_link_libraries(${PROJECT_NAME} PUBLIC raylib assimp)
 
 check_library_exists(m cos "" HAVE_LIB_M)
 
@@ -147,6 +254,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
     "${R3D_ROOT_PATH}/external/glad"
     "${R3D_ROOT_PATH}/include"
     "${R3D_RAYLIB_INC_PATH}"
+    "${R3D_ASSIMP_INC_PATH}"
 )
 
 # Ensure the C standard is set for MSVC if using CMake version greater than 3.12

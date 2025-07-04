@@ -54,7 +54,7 @@ extern struct R3D_State {
             unsigned int albedo;            ///< RGB[8|8|8]
             unsigned int emission;          ///< RGB[11|11|10] (if compatible, otherwise 16F || 32F || 8UI)
             unsigned int normal;            ///< RG[16|16] (or) RG[8|8] (R3D_FLAGS_8_BIT_NORMALS or 16F not supported)
-            unsigned int orm;               ///< RGB[5|6|5]
+            unsigned int orm;               ///< RGB[8|8|8]
             unsigned int depth;             ///< DS[24|8]
         } gBuffer;
 
@@ -249,14 +249,10 @@ extern struct R3D_State {
             float texelY;
         } resolution;
 
-        // Render config
+        // Loading param
         struct {
-            R3D_RenderMode mode;
-            R3D_BlendMode blendMode;
-            R3D_ShadowCastMode shadowCastMode;
-            R3D_BillboardMode billboardMode;
-            float alphaScissorThreshold;
-        } render;
+            TextureFilter textureFilter;
+        } loading;
 
         // Miscellaneous flags
         unsigned int flags;
@@ -273,6 +269,7 @@ extern struct R3D_State {
 /* === Helper functions === */
 
 bool r3d_check_texture_format_support(unsigned int format);
+bool r3d_is_default_texture(unsigned int id);
 
 void r3d_calculate_bloom_prefilter_data();
 
@@ -552,17 +549,17 @@ void r3d_texture_load_ibl_brdf_lut(void);
 
 /* === Primitive helper macros */
 
-#define r3d_primitive_draw_quad()                           \
+#define r3d_primitive_bind_and_draw_quad()                  \
 {                                                           \
-    r3d_primitive_draw(&R3D.primitive.quad);                \
+    r3d_primitive_bind_and_draw(&R3D.primitive.quad);       \
 }
 
-#define r3d_primitive_draw_cube()                           \
+#define r3d_primitive_bind_and_draw_cube()                  \
 {                                                           \
-    r3d_primitive_draw(&R3D.primitive.cube);                \
+    r3d_primitive_bind_and_draw(&R3D.primitive.cube);       \
 }
 
-#define r3d_primitive_draw_screen()                         \
+#define r3d_primitive_bind_and_draw_screen()                \
 {                                                           \
     glBindVertexArray(R3D.primitive.dummyVAO);              \
     glDrawArrays(GL_TRIANGLES, 0, 3);                       \

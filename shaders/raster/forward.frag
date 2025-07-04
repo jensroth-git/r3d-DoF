@@ -68,9 +68,7 @@ in vec4 vPosLightSpace[NUM_LIGHTS];
 uniform sampler2D uTexAlbedo;
 uniform sampler2D uTexEmission;
 uniform sampler2D uTexNormal;
-uniform sampler2D uTexOcclusion;
-uniform sampler2D uTexRoughness;
-uniform sampler2D uTexMetalness;
+uniform sampler2D uTexORM;
 
 uniform sampler2D uTexNoise;   //< Noise texture (used for soft shadows)
 
@@ -90,7 +88,7 @@ uniform bool uHasSkybox;
 
 uniform Light uLights[NUM_LIGHTS];
 
-uniform float uAlphaScissorThreshold;
+uniform float uAlphaCutoff;
 uniform vec3 uViewPosition;
 uniform float uFar;
 
@@ -157,6 +155,32 @@ vec3 ComputeF0(float metallic, float specular, vec3 albedo)
     // use (albedo * metallic) as colored specular reflectance at 0 angle for metallic materials
     // SEE: https://google.github.io/filament/Filament.md.html
     return mix(vec3(dielectric), albedo, vec3(metallic));
+}
+
+/* === Lighting functions === */
+
+float Diffuse(float cLdotH, float cNdotV, float cNdotL, float roughness)
+{
+    float FD90_minus_1 = 2.0 * cLdotH * cLdotH * roughness - 0.5;
+    float FdV = 1.0 + FD90_minus_1 * SchlickFresnel(cNdotV);
+    float FdL = 1.0 + FD90_minus_1 * SchlickFresnel(cNdotL);
+
+    return (1.0 / PI) * (FdV * FdL * cNdotL); // Diffuse BRDF (Burley)
+}
+
+vec3 Specular(vec3 F0, float cLdotH, float cNdotH, float cNdotV, float cNdotL, float roughness)
+{
+    roughness = max(roughness, 1e-3);
+
+    float alphaGGX = roughness * roughness;
+    float D = DistributionGGX(cNdotH, alphaGGX);
+    float G = GeometryGGX(cNdotL, cNdotV, alphaGGX);
+
+    float cLdotH5 = SchlickFresnel(cLdotH);
+    float F90 = clamp(50.0 * F0.g, 0.0, 1.0);
+    vec3 F = F0 + (F90 - F0) * cLdotH5;
+
+    return cNdotL * D * F * G; // Specular BRDF (Schlick GGX)
 }
 
 /* === Shadow functions === */
@@ -298,7 +322,7 @@ void main()
     vec4 albedo = vColor * texture(uTexAlbedo, vTexCoord);
 
     // TODO: Alpha scissor is unnecessary after a depth pre-pass
-    if (albedo.a < uAlphaScissorThreshold) discard;
+    if (albedo.a < uAlphaCutoff) discard;
 
     /* Sample emission texture */
 
@@ -306,9 +330,11 @@ void main()
 
     /* Sample ORM texture and extract values */
 
-    float occlusion = uValOcclusion * texture(uTexOcclusion, vTexCoord).r;
-    float roughness = uValRoughness * texture(uTexRoughness, vTexCoord).g;
-    float metalness = uValMetalness * texture(uTexMetalness, vTexCoord).b;
+    vec3 orm = texture(uTexORM, vTexCoord).rgb;
+
+    float occlusion = uValOcclusion * orm.x;
+    float roughness = uValRoughness * orm.y;
+    float metalness = uValMetalness * orm.z;
 
     /* Compute F0 (reflectance at normal incidence) based on the metallic factor */
 
@@ -360,37 +386,13 @@ void main()
 
             /* Compute diffuse lighting */
 
-            vec3 diffLight = vec3(0.0);
-
-            if (metalness < 1.0)
-            {
-                float FD90_minus_1 = 2.0 * cLdotH * cLdotH * roughness - 0.5;
-                float FdV = 1.0 + FD90_minus_1 * SchlickFresnel(cNdotV);
-                float FdL = 1.0 + FD90_minus_1 * SchlickFresnel(cNdotL);
-
-                float diffBRDF = (1.0 / PI) * (FdV * FdL * cNdotL);
-                diffLight = diffBRDF * lightColE;
-            }
+            float diffuseStrength = 1.0 - metalness;  // 0.0 for pure metal, 1.0 for dielectric
+            vec3 diffLight = lightColE * Diffuse(cLdotH, cNdotV, cNdotL, roughness) * diffuseStrength;
 
             /* Compute specular lighting */
 
-            vec3 specLight = vec3(0.0);
-
-            // NOTE: When roughness is 0, specular light should not be entirely disabled.
-
-            if (roughness > 0.0)
-            {
-                float alphaGGX = roughness * roughness;
-                float D = DistributionGGX(cNdotH, alphaGGX);
-                float G = GeometryGGX(cNdotL, cNdotV, alphaGGX);
-
-                float cLdotH5 = SchlickFresnel(cLdotH);
-                float F90 = clamp(50.0 * F0.g, 0.0, 1.0);
-                vec3 F = F0 + (F90 - F0) * cLdotH5;
-
-                vec3 specBRDF = cNdotL * D * F * G;
-                specLight = specBRDF * lightColE * uLights[i].specular;
-            }
+            vec3 specLight =  Specular(F0, cLdotH, cNdotH, cNdotV, cNdotL, roughness);
+            specLight *= lightColE * uLights[i].specular;
 
             /* Apply shadow factor if the light casts shadows */
 

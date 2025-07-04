@@ -33,9 +33,7 @@ in mat3 vTBN;
 uniform sampler2D uTexAlbedo;
 uniform sampler2D uTexNormal;
 uniform sampler2D uTexEmission;
-uniform sampler2D uTexOcclusion;
-uniform sampler2D uTexRoughness;
-uniform sampler2D uTexMetalness;
+uniform sampler2D uTexORM;
 
 uniform float uValOcclusion;
 uniform float uValRoughness;
@@ -77,8 +75,10 @@ void main()
     FragAlbedo = vColor * texture(uTexAlbedo, vTexCoord).rgb;
     FragEmission = vEmission * texture(uTexEmission, vTexCoord).rgb;
     FragNormal = EncodeOctahedral(normalize(vTBN * (texture(uTexNormal, vTexCoord).rgb * 2.0 - 1.0)));
-    
-    FragORM.r = uValOcclusion * texture(uTexOcclusion, vTexCoord).r;
-    FragORM.g = uValRoughness * texture(uTexRoughness, vTexCoord).g;
-    FragORM.b = uValMetalness * texture(uTexMetalness, vTexCoord).b;
+
+    vec3 orm = texture(uTexORM, vTexCoord).rgb;
+
+    FragORM.r = uValOcclusion * orm.x;
+    FragORM.g = uValRoughness * orm.y;
+    FragORM.b = uValMetalness * orm.z;
 }

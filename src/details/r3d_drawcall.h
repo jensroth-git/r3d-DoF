@@ -32,14 +32,20 @@ typedef enum {
     R3D_DRAWCALL_GEOMETRY_SPRITE
 } r3d_drawcall_geometry_e;
 
+typedef enum {
+    R3D_DRAWCALL_RENDER_DEFERRED,
+    R3D_DRAWCALL_RENDER_FORWARD
+} r3d_drawcall_render_mode_e;
+
 typedef struct {
 
     Matrix transform;
-    Material material;
+
+    R3D_Material material;
 
     union {
 
-        Mesh mesh;
+        const R3D_Mesh* mesh;
 
         struct {
             Vector2 uvOffset;
@@ -48,22 +54,17 @@ typedef struct {
 
     } geometry;
 
+    r3d_drawcall_geometry_e geometryType;
+    r3d_drawcall_render_mode_e renderMode;
+
     struct {
-        R3D_BillboardMode billboardMode;
         const Matrix* transforms;
         const Color* colors;
+        BoundingBox allAabb;
         size_t transStride;
         size_t colStride;
         size_t count;
     } instanced;
-
-    struct {
-        R3D_BlendMode blendMode;
-        float alphaScissorThreshold;
-    } forward;
-
-    R3D_ShadowCastMode shadowCastMode;
-    r3d_drawcall_geometry_e geometryType;
 
 } r3d_drawcall_t;
 
@@ -72,11 +73,14 @@ typedef struct {
 void r3d_drawcall_sort_front_to_back(r3d_drawcall_t* calls, size_t count);
 void r3d_drawcall_sort_back_to_front(r3d_drawcall_t* calls, size_t count);
 
-void r3d_drawcall_raster_depth(const r3d_drawcall_t* call);
-void r3d_drawcall_raster_depth_inst(const r3d_drawcall_t* call);
+bool r3d_drawcall_geometry_is_visible(const r3d_drawcall_t* call);
+bool r3d_drawcall_instanced_geometry_is_visible(const r3d_drawcall_t* call);
 
-void r3d_drawcall_raster_depth_cube(const r3d_drawcall_t* call);
-void r3d_drawcall_raster_depth_cube_inst(const r3d_drawcall_t* call);
+void r3d_drawcall_raster_depth(const r3d_drawcall_t* call, bool shadow);
+void r3d_drawcall_raster_depth_inst(const r3d_drawcall_t* call, bool shadow);
+
+void r3d_drawcall_raster_depth_cube(const r3d_drawcall_t* call, bool shadow);
+void r3d_drawcall_raster_depth_cube_inst(const r3d_drawcall_t* call, bool shadow);
 
 void r3d_drawcall_raster_geometry(const r3d_drawcall_t* call);
 void r3d_drawcall_raster_geometry_inst(const r3d_drawcall_t* call);

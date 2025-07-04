@@ -68,7 +68,7 @@ r3d_skybox_load_from_panorama_hdr(const char* fileName, int size)
         rlEnableFramebuffer(fbo);
 
         rlClearScreenBuffers();
-        r3d_primitive_draw_cube();
+        r3d_primitive_bind_and_draw_cube();
     }
 
     // Clean up: unbind texture and framebuffer
@@ -126,7 +126,7 @@ static TextureCubemap r3d_skybox_generate_irradiance(TextureCubemap sky)
         rlFramebufferAttach(fbo, irradianceId, RL_ATTACHMENT_COLOR_CHANNEL0, RL_ATTACHMENT_CUBEMAP_POSITIVE_X + i, 0);
         rlEnableFramebuffer(fbo);
         rlClearScreenBuffers();
-        r3d_primitive_draw_cube();
+        r3d_primitive_bind_and_draw_cube();
     }
 
     // Disable shader
@@ -212,7 +212,7 @@ static TextureCubemap r3d_skybox_generate_prefilter(TextureCubemap sky)
             r3d_shader_set_mat4(generate.prefilter, uMatView, R3D.misc.matCubeViews[i]);
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, prefilterId, mip);
             rlClearScreenBuffers();
-            r3d_primitive_draw_cube();
+            r3d_primitive_bind_and_draw_cube();
         }
     }
 

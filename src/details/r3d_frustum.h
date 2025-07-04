@@ -42,9 +42,10 @@ typedef struct {
 
 r3d_frustum_t r3d_frustum_create(Matrix matrixViewProjection);
 BoundingBox r3d_frustum_get_bounding_box(Matrix matViewProjection);
-bool r3d_frustum_is_point_in(const r3d_frustum_t* frustum, Vector3 position);
-bool r3d_frustum_is_point_in_xyz(const r3d_frustum_t* frustum, float x, float y, float z);
-bool r3d_frustum_is_sphere_in(const r3d_frustum_t* frustum, Vector3 position, float radius);
-bool r3d_frustum_is_bounding_box_in(const r3d_frustum_t* frustum, BoundingBox aabb);
+bool r3d_frustum_is_point_in(const r3d_frustum_t* frustum, const Vector3* position);
+bool r3d_frustum_is_points_in(const r3d_frustum_t* frustum, const Vector3* positions, int count);
+bool r3d_frustum_is_sphere_in(const r3d_frustum_t* frustum, const Vector3* position, float radius);
+bool r3d_frustum_is_aabb_in(const r3d_frustum_t* frustum, const BoundingBox* aabb);
+bool r3d_frustum_is_obb_in(const r3d_frustum_t* frustum, const BoundingBox* aabb, const Matrix* transform);
 
 #endif // R3D_DETAILS_FRUSTUM_H

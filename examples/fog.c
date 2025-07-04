@@ -2,25 +2,17 @@
 
 /* === Resources === */
 
-static Model		sponza = { 0 };
-static Camera3D		camera = { 0 };
+static R3D_Model sponza = { 0 };
+static Camera3D camera = { 0 };
 
-
-/* === Examples === */
+/* === Example === */
 
 const char* Init(void)
 {
     R3D_Init(GetScreenWidth(), GetScreenHeight(), 0);
     SetTargetFPS(60);
 
-    sponza = RES_LoadModel("sponza.glb");
-
-    for (int i = 0; i < sponza.materialCount; i++) {
-        sponza.materials[i].maps[MATERIAL_MAP_ALBEDO].color = WHITE;
-        sponza.materials[i].maps[MATERIAL_MAP_OCCLUSION].value = 1.0f;
-        sponza.materials[i].maps[MATERIAL_MAP_ROUGHNESS].value = 1.0f;
-        sponza.materials[i].maps[MATERIAL_MAP_METALNESS].value = 1.0f;
-    }
+    sponza = R3D_LoadModel(RESOURCES_PATH "sponza.glb");
 
     R3D_SetFogMode(R3D_FOG_EXP);
 
@@ -48,7 +40,7 @@ void Update(float delta)
 void Draw(void)
 {
     R3D_Begin(camera);
-        R3D_DrawModel(sponza, (Vector3) { 0 }, 1.0f);
+        R3D_DrawModel(&sponza, (Vector3) { 0 }, 1.0f);
     R3D_End();
 
     DrawFPS(10, 10);
@@ -56,6 +48,6 @@ void Draw(void)
 
 void Close(void)
 {
-    UnloadModel(sponza);
+    R3D_UnloadModel(&sponza, true);
     R3D_Close();
 }

@@ -1,8 +1,14 @@
+- Fix issue with light culling and impl glScissor for deferred lighting
+- PBR ambient lighting (without skybox)
+- Adding intensity factor or something else for the skybox
+- Adding texcoord scale/offset and normal scale to R3D_Material
+- Adding an optionnal pass for debanding
+- Use Sample2DArray for shadow maps
+
 - Apply the alpha scissor test directly in the depth shaders (this will work for both forward rendering and shadow maps).  
-- Make SSAO work for forward rendering as well.  
 - Create an internal inclusion system for shaders to reduce GLSL code duplication.
 - Provide an easy way to define the desired number of lights in the shader (forward) (preferably configurable at runtime).
 - Implement a system to save loaded skyboxes along with their generated irradiance and prefiltered textures, allowing for later reloading.
 - Implement CSM (Cascaded Shadow Maps) for directional shadows.
 - Implement SSR (Screen Space Reflections) with an example.
-- Implement support for shadow transparency interaction (colored shadows?)
+- Implement better support for shadow and transparency interaction (colored shadows?)

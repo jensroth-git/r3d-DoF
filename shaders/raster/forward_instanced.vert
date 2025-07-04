@@ -72,21 +72,15 @@ void BillboardFront(inout mat4 model, inout mat3 normal)
     float scaleY = length(vec3(model[1]));
     float scaleZ = length(vec3(model[2]));
 
-    // Copy the inverted view vectors for the X, Y, and Z axes
-    // while applying the original scales
-    model[0] = vec4(normalize(uMatInvView[0].xyz) * scaleX, 0.0);
-    model[1] = vec4(normalize(uMatInvView[1].xyz) * scaleY, 0.0);
-    model[2] = vec4(normalize(uMatInvView[2].xyz) * scaleZ, 0.0);
+    // Copy the view basis vectors directly, applying original scales
+    model[0] = vec4(uMatInvView[0].xyz * scaleX, 0.0);
+    model[1] = vec4(uMatInvView[1].xyz * scaleY, 0.0);
+    model[2] = vec4(uMatInvView[2].xyz * scaleZ, 0.0);
 
     // Update the normal matrix
-    // For normals, use the inverse transpose of the scales
-    float invScaleX = 1.0 / scaleX;
-    float invScaleY = 1.0 / scaleY;
-    float invScaleZ = 1.0 / scaleZ;
-
-    normal[0] = normalize(uMatInvView[0].xyz) * invScaleX;
-    normal[1] = normalize(uMatInvView[1].xyz) * invScaleY;
-    normal[2] = normalize(uMatInvView[2].xyz) * invScaleZ;
+    normal[0] = uMatInvView[0].xyz;
+    normal[1] = uMatInvView[1].xyz;
+    normal[2] = uMatInvView[2].xyz;
 }
 
 void BillboardY(inout mat4 model, inout mat3 normal)
@@ -102,8 +96,8 @@ void BillboardY(inout mat4 model, inout mat3 normal)
     // Preserve the original Y-axis of the model (vertical direction)
     vec3 upVector = normalize(vec3(model[1]));
     
-    // Direction from the camera to the object
-    vec3 lookDirection = normalize(position - vec3(uMatInvView[3]));
+    // Direction from the object to the camera
+    vec3 lookDirection = normalize(vec3(uMatInvView[3]) - position);
     
     // Compute the right vector using the cross product
     vec3 rightVector = normalize(cross(upVector, lookDirection));
@@ -117,14 +111,9 @@ void BillboardY(inout mat4 model, inout mat3 normal)
     model[2] = vec4(frontVector * scaleZ, 0.0);
     
     // Update the normal matrix
-    // For normals, use the inverse transpose of the scales
-    float invScaleX = 1.0 / scaleX;
-    float invScaleY = 1.0 / scaleY;
-    float invScaleZ = 1.0 / scaleZ;
-    
-    normal[0] = rightVector * invScaleX;
-    normal[1] = upVector * invScaleY;
-    normal[2] = frontVector * invScaleZ;
+    normal[0] = rightVector;
+    normal[1] = upVector;
+    normal[2] = frontVector;
 }
 
 /* === Main program === */

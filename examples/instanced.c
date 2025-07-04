@@ -1,31 +1,28 @@
 #include "./common.h"
+#include "r3d.h"
+
+/* === Constants === */
 
 #define INSTANCE_COUNT 1000
 
-
 /* === Resources === */
 
-static Camera3D		camera = { 0 };
+static Camera3D camera = { 0 };
 
-static Mesh		    mesh = { 0 };
-static Material     material = { 0 };
-static Matrix       transforms[INSTANCE_COUNT] = {0};
-static Color        colors[INSTANCE_COUNT] = {0};
+static R3D_Mesh mesh = { 0 };
+static R3D_Material material = { 0 };
+static Matrix transforms[INSTANCE_COUNT] = { 0 };
+static Color colors[INSTANCE_COUNT] = { 0 };
 
-
-/* === Examples === */
+/* === Example === */
 
 const char* Init(void)
 {
     R3D_Init(GetScreenWidth(), GetScreenHeight(), 0);
     SetTargetFPS(60);
 
-    mesh = GenMeshCube(1, 1, 1);
-
-    material = LoadMaterialDefault();
-    R3D_SetMaterialOcclusion(&material, NULL, 1.0f);
-    R3D_SetMaterialRoughness(&material, NULL, 0.5f);
-    R3D_SetMaterialMetalness(&material, NULL, 0.5f);
+    mesh = R3D_GenMeshCube(1, 1, 1, true);
+    material = R3D_GetDefaultMaterial();
 
     //GenMeshTangents(&mesh);
 
@@ -75,7 +72,7 @@ void Update(float delta)
 void Draw(void)
 {
     R3D_Begin(camera);
-        R3D_DrawMeshInstancedEx(mesh, material, transforms, colors, INSTANCE_COUNT);
+        R3D_DrawMeshInstancedEx(&mesh, &material, transforms, colors, INSTANCE_COUNT);
     R3D_End();
 
     DrawFPS(10, 10);
@@ -83,7 +80,7 @@ void Draw(void)
 
 void Close(void)
 {
-    UnloadMaterial(material);
-    UnloadMesh(mesh);
+    R3D_UnloadMaterial(&material);
+    R3D_UnloadMesh(&mesh);
     R3D_Close();
 }
