@@ -2,6 +2,7 @@
 - PBR ambient lighting (without skybox)
 - Adding intensity factor or something else for the skybox
 - Adding texcoord scale/offset and normal scale to R3D_Material
+- Adding an optionnal pass for debanding
 
 - Apply the alpha scissor test directly in the depth shaders (this will work for both forward rendering and shadow maps).  
 - Create an internal inclusion system for shaders to reduce GLSL code duplication.
