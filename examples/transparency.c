@@ -27,7 +27,6 @@ const char* Init(void)
     cube.materials[0].orm.roughness = 0.2f;
     cube.materials[0].orm.metalness = 0.2f;
 
-    cube.materials[0].cullMode = R3D_CULL_NONE;
     cube.materials[0].blendMode = R3D_BLEND_ALPHA;
     cube.materials[0].shadowCastMode = R3D_SHADOW_CAST_DISABLED;
 
