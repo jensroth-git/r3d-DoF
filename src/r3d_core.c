@@ -826,18 +826,21 @@ void r3d_prepare_cull_drawcalls(void)
 void r3d_prepare_sort_drawcalls(void)
 {
     // Sort front-to-back for deferred rendering
-    // This optimizes the depth test
-    r3d_drawcall_sort_front_to_back(
-        (r3d_drawcall_t*)R3D.container.aDrawDeferred.data,
-        R3D.container.aDrawDeferred.count
-    );
+    if (R3D.state.flags & R3D_FLAG_OPAQUE_SORTING) {
+        r3d_drawcall_sort_front_to_back(
+            (r3d_drawcall_t*)R3D.container.aDrawDeferred.data,
+            R3D.container.aDrawDeferred.count
+        );
+    }
 
     // Sort back-to-front for forward rendering
-    // Ensures better transparency handling
-    r3d_drawcall_sort_back_to_front(
-        (r3d_drawcall_t*)R3D.container.aDrawForward.data,
-        R3D.container.aDrawForward.count
-    );
+    // TODO: If the forward rendering is forced there can be opaque objects here!
+    if (R3D.state.flags & R3D_FLAG_TRANSPARENT_SORTING) {
+        r3d_drawcall_sort_back_to_front(
+            (r3d_drawcall_t*)R3D.container.aDrawForward.data,
+            R3D.container.aDrawForward.count
+        );
+    }
 }
 
 void r3d_pass_shadow_maps(void)

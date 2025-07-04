@@ -59,15 +59,17 @@
  */
 typedef unsigned int R3D_Flags;
 
-#define R3D_FLAG_NONE               0           /**< No special rendering flags */
-#define R3D_FLAG_FXAA               (1 << 0)    /**< Enables Fast Approximate Anti-Aliasing (FXAA) */
-#define R3D_FLAG_BLIT_LINEAR        (1 << 1)    /**< Uses linear filtering when blitting the final image */
-#define R3D_FLAG_ASPECT_KEEP        (1 << 2)    /**< Maintains the aspect ratio of the internal resolution when blitting the final image */
-#define R3D_FLAG_STENCIL_TEST       (1 << 3)    /**< Performs a stencil test on each rendering pass affecting geometry */
-#define R3D_FLAG_DEPTH_PREPASS      (1 << 4)    /**< Performs a depth pre-pass before forward rendering, improving desktop GPU performance but unnecessary on mobile */
-#define R3D_FLAG_8_BIT_NORMALS      (1 << 5)    /**< Use 8-bit precision for the normals buffer (deferred); default is 16-bit float */
-#define R3D_FLAG_FORCE_FORWARD      (1 << 6)    /**< Used to force forward rendering for opaque objects, useful for tile-based devices */
-#define R3D_FLAG_NO_FRUSTUM_CULLING (1 << 7)    /**< Disables internal frustum culling. Manual culling is allowed, but may break shadow visibility if objects casting shadows are skipped. */
+#define R3D_FLAG_NONE                   0           /**< No special rendering flags */
+#define R3D_FLAG_FXAA                   (1 << 0)    /**< Enables Fast Approximate Anti-Aliasing (FXAA) */
+#define R3D_FLAG_BLIT_LINEAR            (1 << 1)    /**< Uses linear filtering when blitting the final image */
+#define R3D_FLAG_ASPECT_KEEP            (1 << 2)    /**< Maintains the aspect ratio of the internal resolution when blitting the final image */
+#define R3D_FLAG_STENCIL_TEST           (1 << 3)    /**< Performs a stencil test on each rendering pass affecting geometry */
+#define R3D_FLAG_DEPTH_PREPASS          (1 << 4)    /**< Performs a depth pre-pass before forward rendering, improving desktop GPU performance but unnecessary on mobile */
+#define R3D_FLAG_8_BIT_NORMALS          (1 << 5)    /**< Use 8-bit precision for the normals buffer (deferred); default is 16-bit float */
+#define R3D_FLAG_FORCE_FORWARD          (1 << 6)    /**< Used to force forward rendering for opaque objects, useful for tile-based devices */
+#define R3D_FLAG_NO_FRUSTUM_CULLING     (1 << 7)    /**< Disables internal frustum culling. Manual culling is allowed, but may break shadow visibility if objects casting shadows are skipped. */
+#define R3D_FLAG_TRANSPARENT_SORTING    (1 << 8)    /**< Back-to-front sorting of transparent objects for correct blending of non-discarded fragments. */
+#define R3D_FLAG_OPAQUE_SORTING         (1 << 9)    /**< Front-to-back sorting of opaque objects to optimize depth testing at the cost of additional sorting. */
 
 /**
  * @brief Blend modes for rendering.
