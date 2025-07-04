@@ -6,7 +6,7 @@
 /* === Resources === */
 
 static R3D_Mesh plane = { 0 };
-static R3D_Model robot = { 0 };
+static R3D_Model dancer = { 0 };
 static R3D_Material material = { 0 };
 static Camera3D camera = { 0 };
 
@@ -31,7 +31,7 @@ const char* Init(void)
     R3D_SetAmbientColor((Color) { 7, 7, 7, 255 });
 
     plane = R3D_GenMeshPlane(32, 32, 1, 1, true);
-    robot = R3D_LoadModel(RESOURCES_PATH "dancer.glb");
+    dancer = R3D_LoadModel(RESOURCES_PATH "dancer.glb");
 
     material = R3D_GetDefaultMaterial();
 
@@ -69,8 +69,8 @@ const char* Init(void)
 void Update(float delta)
 {
     UpdateCamera(&camera, CAMERA_FREE);
-    robot.anim = &anims[0];
-    robot.animFrame++;
+    dancer.anim = &anims[0];
+    dancer.animFrame++;
 
     R3D_SetLightColor(lights[0], ColorFromHSV(90.0f * GetTime() + 90.0f, 1.0f, 1.0f));
     R3D_SetLightColor(lights[1], ColorFromHSV(90.0f * GetTime() - 90.0f, 1.0f, 1.0f));
@@ -82,14 +82,14 @@ void Draw(void)
 
     R3D_Begin(camera);
         R3D_DrawMesh(&plane, &material, MatrixIdentity());
-        R3D_DrawModel(&robot, (Vector3) { 0 }, 100.0f);
+        R3D_DrawModel(&dancer, (Vector3) { 0 }, 100.0f);
     R3D_End();
 }
 
 void Close(void)
 {
     R3D_UnloadMesh(&plane);
-    R3D_UnloadModel(&robot, true);
+    R3D_UnloadModel(&dancer, true);
     R3D_UnloadMaterial(&material);
     R3D_Close();
 }
