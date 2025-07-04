@@ -441,6 +441,13 @@ void main()
 
         ambient = kD * texture(uCubeIrradiance, Nr).rgb;
     }
+    else
+    {
+        const float NdotV_ = 1.0; // view facing normal, for ambient assume facing camera
+        vec3 kS = F0 + (1.0 - F0) * SchlickFresnel(NdotV_);
+        vec3 kD = (1.0 - kS) * (1.0 - metalness);
+        ambient *= (kD * albedo.rgb + kS);
+    }
 
     /* Compute ambient occlusion map */
 

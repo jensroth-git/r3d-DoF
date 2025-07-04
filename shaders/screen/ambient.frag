@@ -178,13 +178,56 @@ uniform vec4 uColor;
 
 layout(location = 0) out vec4 FragDiffuse;
 
+/* === Helper Functions === */
+
+vec3 ComputeF0(float metallic, float specular, vec3 albedo)
+{
+    float dielectric = 0.16 * specular * specular;
+    // use (albedo * metallic) as colored specular reflectance at 0 angle for metallic materials
+    // SEE: https://google.github.io/filament/Filament.md.html
+    return mix(vec3(dielectric), albedo, vec3(metallic));
+}
+
+float SchlickFresnel(float u)
+{
+    float m = 1.0 - u;
+    float m2 = m * m;
+    return m2 * m2 * m; // pow(m,5)
+}
+
 /* === Main === */
 
 void main()
 {
-    float occlusion = texture(uTexORM, vTexCoord).r;
+    // ORM texture: R = Occlusion, G = Roughness, B = Metallic
+    vec3 orm = texture(uTexORM, vTexCoord).rgb;
+    float occlusion = orm.r;
+    float roughness = orm.g;
+    float metalness = orm.b;
+
+    // Apply SSAO
     occlusion *= texture(uTexSSAO, vTexCoord).r;
-    FragDiffuse = uColor * occlusion;
+
+    // Albedo (assume contained in uColor.rgb)
+    vec3 albedo = uColor.rgb;
+
+    // Specular color at normal incidence (F0)
+    vec3 F0 = ComputeF0(metalness, 1.0, albedo);
+
+    // Ambient irradiance (assumed uniform from uColor)
+    vec3 ambientLight = uColor.rgb;
+
+    // Fresnel factor approximation (at grazing = max reflection)
+    const float NdotV = 1.0; // view facing normal, for ambient assume facing camera
+    vec3 kS = F0 + (1.0 - F0) * SchlickFresnel(NdotV);
+
+    // Energy conservation: reduce diffuse when metalness increases
+    vec3 kD = (1.0 - kS) * (1.0 - metalness);
+
+    // Final ambient color with occlusion
+    vec3 ambient = (kD * albedo + kS) * ambientLight * occlusion;
+
+    FragDiffuse = vec4(ambient, uColor.a);
 }
 
 #endif
