@@ -161,23 +161,23 @@ r3d_primitive_t r3d_primitive_load_cube(void)
     const size_t stride = sizeof(VERTICES[0]);
     
     // Attribute 0: Positions (vec3)
-    rlSetVertexAttribute(0, 3, RL_FLOAT, false, stride, offsetof(typeof(VERTICES[0]), pos));
+    rlSetVertexAttribute(0, 3, RL_FLOAT, false, stride, (int)offsetof(typeof(VERTICES[0]), pos));
     rlEnableVertexAttribute(0);
     
     // Attribute 1: Texcoords (vec2)
-    rlSetVertexAttribute(1, 2, RL_FLOAT, false, stride, offsetof(typeof(VERTICES[0]), texcoord));
+    rlSetVertexAttribute(1, 2, RL_FLOAT, false, stride, (int)offsetof(typeof(VERTICES[0]), texcoord));
     rlEnableVertexAttribute(1);
     
     // Attribute 2: Normals (vec3)
-    rlSetVertexAttribute(2, 3, RL_FLOAT, false, stride, offsetof(typeof(VERTICES[0]), normal));
+    rlSetVertexAttribute(2, 3, RL_FLOAT, false, stride, (int)offsetof(typeof(VERTICES[0]), normal));
     rlEnableVertexAttribute(2);
     
     // Attribute 3: Coulors (vec4 unsigned char)
-    rlSetVertexAttribute(3, 4, RL_UNSIGNED_BYTE, true, stride, offsetof(typeof(VERTICES[0]), color));
+    rlSetVertexAttribute(3, 4, RL_UNSIGNED_BYTE, true, stride, (int)offsetof(typeof(VERTICES[0]), color));
     rlEnableVertexAttribute(3);
     
     // Attribute 4: Tangents (vec4)
-    rlSetVertexAttribute(4, 4, RL_FLOAT, false, stride, offsetof(typeof(VERTICES[0]), tangent));
+    rlSetVertexAttribute(4, 4, RL_FLOAT, false, stride, (int)offsetof(typeof(VERTICES[0]), tangent));
     rlEnableVertexAttribute(4);
     
     rlDisableVertexArray();
