@@ -23,6 +23,8 @@ const char* Init(void)
     R3D_SetSSAORadius(4.0f);
     R3D_SetBloomMode(R3D_BLOOM_MIX);
 
+    R3D_SetAmbientColor(GRAY);
+
     sponza = R3D_LoadModel(RESOURCES_PATH "sponza.glb");
     skybox = R3D_LoadSkybox(RESOURCES_PATH "sky/skybox3.png", CUBEMAP_LAYOUT_AUTO_DETECT);
 
