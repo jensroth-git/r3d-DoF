@@ -43,7 +43,7 @@ const char* Init(void)
         R3D_SetLightActive(light, true);
     }
 
-    return "[r3d] - sprite example";
+    return "[r3d] - Sprite example";
 }
 
 void Update(float delta)
