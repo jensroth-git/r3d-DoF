@@ -250,7 +250,7 @@ typedef struct R3D_Material {
     R3D_ShadowCastMode shadowCastMode;    /**< Shadow casting mode for the object. */
     R3D_BillboardMode billboardMode;      /**< Billboard mode applied to the object. */
 
-    float alphaScissorThreshold;          /**< Alpha threshold below which fragments are discarded. */
+    float alphaCutoff;          /**< Alpha threshold below which fragments are discarded. */
 
 } R3D_Material;
 
