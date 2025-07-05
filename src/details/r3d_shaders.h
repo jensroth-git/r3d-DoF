@@ -136,6 +136,11 @@ typedef struct {
 
 typedef struct {
     unsigned int id;
+    r3d_shader_uniform_mat4_t uMatMVP;
+} r3d_shader_raster_depth_volume_t;
+
+typedef struct {
+    unsigned int id;
     r3d_shader_uniform_mat4_t uBoneMatrices[R3D_SHADER_MAX_BONES];
     r3d_shader_uniform_int_t uUseSkinning;
     r3d_shader_uniform_mat4_t uMatMVP;

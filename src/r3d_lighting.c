@@ -348,6 +348,12 @@ void R3D_SetShadowBias(R3D_Light id, float value)
     light->shadow.bias = value;
 }
 
+BoundingBox R3D_GetLightBoundingBox(R3D_Light id)
+{
+    r3d_get_and_check_light(light, id, (BoundingBox) { 0 });
+    return r3d_light_get_bounding_box(light);
+}
+
 void R3D_DrawLightShape(R3D_Light id)
 {
     r3d_get_and_check_light(light, id);

@@ -203,6 +203,7 @@ void r3d_shaders_load(void)
     r3d_shader_load_raster_forward();
     r3d_shader_load_raster_forward_inst();
     r3d_shader_load_raster_skybox();
+    r3d_shader_load_raster_depth_volume();
     r3d_shader_load_raster_depth();
     r3d_shader_load_raster_depth_inst();
     r3d_shader_load_raster_depth_cube();
@@ -247,6 +248,7 @@ void r3d_shaders_unload(void)
     rlUnloadShaderProgram(R3D.shader.raster.forward.id);
     rlUnloadShaderProgram(R3D.shader.raster.forwardInst.id);
     rlUnloadShaderProgram(R3D.shader.raster.skybox.id);
+    rlUnloadShaderProgram(R3D.shader.raster.depthVolume.id);
     rlUnloadShaderProgram(R3D.shader.raster.depth.id);
     rlUnloadShaderProgram(R3D.shader.raster.depthInst.id);
     rlUnloadShaderProgram(R3D.shader.raster.depthCube.id);
@@ -284,6 +286,7 @@ void r3d_framebuffer_load_gbuffer(int width, int height)
     gBuffer->id = rlLoadFramebuffer();
     if (gBuffer->id == 0) {
         TraceLog(LOG_WARNING, "Failed to create framebuffer");
+        return;
     }
 
     rlEnableFramebuffer(gBuffer->id);
@@ -358,6 +361,7 @@ void r3d_framebuffer_load_pingpong_ssao(int width, int height)
     ssao->id = rlLoadFramebuffer();
     if (ssao->id == 0) {
         TraceLog(LOG_WARNING, "Failed to create framebuffer");
+        return;
     }
 
     rlEnableFramebuffer(ssao->id);
@@ -396,6 +400,7 @@ void r3d_framebuffer_load_deferred(int width, int height)
     deferred->id = rlLoadFramebuffer();
     if (deferred->id == 0) {
         TraceLog(LOG_WARNING, "Failed to create framebuffer");
+        return;
     }
 
     rlEnableFramebuffer(deferred->id);
@@ -436,6 +441,7 @@ void r3d_framebuffer_load_scene(int width, int height)
     scene->id = rlLoadFramebuffer();
     if (scene->id == 0) {
         TraceLog(LOG_WARNING, "Failed to create framebuffer");
+        return;
     }
 
     rlEnableFramebuffer(scene->id);
@@ -535,6 +541,7 @@ void r3d_framebuffer_load_pingpong_post(int width, int height)
     post->id = rlLoadFramebuffer();
     if (post->id == 0) {
         TraceLog(LOG_WARNING, "Failed to create framebuffer");
+        return;
     }
 
     rlEnableFramebuffer(post->id);
@@ -976,6 +983,15 @@ void r3d_shader_load_raster_skybox(void)
     r3d_shader_enable(raster.skybox);
     r3d_shader_set_samplerCube_slot(raster.skybox, uCubeSky, 0);
     r3d_shader_disable();
+}
+
+void r3d_shader_load_raster_depth_volume(void)
+{
+    R3D.shader.raster.depthVolume.id = rlLoadShaderCode(
+        DEPTH_VOLUME_VERT, DEPTH_VOLUME_FRAG
+    );
+
+    r3d_shader_get_location(raster.depthVolume, uMatMVP);
 }
 
 void r3d_shader_load_raster_depth(void)

@@ -32,6 +32,10 @@
 
 #define R3D_GBUFFER_COUNT 4
 
+#define R3D_STENCIL_GEOMETRY_BIT     0x80                               // Bit 7 (MSB) pour la géométrie
+#define R3D_STENCIL_GEOMETRY_MASK    0x80                               // Masque pour le bit géométrie uniquement
+#define R3D_STENCIL_EFFECT_MASK      0x7F                               // Masque pour les bits d'effet (bits 0-6)
+#define R3D_STENCIL_EFFECT_ID(n)     ((n) & R3D_STENCIL_EFFECT_MASK)    // Extraction de l'ID d'effet (7 bits - 127 effets)
 
 /* === Global r3d state === */
 
@@ -55,7 +59,7 @@ extern struct R3D_State {
             unsigned int emission;          ///< RGB[11|11|10] (if compatible, otherwise 16F || 32F || 8UI)
             unsigned int normal;            ///< RG[16|16] (or) RG[8|8] (R3D_FLAGS_8_BIT_NORMALS or 16F not supported)
             unsigned int orm;               ///< RGB[8|8|8]
-            unsigned int depth;             ///< DS[24|8]
+            unsigned int depth;             ///< DS[24|8] -> Stencil: First 4-bit true/false geometry and 4-bit for various tests
         } gBuffer;
 
         // Ping-pong buffer for SSAO blur processing (half internal resolution)
@@ -142,6 +146,7 @@ extern struct R3D_State {
             r3d_shader_raster_forward_t forward;
             r3d_shader_raster_forward_inst_t forwardInst;
             r3d_shader_raster_skybox_t skybox;
+            r3d_shader_raster_depth_volume_t depthVolume;
             r3d_shader_raster_depth_t depth;
             r3d_shader_raster_depth_inst_t depthInst;
             r3d_shader_raster_depth_cube_t depthCube;
@@ -227,7 +232,8 @@ extern struct R3D_State {
         struct {
             Matrix view, invView;
             Matrix proj, invProj;
-            Vector3 position;
+            Matrix viewProj;
+            Vector3 viewPos;
         } transform;
 
         // Frustum data
@@ -316,6 +322,7 @@ void r3d_shader_load_raster_geometry_inst(void);
 void r3d_shader_load_raster_forward(void);
 void r3d_shader_load_raster_forward_inst(void);
 void r3d_shader_load_raster_skybox(void);
+void r3d_shader_load_raster_depth_volume(void);
 void r3d_shader_load_raster_depth(void);
 void r3d_shader_load_raster_depth_inst(void);
 void r3d_shader_load_raster_depth_cube(void);

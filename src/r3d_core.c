@@ -43,14 +43,20 @@ static bool r3d_has_forward_calls(void);
 
 static void r3d_sprite_get_uv_scale_offset(Vector2* uvScale, Vector2* uvOffset, const R3D_Sprite* sprite, float sgnX, float sgnY);
 
-static void r3d_gbuffer_enable_stencil_write(void);
-static void r3d_gbuffer_enable_stencil_test(bool passOnGeometry);
-static void r3d_gbuffer_disable_stencil(void);
+static void r3d_depth_stencil_attach(void);
+static void r3d_stencil_enable_geometry_write(void);
+static void r3d_stencil_enable_geometry_test(GLenum condition);
+static void r3d_stencil_enable_effect_write(uint8_t effectID);
+static void r3d_stencil_enable_effect_test(GLenum condition, uint8_t effectID);
+static void r3d_stencil_enable_effect_write_with_geometry_test(GLenum condition, uint8_t effectID);
+static void r3d_stencil_disable(void);
 
 static void r3d_prepare_process_lights_and_batch(void);
 static void r3d_prepare_cull_drawcalls(void);
 static void r3d_prepare_sort_drawcalls(void);
 static void r3d_prepare_anim_drawcalls(void);
+
+static void r3d_clear_gbuffer(bool enableFramebuffer, bool clearColor, bool clearDepth, bool clearStencil);
 
 static void r3d_pass_shadow_maps(void);
 static void r3d_pass_gbuffer(void);
@@ -284,7 +290,7 @@ void R3D_Begin(Camera3D camera)
     r3d_array_clear(&R3D.container.aDrawDeferredInst);
 
     // Store camera position
-    R3D.state.transform.position = camera.position;
+    R3D.state.transform.viewPos = camera.position;
 
     // Compute aspect ratio
     float aspect = 1.0f;
@@ -316,20 +322,18 @@ void R3D_Begin(Camera3D camera)
     }
 
     // Compute view matrix
-    R3D.state.transform.view = MatrixLookAt(
-        camera.position,
-        camera.target,
-        camera.up
-    );
+    R3D.state.transform.view = MatrixLookAt(camera.position, camera.target, camera.up);
 
     // Store inverse matrices
     R3D.state.transform.invProj = MatrixInvert(R3D.state.transform.proj);
     R3D.state.transform.invView = MatrixInvert(R3D.state.transform.view);
 
+    // Compute view projection matrix
+    R3D.state.transform.viewProj = MatrixMultiply(R3D.state.transform.view, R3D.state.transform.proj);
+
     // Compute frustum
-    Matrix matMV = MatrixMultiply(R3D.state.transform.view, R3D.state.transform.proj);
-    R3D.state.frustum.aabb = r3d_frustum_get_bounding_box(matMV);
-    R3D.state.frustum.shape = r3d_frustum_create(matMV);
+    R3D.state.frustum.aabb = r3d_frustum_get_bounding_box(R3D.state.transform.viewProj);
+    R3D.state.frustum.shape = r3d_frustum_create(R3D.state.transform.viewProj);
 }
 
 void R3D_End(void)
@@ -351,13 +355,10 @@ void R3D_End(void)
     /* --- Rendering! --- */
 
     if (r3d_has_deferred_calls()) {
-        r3d_pass_gbuffer();
+        r3d_pass_gbuffer(); //< This pass also clear the gbuffer...
     }
     else {
-        // If there are no objects to render in deferred mode, at least clear the
-        // depth buffer, which is also used in forward rendering
-        rlEnableFramebuffer(R3D.framebuffer.gBuffer.id);
-        glClear(GL_DEPTH_BUFFER_BIT);
+        r3d_clear_gbuffer(true, false, true, true);
     }
 
     if (R3D.env.ssaoEnabled) {
@@ -702,37 +703,63 @@ void r3d_sprite_get_uv_scale_offset(Vector2* uvScale, Vector2* uvOffset, const R
     uvOffset->y = frameY * uvScale->y;
 }
 
-void r3d_gbuffer_enable_stencil_write(void)
+void r3d_depth_stencil_attach(void)
 {
-    // Re-attach the depth/stencil buffer to the framebuffer
-    glFramebufferTexture2D(
-        GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT,
-        GL_TEXTURE_2D, R3D.framebuffer.gBuffer.depth, 0
-    );
-
-    // Setup the stencil: write 1 everywhere where geometry exists
-    glEnable(GL_STENCIL_TEST);
-    glStencilMask(0xFF);                        // Permit writing to stencil buffer
-    glStencilFunc(GL_ALWAYS, 1, 0xFF);          // Always pass the test, write 1
-    glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);  // Replace stencil value with 1
+    // Attach depth-stencil texture to the framebuffer
+    GLuint stencil = R3D.framebuffer.gBuffer.depth;
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, stencil, 0);
 }
 
-void r3d_gbuffer_enable_stencil_test(bool passOnGeometry)
+void r3d_stencil_enable_geometry_write(void)
 {
-    // Attach the depth/stencil texture of the G-Buffer
-    glFramebufferTexture2D(
-        GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT,
-        GL_TEXTURE_2D, R3D.framebuffer.gBuffer.depth, 0
-    );
-
-    // Setup the stencil
+    // Enable stencil test and write the geometry bit
     glEnable(GL_STENCIL_TEST);
-    glStencilMask(0x00);                            // Disable writing to the stencil buffer
-    glStencilFunc(GL_EQUAL, passOnGeometry, 0xFF);  // Pass the test only when the value is 0 or 1 (void or geometry)
-    glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);         // Do not modify the stencil buffer
+    glStencilMask(R3D_STENCIL_GEOMETRY_MASK); // Only write geometry bit
+    glStencilFunc(GL_ALWAYS, R3D_STENCIL_GEOMETRY_BIT, R3D_STENCIL_GEOMETRY_MASK);
+    glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE); // Replace geometry bit on pass
 }
 
-void r3d_gbuffer_disable_stencil(void)
+void r3d_stencil_enable_geometry_test(GLenum condition)
+{
+    // Enable stencil test to check geometry bit against a condition
+    glEnable(GL_STENCIL_TEST);
+    glStencilMask(0x00); // Disable writing
+    glStencilFunc(condition, R3D_STENCIL_GEOMETRY_BIT, R3D_STENCIL_GEOMETRY_MASK);
+    glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP); // No changes on test
+}
+
+void r3d_stencil_enable_effect_write(uint8_t effectID)
+{
+    // Enable stencil test and write effect ID bits
+    glEnable(GL_STENCIL_TEST);
+    glStencilMask(R3D_STENCIL_EFFECT_MASK); // Only write effect bits
+    glStencilFunc(GL_ALWAYS, effectID & R3D_STENCIL_EFFECT_MASK, R3D_STENCIL_EFFECT_MASK);
+    glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE); // Replace effect bits on pass
+}
+
+void r3d_stencil_enable_effect_test(GLenum condition, uint8_t effectID)
+{
+    // Enable stencil test to check effect bits against a condition
+    glEnable(GL_STENCIL_TEST);
+    glStencilMask(0x00); // Disable writing
+    glStencilFunc(condition, effectID & R3D_STENCIL_EFFECT_MASK, R3D_STENCIL_EFFECT_MASK);
+    glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP); // No changes on test
+}
+
+void r3d_stencil_enable_effect_write_with_geometry_test(GLenum condition, uint8_t effectID)
+{
+    glEnable(GL_STENCIL_TEST);
+
+    // Enable effect ID write only if geometry bit passes the test
+    glStencilMask(R3D_STENCIL_EFFECT_MASK);
+    glStencilFunc(condition, R3D_STENCIL_GEOMETRY_BIT, R3D_STENCIL_GEOMETRY_MASK);
+    glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+
+    // Note: stencil reference value should include desired effectID bits
+    // OpenGL will apply the write mask when replacing stencil value
+}
+
+void r3d_stencil_disable(void)
 {
     glDisable(GL_STENCIL_TEST);
 }
@@ -741,9 +768,6 @@ void r3d_prepare_process_lights_and_batch(void)
 {
     // Clear the previous light batch
     r3d_array_clear(&R3D.container.aLightBatch);
-
-    // Compute view / projection matrix
-    Matrix viewProj = MatrixMultiply(R3D.state.transform.view, R3D.state.transform.proj);
 
     for (int id = 1; id <= (int)r3d_registry_get_allocated_count(&R3D.container.rLights); id++)
     {
@@ -1061,6 +1085,39 @@ void r3d_pass_shadow_maps(void)
     rlLoadIdentity();
 }
 
+void r3d_clear_gbuffer(bool enableFramebuffer, bool clearColor, bool clearDepth, bool clearStencil)
+{
+    if (enableFramebuffer) {
+        rlEnableFramebuffer(R3D.framebuffer.gBuffer.id);
+    }
+    
+    GLuint bitfield = 0;
+
+    if (clearColor) {
+        glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+        glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+        bitfield |= GL_COLOR_BUFFER_BIT;
+    }
+
+    if (clearDepth || clearStencil) {
+        r3d_depth_stencil_attach();
+    }
+
+    if (clearDepth) {
+        glClearDepth(1.0f);
+        glDepthMask(GL_TRUE);
+        bitfield |= GL_DEPTH_BUFFER_BIT;
+    }
+
+    if (clearStencil) {
+        glClearStencil(0x00);
+        glStencilMask(0xFF);
+        bitfield |= GL_STENCIL_BUFFER_BIT;
+    }
+
+    glClear(bitfield);
+}
+
 void r3d_pass_gbuffer(void)
 {
     rlEnableFramebuffer(R3D.framebuffer.gBuffer.id);
@@ -1071,25 +1128,26 @@ void r3d_pass_gbuffer(void)
         rlEnableDepthTest();
         rlEnableDepthMask();
 
-        // Enbale geometry stencil write
-        r3d_gbuffer_enable_stencil_write();
+        /* --- Clear the gbuffer --- */
 
-        // Clear the buffers
-        glClearStencil(0);
-        glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+        r3d_clear_gbuffer(false, true, true, true);
 
-        // Setup projection matrix
+        /* --- Enbale geometry stencil write --- */
+
+        r3d_stencil_enable_geometry_write();
+
+        /* --- Setup RLGL matrices --- */
+
         rlMatrixMode(RL_PROJECTION);
         rlPushMatrix();
         rlSetMatrixProjection(R3D.state.transform.proj);
 
-        // Setup view matrix
         rlMatrixMode(RL_MODELVIEW);
         rlLoadIdentity();
         rlMultMatrixf(MatrixToFloat(R3D.state.transform.view));
 
-        // Draw geometry with the stencil buffer activated
+        /* --- Draw geometry with the stencil buffer activated --- */
+
         r3d_shader_enable(raster.geometryInst);
         {
             for (size_t i = 0; i < R3D.container.aDrawDeferredInst.count; i++) {
@@ -1104,11 +1162,11 @@ void r3d_pass_gbuffer(void)
         }
         r3d_shader_disable();
 
-        // Reset projection matrix
+        /* --- Reset RLGL matrices --- */
+
         rlMatrixMode(RL_PROJECTION);
         rlPopMatrix();
 
-        // Reset view matrix
         rlMatrixMode(RL_MODELVIEW);
         rlLoadIdentity();
     }
@@ -1124,10 +1182,11 @@ void r3d_pass_ssao(void)
 
         // Enable gbuffer stencil test (render on geometry)
         if (R3D.state.flags & R3D_FLAG_STENCIL_TEST) {
-            r3d_gbuffer_enable_stencil_test(true);
+            r3d_depth_stencil_attach();
+            r3d_stencil_enable_geometry_test(GL_EQUAL);
         }
         else {
-            r3d_gbuffer_disable_stencil();
+            r3d_stencil_disable();
         }
 
         // Bind first SSAO output texture
@@ -1197,17 +1256,21 @@ void r3d_pass_deferred_ambient(void)
     rlEnableFramebuffer(R3D.framebuffer.deferred.id);
     {
         rlViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
-        rlClearScreenBuffers();
         rlDisableColorBlend();
         rlDisableDepthTest();
         rlDisableDepthMask();
 
+        // Clear color targets only (diffuse/specular)
+        glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+
         // Enable gbuffer stencil test (render on geometry)
         if (R3D.state.flags & R3D_FLAG_STENCIL_TEST) {
-            r3d_gbuffer_enable_stencil_test(true);
+            r3d_depth_stencil_attach();
+            r3d_stencil_enable_geometry_test(GL_EQUAL);
         }
         else {
-            r3d_gbuffer_disable_stencil();
+            r3d_stencil_disable();
         }
 
         if (R3D.env.useSky)
@@ -1239,7 +1302,7 @@ void r3d_pass_deferred_ambient(void)
                 r3d_shader_bind_samplerCube(screen.ambientIbl, uCubePrefilter, R3D.env.sky.prefilter.id);
                 r3d_shader_bind_sampler2D(screen.ambientIbl, uTexBrdfLut, R3D.texture.iblBrdfLut);
 
-                r3d_shader_set_vec3(screen.ambientIbl, uViewPosition, R3D.state.transform.position);
+                r3d_shader_set_vec3(screen.ambientIbl, uViewPosition, R3D.state.transform.viewPos);
                 r3d_shader_set_mat4(screen.ambientIbl, uMatInvProj, R3D.state.transform.invProj);
                 r3d_shader_set_mat4(screen.ambientIbl, uMatInvView, R3D.state.transform.invView);
                 r3d_shader_set_vec4(screen.ambientIbl, uQuatSkybox, R3D.env.quatSky);
@@ -1302,46 +1365,90 @@ void r3d_pass_deferred_lights(void)
     rlEnableFramebuffer(R3D.framebuffer.deferred.id);
     {
         rlViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
+        rlDisableBackfaceCulling();
         rlDisableDepthTest();
+        rlDisableDepthMask();
 
         rlEnableColorBlend();
         rlSetBlendMode(RL_BLEND_ADDITIVE);
+
+        // Attaches the stencil buffer for rendering volumes
+        r3d_depth_stencil_attach();
 
         // NOTE: The specular output might have been disabled during
         //       the previous ambient pass if no skybox was present.
         //       Re-enable it by activating draw buffer 2.
         rlActiveDrawBuffers(2);
 
-        // Enable gbuffer stencil test (render on geometry)
-        if (R3D.state.flags & R3D_FLAG_STENCIL_TEST) {
-            r3d_gbuffer_enable_stencil_test(true);
-        }
-        else {
-            r3d_gbuffer_disable_stencil();
-        }
+        /* --- Bind all textures --- */
+
+        r3d_shader_bind_sampler2D(screen.lighting, uTexAlbedo, R3D.framebuffer.gBuffer.albedo);
+        r3d_shader_bind_sampler2D(screen.lighting, uTexNormal, R3D.framebuffer.gBuffer.normal);
+        r3d_shader_bind_sampler2D(screen.lighting, uTexDepth, R3D.framebuffer.gBuffer.depth);
+        r3d_shader_bind_sampler2D(screen.lighting, uTexORM, R3D.framebuffer.gBuffer.orm);
+        r3d_shader_bind_sampler2D(screen.lighting, uTexNoise, R3D.texture.blueNoise);
+
+        /* --- Defines constant uniforms --- */
 
         r3d_shader_enable(screen.lighting);
         {
             r3d_shader_set_mat4(screen.lighting, uMatInvProj, R3D.state.transform.invProj);
             r3d_shader_set_mat4(screen.lighting, uMatInvView, R3D.state.transform.invView);
-            r3d_shader_set_vec3(screen.lighting, uViewPosition, R3D.state.transform.position);
+            r3d_shader_set_vec3(screen.lighting, uViewPosition, R3D.state.transform.viewPos);
+        }
 
-            r3d_shader_bind_sampler2D(screen.lighting, uTexAlbedo, R3D.framebuffer.gBuffer.albedo);
-            r3d_shader_bind_sampler2D(screen.lighting, uTexNormal, R3D.framebuffer.gBuffer.normal);
-            r3d_shader_bind_sampler2D(screen.lighting, uTexDepth, R3D.framebuffer.gBuffer.depth);
-            r3d_shader_bind_sampler2D(screen.lighting, uTexORM, R3D.framebuffer.gBuffer.orm);
-            r3d_shader_bind_sampler2D(screen.lighting, uTexNoise, R3D.texture.blueNoise);
+        /* --- Lighting rendering --- */
 
-            for (int i = 0; i < R3D.container.aLightBatch.count; i++) {
-                r3d_light_batched_t* light = r3d_array_at(&R3D.container.aLightBatch, i);
+        for (int i = 0; i < R3D.container.aLightBatch.count; i++)
+        {
+            r3d_light_batched_t* light = r3d_array_at(&R3D.container.aLightBatch, i);
 
-                // Send common data
+            // Use an effect ID that avoids 0 (already used by no-effect areas)
+            uint8_t lightEffectID = (i + 1) % 127; // Start at 1, wrap to 127
+            if (lightEffectID == 0) lightEffectID = 1; // Avoid 0
+
+            // If the light has a volume, we first draw it in the stencil
+            // buffer in order to limit the rendering to this area
+            if (light->data->type != R3D_LIGHT_DIR) {
+                r3d_shader_enable(raster.depthVolume);
+                {
+                    // TODO: Use the real volumes of lights by projecting cones and spheres
+
+                    Vector3 scale = Vector3Scale(Vector3Subtract(light->aabb.max, light->aabb.min), 0.5f);
+                    Vector3 position = Vector3Scale(Vector3Add(light->aabb.min, light->aabb.max), 0.5f);
+
+                    Matrix transform = MatrixScale(scale.x, scale.y, scale.z);
+                    transform = MatrixMultiply(transform, MatrixTranslate(position.x, position.y, position.z));
+                    r3d_shader_set_mat4(raster.depthVolume, uMatMVP, MatrixMultiply(transform, R3D.state.transform.viewProj));
+                    
+                    // Stencil setup for volume writing
+                    if (R3D.state.flags & R3D_FLAG_STENCIL_TEST) {
+                        // Written only in areas where there is geometry
+                        r3d_stencil_enable_effect_write_with_geometry_test(GL_EQUAL, lightEffectID);
+                    } else {
+                        // Written all over the volume of light
+                        r3d_stencil_enable_effect_write(lightEffectID);
+                    }
+
+                    glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+                    r3d_primitive_bind_and_draw_cube();
+                }
+            }
+
+            // Lighting accumulation pass
+            r3d_shader_enable(screen.lighting);
+            {
+                // If light has volume, render only in areas marked with its effect ID
+                if (light->data->type == R3D_LIGHT_DIR) glDisable(GL_STENCIL_TEST);
+                else r3d_stencil_enable_effect_test(GL_EQUAL, lightEffectID);
+
+                // Sending data common to each type of light
                 r3d_shader_set_vec3(screen.lighting, uLight.color, light->data->color);
                 r3d_shader_set_float(screen.lighting, uLight.specular, light->data->specular);
                 r3d_shader_set_float(screen.lighting, uLight.energy, light->data->energy);
                 r3d_shader_set_int(screen.lighting, uLight.type, light->data->type);
 
-                // Send specific data
+                // Sending specific data according to the type of light
                 if (light->data->type == R3D_LIGHT_DIR) {
                     r3d_shader_set_vec3(screen.lighting, uLight.direction, light->data->direction);
                 }
@@ -1359,7 +1466,7 @@ void r3d_pass_deferred_lights(void)
                     r3d_shader_set_float(screen.lighting, uLight.attenuation, light->data->attenuation);
                 }
 
-                // Send shadow map data
+                // Sending shadow map data
                 if (light->data->shadow.enabled) {
                     if (light->data->type == R3D_LIGHT_OMNI) {
                         r3d_shader_bind_samplerCube(screen.lighting, uLight.shadowCubemap, light->data->shadow.map.depth);
@@ -1369,8 +1476,6 @@ void r3d_pass_deferred_lights(void)
                         r3d_shader_bind_sampler2D(screen.lighting, uLight.shadowMap, light->data->shadow.map.depth);
                         r3d_shader_set_mat4(screen.lighting, uLight.matVP, light->data->shadow.matVP);
                         if (light->data->type == R3D_LIGHT_DIR) {
-                            // NOTE: The position of the directional lights is automatically calculated
-                            //       in `r3d_light_get_matrix_vp_dir`, and is used for shadows
                             r3d_shader_set_vec3(screen.lighting, uLight.position, light->data->position);
                         }
                     }
@@ -1384,19 +1489,21 @@ void r3d_pass_deferred_lights(void)
                     r3d_shader_set_int(screen.lighting, uLight.shadow, false);
                 }
 
+                glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
                 r3d_primitive_bind_and_draw_screen();
             }
-
-            r3d_shader_unbind_sampler2D(screen.lighting, uTexAlbedo);
-            r3d_shader_unbind_sampler2D(screen.lighting, uTexNormal);
-            r3d_shader_unbind_sampler2D(screen.lighting, uTexDepth);
-            r3d_shader_unbind_sampler2D(screen.lighting, uTexORM);
-            r3d_shader_unbind_sampler2D(screen.lighting, uTexNoise);
-
-            r3d_shader_unbind_samplerCube(screen.lighting, uLight.shadowCubemap);
-            r3d_shader_unbind_sampler2D(screen.lighting, uLight.shadowMap);
         }
-        r3d_shader_disable();
+
+        /* --- Unbind all textures --- */
+
+        r3d_shader_unbind_sampler2D(screen.lighting, uTexAlbedo);
+        r3d_shader_unbind_sampler2D(screen.lighting, uTexNormal);
+        r3d_shader_unbind_sampler2D(screen.lighting, uTexDepth);
+        r3d_shader_unbind_sampler2D(screen.lighting, uTexORM);
+        r3d_shader_unbind_sampler2D(screen.lighting, uTexNoise);
+
+        r3d_shader_unbind_samplerCube(screen.lighting, uLight.shadowCubemap);
+        r3d_shader_unbind_sampler2D(screen.lighting, uLight.shadowMap);
     }
 }
 
@@ -1405,8 +1512,6 @@ void r3d_pass_scene_background(void)
     rlEnableFramebuffer(R3D.framebuffer.scene.id);
     {
         rlViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
-        rlDisableColorBlend();
-        rlDisableDepthTest();
 
         if (R3D.env.useSky)
         {
@@ -1421,7 +1526,11 @@ void r3d_pass_scene_background(void)
             rlMultMatrixf(MatrixToFloat(R3D.state.transform.view));
 
             // Disable backface culling to render the cube from the inside
+            // And other pipeline states that are not necessary
             rlDisableBackfaceCulling();
+            rlDisableColorBlend();
+            rlDisableDepthTest();
+            rlDisableDepthMask();
 
             // Render skybox
             r3d_shader_enable(raster.skybox);
@@ -1429,42 +1538,14 @@ void r3d_pass_scene_background(void)
                 Matrix matView = rlGetMatrixModelview();
                 Matrix matProj = rlGetMatrixProjection();
 
-                // Bind cubemap texture
                 r3d_shader_bind_samplerCube(raster.skybox, uCubeSky, R3D.env.sky.cubemap.id);
-
-                // Set skybox parameters
                 r3d_shader_set_vec4(raster.skybox, uRotation, R3D.env.quatSky);
+                r3d_shader_set_mat4(raster.skybox, uMatView, matView);
+                r3d_shader_set_mat4(raster.skybox, uMatProj, matProj);
 
-                // Try binding vertex array objects (VAO) or use VBOs if not possible
-                if (!rlEnableVertexArray(R3D.primitive.cube.vao)) {
-                    rlEnableVertexBuffer(R3D.primitive.cube.vbo);
-                    rlSetVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION, 3, RL_FLOAT, 0, 0, 0);
-                    rlEnableVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION);
-                    rlEnableVertexBufferElement(R3D.primitive.cube.ebo);
-                }
+                r3d_primitive_bind_and_draw_cube();
 
-                // Draw skybox (supporting stereo rendering)
-                if (rlIsStereoRenderEnabled()) {
-                    for (int eye = 0; eye < 2; eye++) {
-                        rlViewport(eye * rlGetFramebufferWidth() / 2, 0, rlGetFramebufferWidth() / 2, rlGetFramebufferHeight());
-                        r3d_shader_set_mat4(raster.skybox, uMatView, MatrixMultiply(matView, rlGetMatrixViewOffsetStereo(eye)));
-                        r3d_shader_set_mat4(raster.skybox, uMatProj, rlGetMatrixProjectionStereo(eye));
-                        rlDrawVertexArrayElements(0, 36, 0);
-                    }
-                }
-                else {
-                    r3d_shader_set_mat4(raster.skybox, uMatView, matView);
-                    r3d_shader_set_mat4(raster.skybox, uMatProj, matProj);
-                    rlDrawVertexArrayElements(0, 36, 0);
-                }
-
-                // Unbind cubemap texture
                 r3d_shader_unbind_samplerCube(raster.skybox, uCubeSky);
-
-                // Disable all possible vertex array objects (or VBOs)
-                rlDisableVertexArray();
-                rlDisableVertexBuffer();
-                rlDisableVertexBufferElement();
             }
             r3d_shader_disable();
 
@@ -1487,9 +1568,6 @@ void r3d_pass_scene_background(void)
                 R3D.env.backgroundColor.z,
                 0.0f
             });
-            glClearBufferfv(GL_COLOR, 1, (float[4]) {
-                0.0f, 0.0f, 0.0f, 0.0f
-            });
         }
     }
 }
@@ -1503,7 +1581,9 @@ void r3d_pass_scene_deferred(void)
         rlDisableDepthTest();
 
         // Enable gbuffer stencil test (render on geometry)
-        r3d_gbuffer_enable_stencil_test(true);
+        // This is necessary to maintain a correct background
+        r3d_depth_stencil_attach();
+        r3d_stencil_enable_geometry_test(GL_EQUAL);
 
         r3d_shader_enable(screen.scene);
         {
@@ -1593,24 +1673,13 @@ static void r3d_pass_scene_forward_filter_and_send_lights(const r3d_drawcall_t* 
     }
 }
 
-static void r3d_pass_scene_forward_inst_filter_and_send_lights(const r3d_drawcall_t* call)
+static void r3d_pass_scene_forward_instanced_filter_and_send_lights(const r3d_drawcall_t* call)
 {
     int lightCount = 0;
 
     for (int i = 0; i < R3D_SHADER_FORWARD_NUM_LIGHTS && i < R3D.container.aLightBatch.count; i++, lightCount++)
     {
         r3d_light_batched_t* light = r3d_array_at(&R3D.container.aLightBatch, i);
-
-        // TODO: Determine which light should illuminate all instances seems compromised in the current state...
-        //if (light->data->type != R3D_LIGHT_DIR) {
-        //    if (!r3d_collision_check_point_in_sphere_sqr(
-        //        (Vector3) {
-        //        call->transform.m12, call->transform.m13, call->transform.m14
-        //    },
-        //        light->data->position, light->data->range)) {
-        //        continue;
-        //    }
-        //}
 
         // Send common data
         r3d_shader_set_int(raster.forwardInst, uLights[i].enabled, true);
@@ -1676,7 +1745,8 @@ void r3d_pass_scene_forward_depth_prepass(void)
         rlEnableDepthMask();
 
         // Reactivation of geometry drawing in the stencil buffer
-        r3d_gbuffer_enable_stencil_write();
+        r3d_depth_stencil_attach();
+        r3d_stencil_enable_geometry_write();
 
         // Setup projection matrix
         rlMatrixMode(RL_PROJECTION);
@@ -1738,7 +1808,7 @@ void r3d_pass_scene_forward(void)
             rlDisableDepthMask();
         }
         else {
-            r3d_gbuffer_enable_stencil_write();
+            r3d_stencil_enable_geometry_write();
             rlEnableDepthMask();
         }
 
@@ -1771,11 +1841,11 @@ void r3d_pass_scene_forward(void)
                     r3d_shader_set_int(raster.forwardInst, uHasSkybox, false);
                 }
 
-                r3d_shader_set_vec3(raster.forwardInst, uViewPosition, R3D.state.transform.position);
+                r3d_shader_set_vec3(raster.forwardInst, uViewPosition, R3D.state.transform.viewPos);
 
                 for (int i = 0; i < R3D.container.aDrawForwardInst.count; i++) {
                     r3d_drawcall_t* call = r3d_array_at(&R3D.container.aDrawForwardInst, i);
-                    r3d_pass_scene_forward_inst_filter_and_send_lights(call);
+                    r3d_pass_scene_forward_instanced_filter_and_send_lights(call);
                     r3d_drawcall_raster_forward_inst(call);
                 }
 
@@ -1814,7 +1884,7 @@ void r3d_pass_scene_forward(void)
                     r3d_shader_set_int(raster.forward, uHasSkybox, false);
                 }
 
-                r3d_shader_set_vec3(raster.forward, uViewPosition, R3D.state.transform.position);
+                r3d_shader_set_vec3(raster.forward, uViewPosition, R3D.state.transform.viewPos);
 
                 for (int i = 0; i < R3D.container.aDrawForward.count; i++) {
                     r3d_drawcall_t* call = r3d_array_at(&R3D.container.aDrawForward, i);
@@ -1850,7 +1920,7 @@ void r3d_pass_scene_forward(void)
 
 void r3d_pass_post_init(unsigned int fb, unsigned srcAttach)
 {
-    r3d_gbuffer_disable_stencil();
+    r3d_stencil_disable();
 
     glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.post.id);
 
@@ -2129,11 +2199,13 @@ void r3d_reset_raylib_state(void)
     rlDisableFramebuffer();
 
     rlViewport(0, 0, GetRenderWidth(), GetRenderHeight());
-    rlSetBlendMode(RL_BLEND_ALPHA);
+
+    glDisable(GL_STENCIL_TEST);
     rlEnableBackfaceCulling();
     rlEnableColorBlend();
     rlDisableDepthTest();
     rlEnableDepthMask();
 
+    rlSetBlendMode(RL_BLEND_ALPHA);
     glDepthFunc(GL_LEQUAL);
 }

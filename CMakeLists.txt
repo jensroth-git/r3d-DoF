@@ -215,6 +215,8 @@ EmbedShaders(${PROJECT_NAME}
     "${R3D_ROOT_PATH}/shaders/raster/forward.frag"
     "${R3D_ROOT_PATH}/shaders/raster/skybox.vert"
     "${R3D_ROOT_PATH}/shaders/raster/skybox.frag"
+    "${R3D_ROOT_PATH}/shaders/raster/depth_volume.vert"
+    "${R3D_ROOT_PATH}/shaders/raster/depth_volume.frag"
     "${R3D_ROOT_PATH}/shaders/raster/depth.vert"
     "${R3D_ROOT_PATH}/shaders/raster/depth_instanced.vert"
     "${R3D_ROOT_PATH}/shaders/raster/depth.frag"

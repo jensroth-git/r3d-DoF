@@ -1892,6 +1892,9 @@ R3DAPI void R3D_SetShadowBias(R3D_Light id, float value);
 // LIGHTING: Light Helper Functions
 // --------------------------------------------
 
+
+BoundingBox R3D_GetLightBoundingBox(R3D_Light light);
+
 /**
  * @brief Draws the area of influence of the light in 3D space.
  *
