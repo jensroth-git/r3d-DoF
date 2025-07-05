@@ -246,30 +246,34 @@ BoundingBox r3d_light_get_bounding_box(const r3d_light_t* light)
         {
             // Get radius of the cone base
             const float h = light->range;
-            const float theta = light->outerCutOff;
-            const float r = h * tanf(theta);
-
+            const float r = h * tanf(light->outerCutOff);
+            
             // Tip of the cone = light->position
-            // End point of the cone
             Vector3 tip = light->position;
+            
+            // End point of the cone (center of the base)
             Vector3 base = {
                 light->position.x + light->direction.x * h,
                 light->position.y + light->direction.y * h,
-                light->position.y + light->direction.y * h
+                light->position.z + light->direction.z * h
             };
-
-            // Now build the bounding box that encloses the cone
-            // We assume a circular base with radius `r` centered at `base`.
-
-            // Include tip
+            
+            // Initialize bounding box with the tip
             aabb.min = aabb.max = tip;
-
-            // Approximate the base area by adding/subtracting `r` in all directions from the base point
+            
+            // Extend bounding box to include the base center
             for (int i = 0; i < 3; ++i) {
-                float bmin = ((float*)&base)[i] - r;
-                float bmax = ((float*)&base)[i] + r;
-                ((float*)&aabb.min)[i] = fminf(((float*)&aabb.min)[i], bmin);
-                ((float*)&aabb.max)[i] = fmaxf(((float*)&aabb.max)[i], bmax);
+                float baseCoord = ((float*)&base)[i];
+                ((float*)&aabb.min)[i] = fminf(((float*)&aabb.min)[i], baseCoord);
+                ((float*)&aabb.max)[i] = fmaxf(((float*)&aabb.max)[i], baseCoord);
+            }
+            
+            // Extend bounding box to include the circular base
+            // Cette approximation inclut un cube autour de la base circulaire
+            for (int i = 0; i < 3; ++i) {
+                float baseCoord = ((float*)&base)[i];
+                ((float*)&aabb.min)[i] = fminf(((float*)&aabb.min)[i], baseCoord - r);
+                ((float*)&aabb.max)[i] = fmaxf(((float*)&aabb.max)[i], baseCoord + r);
             }
         }
         break;
