@@ -244,7 +244,6 @@ BoundingBox r3d_light_get_bounding_box(const r3d_light_t* light)
 
     case R3D_LIGHT_SPOT:
         {
-            // Get radius of the cone base
             const float h = light->range;
             const float r = h * tanf(light->outerCutOff);
             
@@ -261,19 +260,66 @@ BoundingBox r3d_light_get_bounding_box(const r3d_light_t* light)
             // Initialize bounding box with the tip
             aabb.min = aabb.max = tip;
             
-            // Extend bounding box to include the base center
+            // Extend to include the base center
             for (int i = 0; i < 3; ++i) {
                 float baseCoord = ((float*)&base)[i];
                 ((float*)&aabb.min)[i] = fminf(((float*)&aabb.min)[i], baseCoord);
                 ((float*)&aabb.max)[i] = fmaxf(((float*)&aabb.max)[i], baseCoord);
             }
             
-            // Extend bounding box to include the circular base
-            // Cette approximation inclut un cube autour de la base circulaire
-            for (int i = 0; i < 3; ++i) {
-                float baseCoord = ((float*)&base)[i];
-                ((float*)&aabb.min)[i] = fminf(((float*)&aabb.min)[i], baseCoord - r);
-                ((float*)&aabb.max)[i] = fmaxf(((float*)&aabb.max)[i], baseCoord + r);
+            // Calculate orthogonal vectors to the light direction
+            Vector3 dir = light->direction;
+            Vector3 up, right;
+            
+            // Find a vector that's not parallel to dir
+            if (fabsf(dir.x) < 0.9f) {
+                up = (Vector3){1.0f, 0.0f, 0.0f};
+            } else {
+                up = (Vector3){0.0f, 1.0f, 0.0f};
+            }
+            
+            // Calculate right vector (cross product)
+            right = (Vector3){
+                dir.y * up.z - dir.z * up.y,
+                dir.z * up.x - dir.x * up.z,
+                dir.x * up.y - dir.y * up.x
+            };
+            
+            // Normalize right vector
+            float rightLen = sqrtf(right.x * right.x + right.y * right.y + right.z * right.z);
+            if (rightLen > 0.0f) {
+                right.x /= rightLen;
+                right.y /= rightLen;
+                right.z /= rightLen;
+            }
+            
+            // Calculate up vector (cross product of dir and right)
+            up = (Vector3){
+                dir.y * right.z - dir.z * right.y,
+                dir.z * right.x - dir.x * right.z,
+                dir.x * right.y - dir.y * right.x
+            };
+            
+            // Sample points on the circular base to get accurate bounding box
+            const int numSamples = 8; // 8 points should be sufficient for most cases
+            for (int i = 0; i < numSamples; ++i) {
+                float angle = (float)(i * 2.0 * M_PI / numSamples);
+                float cosAngle = cosf(angle);
+                float sinAngle = sinf(angle);
+                
+                // Point on the circular base
+                Vector3 point = {
+                    base.x + r * (cosAngle * right.x + sinAngle * up.x),
+                    base.y + r * (cosAngle * right.y + sinAngle * up.y),
+                    base.z + r * (cosAngle * right.z + sinAngle * up.z)
+                };
+                
+                // Extend bounding box to include this point
+                for (int j = 0; j < 3; ++j) {
+                    float coord = ((float*)&point)[j];
+                    ((float*)&aabb.min)[j] = fminf(((float*)&aabb.min)[j], coord);
+                    ((float*)&aabb.max)[j] = fmaxf(((float*)&aabb.max)[j], coord);
+                }
             }
         }
         break;
