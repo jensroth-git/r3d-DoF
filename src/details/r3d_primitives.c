@@ -25,7 +25,7 @@ r3d_primitive_t r3d_primitive_load_quad(void)
 {
     // Structure: Pos(3) + Normal(3) + TexCoord(2) + Color(4 uchar) + Tangent(4)
     // Stride: 16 floats + 4 unsigned char = 64 + 4 = 68 bytes par vertex
-    static const struct {
+    static const struct vertex {
         float pos[3];
         float normal[3];
         float texcoord[2];
@@ -61,23 +61,23 @@ r3d_primitive_t r3d_primitive_load_quad(void)
     const size_t stride = sizeof(VERTICES[0]);
     
     // Attribute 0: Positions (vec3)
-    rlSetVertexAttribute(0, 3, RL_FLOAT, false, stride, (int)offsetof(typeof(VERTICES[0]), pos));
+    rlSetVertexAttribute(0, 3, RL_FLOAT, false, stride, (int)offsetof(struct vertex, pos));
     rlEnableVertexAttribute(0);
     
     // Attribute 1: Texcoords (vec2)
-    rlSetVertexAttribute(1, 2, RL_FLOAT, false, stride, (int)offsetof(typeof(VERTICES[0]), texcoord));
+    rlSetVertexAttribute(1, 2, RL_FLOAT, false, stride, (int)offsetof(struct vertex, texcoord));
     rlEnableVertexAttribute(1);
     
     // Attribute 2: Normals (vec3)
-    rlSetVertexAttribute(2, 3, RL_FLOAT, false, stride, (int)offsetof(typeof(VERTICES[0]), normal));
+    rlSetVertexAttribute(2, 3, RL_FLOAT, false, stride, (int)offsetof(struct vertex, normal));
     rlEnableVertexAttribute(2);
     
     // Attribute 3: Coulors (vec4 unsigned char)
-    rlSetVertexAttribute(3, 4, RL_UNSIGNED_BYTE, true, stride, (int)offsetof(typeof(VERTICES[0]), color));
+    rlSetVertexAttribute(3, 4, RL_UNSIGNED_BYTE, true, stride, (int)offsetof(struct vertex, color));
     rlEnableVertexAttribute(3);
     
     // Attribute 4: Tangents (vec4)
-    rlSetVertexAttribute(4, 4, RL_FLOAT, false, stride, (int)offsetof(typeof(VERTICES[0]), tangent));
+    rlSetVertexAttribute(4, 4, RL_FLOAT, false, stride, (int)offsetof(struct vertex, tangent));
     rlEnableVertexAttribute(4);
     
     rlDisableVertexArray();
@@ -88,7 +88,7 @@ r3d_primitive_t r3d_primitive_load_quad(void)
 r3d_primitive_t r3d_primitive_load_cube(void)
 {
     // Structure: Pos(3) + Normal(3) + TexCoord(2) + Color(4 uchar) + Tangent(4)
-    static const struct {
+    static const struct vertex {
         float pos[3];
         float normal[3];
         float texcoord[2];
@@ -161,23 +161,23 @@ r3d_primitive_t r3d_primitive_load_cube(void)
     const size_t stride = sizeof(VERTICES[0]);
     
     // Attribute 0: Positions (vec3)
-    rlSetVertexAttribute(0, 3, RL_FLOAT, false, stride, (int)offsetof(typeof(VERTICES[0]), pos));
+    rlSetVertexAttribute(0, 3, RL_FLOAT, false, stride, (int)offsetof(struct vertex, pos));
     rlEnableVertexAttribute(0);
     
     // Attribute 1: Texcoords (vec2)
-    rlSetVertexAttribute(1, 2, RL_FLOAT, false, stride, (int)offsetof(typeof(VERTICES[0]), texcoord));
+    rlSetVertexAttribute(1, 2, RL_FLOAT, false, stride, (int)offsetof(struct vertex, texcoord));
     rlEnableVertexAttribute(1);
     
     // Attribute 2: Normals (vec3)
-    rlSetVertexAttribute(2, 3, RL_FLOAT, false, stride, (int)offsetof(typeof(VERTICES[0]), normal));
+    rlSetVertexAttribute(2, 3, RL_FLOAT, false, stride, (int)offsetof(struct vertex, normal));
     rlEnableVertexAttribute(2);
     
     // Attribute 3: Coulors (vec4 unsigned char)
-    rlSetVertexAttribute(3, 4, RL_UNSIGNED_BYTE, true, stride, (int)offsetof(typeof(VERTICES[0]), color));
+    rlSetVertexAttribute(3, 4, RL_UNSIGNED_BYTE, true, stride, (int)offsetof(struct vertex, color));
     rlEnableVertexAttribute(3);
     
     // Attribute 4: Tangents (vec4)
-    rlSetVertexAttribute(4, 4, RL_FLOAT, false, stride, (int)offsetof(typeof(VERTICES[0]), tangent));
+    rlSetVertexAttribute(4, 4, RL_FLOAT, false, stride, (int)offsetof(struct vertex, tangent));
     rlEnableVertexAttribute(4);
     
     rlDisableVertexArray();
