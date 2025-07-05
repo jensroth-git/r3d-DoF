@@ -1,5 +1,6 @@
 #include "./common.h"
 #include "r3d.h"
+#include "raylib.h"
 #include "raymath.h"
 
 /* === Resources === */
@@ -78,9 +79,7 @@ void Draw(void)
 		R3D_DrawModelPro(&model, transform);
 	R3D_End();
 
-	DrawFPS(10, 10);
-
-	DrawText("Model made by TommyLingL", 10, GetScreenHeight() - 30, 20, LIME);
+	DrawCredits("Model made by TommyLingL");
 }
 
 void Close(void)

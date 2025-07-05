@@ -84,6 +84,8 @@ void Draw(void)
         R3D_DrawMesh(&plane, &material, MatrixIdentity());
         R3D_DrawModel(&dancer, (Vector3) { 0 }, 100.0f);
     R3D_End();
+
+	DrawCredits("Model made by zhuoyi0904");
 }
 
 void Close(void)

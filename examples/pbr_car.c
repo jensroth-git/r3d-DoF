@@ -81,7 +81,7 @@ void Draw(void)
 		R3D_DrawModelPro(&model, MatrixRotateX(-90.0f * DEG2RAD));
 	R3D_End();
 
-	DrawFPS(10, 10);
+	DrawCredits("Model made by MaximePages");
 }
 
 void Close(void)
