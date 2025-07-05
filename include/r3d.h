@@ -1893,7 +1893,23 @@ R3DAPI void R3D_SetShadowBias(R3D_Light id, float value);
 // --------------------------------------------
 
 
-BoundingBox R3D_GetLightBoundingBox(R3D_Light light);
+/**
+ * @brief Returns the bounding box encompassing the light's area of influence.
+ *
+ * This function computes the axis-aligned bounding box (AABB) that encloses the 
+ * volume affected by the specified light, based on its type:
+ * 
+ * - For spotlights, the bounding box encloses the light cone.
+ * - For omni-directional lights, it encloses a sphere representing the light's range.
+ * - For directional lights, it returns an infinite bounding box to represent global influence.
+ *
+ * This bounding box is primarily useful for spatial partitioning, culling, or visual debugging.
+ * 
+ * @param light The light for which to compute the bounding box.
+ * 
+ * @return A BoundingBox struct that encloses the light's influence volume.
+ */
+R3DAPI BoundingBox R3D_GetLightBoundingBox(R3D_Light light);
 
 /**
  * @brief Draws the area of influence of the light in 3D space.
