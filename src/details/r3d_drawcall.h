@@ -50,15 +50,16 @@ typedef struct {
     union {
 
         struct {
-            const R3D_Mesh* mesh;
-            const R3D_ModelAnimation* anim;
-            const Matrix* boneOffsets;
-            int frame;
+            const R3D_Mesh* mesh;               //< Mesh to render
+            const R3D_ModelAnimation* anim;     //< Animation to apply to the mesh (can be NULL)
+            const Matrix* boneOffsets;          //< Bone offset matrices from the R3D_Model
+            int frame;                          //< Animation frame to apply to the mesh
         } model;
 
         struct {
-            Vector2 uvOffset;
-            Vector2 uvScale;
+            Vector2 uvOffset;   //< Offset in the texture on the quad
+            Vector2 uvScale;    //< Scale of the texture on the quad
+            Vector3 quad[4];    //< Used only to represent the sprite in space for specific tasks
         } sprite;
 
     } geometry;

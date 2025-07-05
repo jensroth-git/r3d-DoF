@@ -567,12 +567,16 @@ void R3D_DrawSpritePro(const R3D_Sprite* sprite, Vector3 position, Vector2 size,
 {
     if (sprite == NULL) return;
 
+    r3d_drawcall_t drawCall = { 0 };
+
+    /* --- Calculation of the transformation matrix --- */
+
     Matrix matScale = MatrixScale(fabsf(size.x) * 0.5f, -fabsf(size.y) * 0.5f, 1.0f);
     Matrix matRotation = MatrixRotate(rotationAxis, rotationAngle * DEG2RAD);
     Matrix matTranslation = MatrixTranslate(position.x, position.y, position.z);
     Matrix matTransform = MatrixMultiply(MatrixMultiply(matScale, matRotation), matTranslation);
 
-    r3d_drawcall_t drawCall = { 0 };
+    /* --- Applying transformation to billboard --- */
 
     switch (sprite->material.billboardMode) {
     case R3D_BILLBOARD_FRONT:
@@ -585,6 +589,19 @@ void R3D_DrawSpritePro(const R3D_Sprite* sprite, Vector3 position, Vector2 size,
         break;
     }
 
+    /* --- Calculation of the representation of the quad in space --- */
+
+    Vector3 axisX = { matTransform.m0 * 0.5f, matTransform.m1 * 0.5f, matTransform.m2 * 0.5f };
+    Vector3 axisY = { matTransform.m4 * 0.5f, matTransform.m5 * 0.5f, matTransform.m6 * 0.5f };
+    Vector3 center = { matTransform.m12, matTransform.m13, matTransform.m14 };
+
+    drawCall.geometry.sprite.quad[0] = (Vector3) { center.x - axisX.x - axisY.x, center.y - axisX.y - axisY.y, center.z - axisX.z - axisY.z };
+    drawCall.geometry.sprite.quad[1] = (Vector3) { center.x + axisX.x - axisY.x, center.y + axisX.y - axisY.y, center.z + axisX.z - axisY.z };
+    drawCall.geometry.sprite.quad[2] = (Vector3) { center.x + axisX.x + axisY.x, center.y + axisX.y + axisY.y, center.z + axisX.z + axisY.z };
+    drawCall.geometry.sprite.quad[3] = (Vector3) { center.x - axisX.x + axisY.x, center.y - axisX.y + axisY.y, center.z - axisX.z + axisY.z };
+
+    /* --- Finalizing the draw call data --- */
+
     drawCall.transform = matTransform;
     drawCall.material = sprite->material;
     drawCall.geometryType = R3D_DRAWCALL_GEOMETRY_SPRITE;
@@ -594,6 +611,8 @@ void R3D_DrawSpritePro(const R3D_Sprite* sprite, Vector3 position, Vector2 size,
         &drawCall.geometry.sprite.uvScale, &drawCall.geometry.sprite.uvOffset, sprite,
         (size.x > 0) ? 1.0f : -1.0f, (size.y > 0) ? 1.0f : -1.0f
     );
+
+    /* --- Added draw call to the right cache depending on render mode --- */
 
     r3d_array_t* arr = &R3D.container.aDrawDeferred;
     if (sprite->material.blendMode != R3D_BLEND_OPAQUE || R3D.state.flags & R3D_FLAG_FORCE_FORWARD) {
@@ -1607,20 +1626,38 @@ static void r3d_pass_scene_forward_filter_and_send_lights(const r3d_drawcall_t* 
 {
     int lightCount = 0;
 
-    for (int i = 0; i < R3D_SHADER_FORWARD_NUM_LIGHTS && i < R3D.container.aLightBatch.count; i++, lightCount++)
+    for (int i = 0; lightCount < R3D_SHADER_FORWARD_NUM_LIGHTS && i < R3D.container.aLightBatch.count; i++)
     {
         r3d_light_batched_t* light = r3d_array_at(&R3D.container.aLightBatch, i);
 
-        // TODO: Review this, it's not precise at all, but hard to determine without a bounding box...
+        // Check if the geometry "touches" the light area
+        // It's not the most accurate possible but sufficient (?)
         if (light->data->type != R3D_LIGHT_DIR) {
-            if (!r3d_collision_check_point_in_sphere_sqr(
-                (Vector3) {
-                call->transform.m12, call->transform.m13, call->transform.m14
-            },
-                light->data->position, light->data->range)) {
-                continue;
+            if (call->geometryType == R3D_DRAWCALL_GEOMETRY_MODEL) {
+                if (!CheckCollisionBoxes(light->aabb, call->geometry.model.mesh->aabb)) {
+                    continue;
+                }
+            }
+            else if (call->geometryType == R3D_DRAWCALL_GEOMETRY_SPRITE) {
+                const Vector3* quad = call->geometry.sprite.quad;
+                const BoundingBox* aabb = &light->aabb;
+                bool inside = false;
+                for (int j = 0; j < 4; ++j) {
+                    if (quad[j].x >= aabb->min.x && quad[j].x <= aabb->max.x &&
+                        quad[j].y >= aabb->min.y && quad[j].y <= aabb->max.y &&
+                        quad[j].z >= aabb->min.z && quad[j].z <= aabb->max.z) {
+                        inside = true;
+                        break;
+                    }
+                }
+                if (inside) {
+                    continue;
+                }
             }
         }
+
+        // Use this light, so increment the counter
+        lightCount++;
 
         // Send common data
         r3d_shader_set_int(raster.forward, uLights[i].enabled, true);
@@ -1677,9 +1714,19 @@ static void r3d_pass_scene_forward_instanced_filter_and_send_lights(const r3d_dr
 {
     int lightCount = 0;
 
-    for (int i = 0; i < R3D_SHADER_FORWARD_NUM_LIGHTS && i < R3D.container.aLightBatch.count; i++, lightCount++)
+    for (int i = 0; lightCount < R3D_SHADER_FORWARD_NUM_LIGHTS && i < R3D.container.aLightBatch.count; i++)
     {
         r3d_light_batched_t* light = r3d_array_at(&R3D.container.aLightBatch, i);
+
+        // Check if the global instance AABB "touches" the light area
+        if (light->data->type != R3D_LIGHT_DIR) {
+            if (!CheckCollisionBoxes(light->aabb, call->instanced.allAabb)) {
+                continue;
+            }
+        }
+
+        // Use this light, so increment the counter
+        lightCount++;
 
         // Send common data
         r3d_shader_set_int(raster.forwardInst, uLights[i].enabled, true);

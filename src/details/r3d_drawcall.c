@@ -67,27 +67,11 @@ bool r3d_drawcall_geometry_is_visible(const r3d_drawcall_t* call)
         if (r3d_simd_is_matrix_identity((float*)&call->transform)) {
             return r3d_frustum_is_aabb_in(&R3D.state.frustum.shape, &call->geometry.model.mesh->aabb);
         }
-        else {
-            return r3d_frustum_is_obb_in(&R3D.state.frustum.shape, &call->geometry.model.mesh->aabb, &call->transform);
-        }
+        return r3d_frustum_is_obb_in(&R3D.state.frustum.shape, &call->geometry.model.mesh->aabb, &call->transform);
     }
     
-    if (call->geometryType == R3D_DRAWCALL_GEOMETRY_SPRITE)
-    {
-        const Matrix* transform = &call->transform;
-
-        Vector3 axisX = { transform->m0 * 0.5f, transform->m1 * 0.5f, transform->m2 * 0.5f };
-        Vector3 axisY = { transform->m4 * 0.5f, transform->m5 * 0.5f, transform->m6 * 0.5f };
-        Vector3 center = { transform->m12, transform->m13, transform->m14 };
-
-        Vector3 quad[4] = {
-            { center.x - axisX.x - axisY.x, center.y - axisX.y - axisY.y, center.z - axisX.z - axisY.z },
-            { center.x + axisX.x - axisY.x, center.y + axisX.y - axisY.y, center.z + axisX.z - axisY.z },
-            { center.x + axisX.x + axisY.x, center.y + axisX.y + axisY.y, center.z + axisX.z + axisY.z },
-            { center.x - axisX.x + axisY.x, center.y - axisX.y + axisY.y, center.z - axisX.z + axisY.z }
-        };
-
-        return r3d_frustum_is_points_in(&R3D.state.frustum.shape, quad, 4);
+    if (call->geometryType == R3D_DRAWCALL_GEOMETRY_SPRITE) {
+        return r3d_frustum_is_points_in(&R3D.state.frustum.shape, call->geometry.sprite.quad, 4);
     }
 
     return false;
