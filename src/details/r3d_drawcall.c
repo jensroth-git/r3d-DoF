@@ -719,14 +719,14 @@ void r3d_drawcall_instanced(const r3d_drawcall_t* call, int locInstanceModel, in
     switch (call->geometryType) {
     case R3D_DRAWCALL_GEOMETRY_MODEL:
         if (call->geometry.model.mesh->indices == NULL) {
-            glDrawArraysInstanced(GL_TRIANGLES, 0, call->geometry.model.mesh->vertexCount, call->instanced.count);
+            glDrawArraysInstanced(GL_TRIANGLES, 0, call->geometry.model.mesh->vertexCount, (int)call->instanced.count);
         }
         else {
-            glDrawElementsInstanced(GL_TRIANGLES, call->geometry.model.mesh->indexCount, GL_UNSIGNED_INT, NULL, call->instanced.count);
+            glDrawElementsInstanced(GL_TRIANGLES, call->geometry.model.mesh->indexCount, GL_UNSIGNED_INT, NULL, (int)call->instanced.count);
         }
         break;
     case R3D_DRAWCALL_GEOMETRY_SPRITE:
-        r3d_primitive_draw_instanced(&R3D.primitive.quad, call->instanced.count);
+        r3d_primitive_draw_instanced(&R3D.primitive.quad, (int)call->instanced.count);
         break;
     }
 

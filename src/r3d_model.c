@@ -1942,10 +1942,10 @@ static inline Vector2 r3d_vec2_from_ai_vec2(const struct aiVector2D* aiVec)
 static inline Color r3d_color_from_ai_color(const struct aiColor4D* aiCol)
 {
     return (Color) {
-        Clamp(aiCol->r, 0.0f, 1.0f) * 255,
-        Clamp(aiCol->g, 0.0f, 1.0f) * 255,
-        Clamp(aiCol->b, 0.0f, 1.0f) * 255,
-        Clamp(aiCol->a, 0.0f, 1.0f) * 255
+        (unsigned char)(Clamp(aiCol->r, 0.0f, 1.0f) * 255),
+        (unsigned char)(Clamp(aiCol->g, 0.0f, 1.0f) * 255),
+        (unsigned char)(Clamp(aiCol->b, 0.0f, 1.0f) * 255),
+        (unsigned char)(Clamp(aiCol->a, 0.0f, 1.0f) * 255)
     };
 }
 

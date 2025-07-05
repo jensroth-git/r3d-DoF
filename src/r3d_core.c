@@ -832,7 +832,7 @@ void r3d_prepare_cull_drawcalls(void)
     /* --- Frustum culling of deferred objects --- */
 
     calls = (r3d_drawcall_t*)R3D.container.aDrawDeferred.data;
-    count = R3D.container.aDrawDeferred.count;
+    count = (int)R3D.container.aDrawDeferred.count;
     
     for (int i = count - 1; i >= 0; i--) {
         if (!r3d_drawcall_geometry_is_visible(&calls[i])) {
@@ -845,7 +845,7 @@ void r3d_prepare_cull_drawcalls(void)
     /* --- Frustum culling of forward objects --- */
 
     calls = (r3d_drawcall_t*)R3D.container.aDrawForward.data;
-    count = R3D.container.aDrawForward.count;
+    count = (int)R3D.container.aDrawForward.count;
     
     for (int i = count - 1; i >= 0; i--) {
         if (!r3d_drawcall_geometry_is_visible(&calls[i])) {
@@ -858,7 +858,7 @@ void r3d_prepare_cull_drawcalls(void)
     /* --- Frustum culling of deferred instanced objects --- */
 
     calls = (r3d_drawcall_t*)R3D.container.aDrawDeferredInst.data;
-    count = R3D.container.aDrawDeferredInst.count;
+    count = (int)R3D.container.aDrawDeferredInst.count;
     
     for (int i = count - 1; i >= 0; i--) {
         if (!r3d_drawcall_instanced_geometry_is_visible(&calls[i])) {
@@ -871,7 +871,7 @@ void r3d_prepare_cull_drawcalls(void)
     /* --- Frustum culling of forward instanced objects --- */
 
     calls = (r3d_drawcall_t*)R3D.container.aDrawForwardInst.data;
-    count = R3D.container.aDrawForwardInst.count;
+    count = (int)R3D.container.aDrawForwardInst.count;
     
     for (int i = count - 1; i >= 0; i--) {
         if (!r3d_drawcall_instanced_geometry_is_visible(&calls[i])) {
@@ -912,7 +912,7 @@ void r3d_prepare_anim_drawcalls(void)
     for (int i = 0; i < sizeof(arrays) / sizeof(*arrays); i++)
     {
         const r3d_drawcall_t* calls = arrays[i]->data;
-        int count = arrays[i]->count;
+        int count = (int)arrays[i]->count;
 
         for (int j = 0; j < count; j++)
         {
@@ -1823,7 +1823,7 @@ void r3d_pass_scene_forward_depth_prepass(void)
             {
                 // We render in reverse order to prioritize drawing the nearest
                 // objects first, in order to optimize early depth testing.
-                for (int i = R3D.container.aDrawForward.count - 1; i >= 0; i--) {
+                for (int i = (int)R3D.container.aDrawForward.count - 1; i >= 0; i--) {
                     r3d_drawcall_t* call = r3d_array_at(&R3D.container.aDrawForward, i);
                     r3d_drawcall_raster_depth(call, false);
                 }
@@ -1998,7 +1998,7 @@ void r3d_pass_post_bloom(void)
         r3d_shader_enable(generate.downsampling);
         {
             r3d_shader_set_vec2(generate.downsampling, uResolution, (
-                (Vector2) { R3D.state.resolution.width, R3D.state.resolution.height }
+                (Vector2) { (float)R3D.state.resolution.width, (float)R3D.state.resolution.height }
             ))
             r3d_shader_set_int(generate.downsampling, uMipLevel, 0);
 
@@ -2055,7 +2055,7 @@ void r3d_pass_post_bloom(void)
                 glBindTexture(GL_TEXTURE_2D, mip->id);
 
                 // Set framebuffer render target (we write to this texture)
-                glViewport(0, 0, nextMip->fW, nextMip->fH);
+                glViewport(0, 0, (int)nextMip->fW, (int)nextMip->fH);
                 glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, nextMip->id, 0);
 
                 // Render screen-filled quad of resolution of current mip

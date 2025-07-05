@@ -58,7 +58,7 @@ r3d_primitive_t r3d_primitive_load_quad(void)
     
     quad.indexCount = sizeof(INDICES) / sizeof(*INDICES);
 
-    const size_t stride = sizeof(VERTICES[0]);
+    const int stride = (int)sizeof(VERTICES[0]);
     
     // Attribute 0: Positions (vec3)
     rlSetVertexAttribute(0, 3, RL_FLOAT, false, stride, (int)offsetof(struct vertex, pos));
@@ -158,7 +158,7 @@ r3d_primitive_t r3d_primitive_load_cube(void)
 
     cube.indexCount = sizeof(INDICES) / sizeof(*INDICES);
     
-    const size_t stride = sizeof(VERTICES[0]);
+    const int stride = (int)sizeof(VERTICES[0]);
     
     // Attribute 0: Positions (vec3)
     rlSetVertexAttribute(0, 3, RL_FLOAT, false, stride, (int)offsetof(struct vertex, pos));

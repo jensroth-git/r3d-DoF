@@ -303,7 +303,7 @@ BoundingBox r3d_light_get_bounding_box(const r3d_light_t* light)
             // Sample points on the circular base to get accurate bounding box
             const int numSamples = 8; // 8 points should be sufficient for most cases
             for (int i = 0; i < numSamples; ++i) {
-                float angle = (float)(i * 2.0 * M_PI / numSamples);
+                float angle = (float)(i * 2.0 * PI / numSamples);
                 float cosAngle = cosf(angle);
                 float sinAngle = sinf(angle);
                 

@@ -72,8 +72,8 @@ void Update(float delta)
     dancer.anim = &anims[0];
     dancer.animFrame++;
 
-    R3D_SetLightColor(lights[0], ColorFromHSV(90.0f * GetTime() + 90.0f, 1.0f, 1.0f));
-    R3D_SetLightColor(lights[1], ColorFromHSV(90.0f * GetTime() - 90.0f, 1.0f, 1.0f));
+    R3D_SetLightColor(lights[0], ColorFromHSV(90.0f * (float)GetTime() + 90.0f, 1.0f, 1.0f));
+    R3D_SetLightColor(lights[1], ColorFromHSV(90.0f * (float)GetTime() - 90.0f, 1.0f, 1.0f));
 }
 
 void Draw(void)

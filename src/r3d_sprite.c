@@ -33,5 +33,5 @@ void R3D_UpdateSprite(R3D_Sprite* sprite, float speed)
 
 void R3D_UpdateSpriteEx(R3D_Sprite* sprite, int firstFrame, int lastFrame, float speed)
 {
-    sprite->currentFrame = Wrap(sprite->currentFrame + speed, firstFrame, lastFrame);
+    sprite->currentFrame = Wrap(sprite->currentFrame + speed, (float)firstFrame, (float)lastFrame);
 }
