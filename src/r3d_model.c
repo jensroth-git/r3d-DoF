@@ -2994,7 +2994,7 @@ bool r3d_process_animation(R3D_ModelAnimation* animation, const struct aiScene* 
 
     /* --- Compute duration in frames based on ticks per second --- */
 
-    float ticksPerSecond = aiAnim->mTicksPerSecond ?: 25.0f;
+    float ticksPerSecond = aiAnim->mTicksPerSecond ? aiAnim->mTicksPerSecond : 25.0f;
     float durationInSeconds = (float)aiAnim->mDuration / ticksPerSecond;
     animation->frameCount = (int)(durationInSeconds * targetFrameRate + 0.5f);
 
