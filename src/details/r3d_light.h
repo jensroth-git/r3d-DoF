@@ -21,7 +21,7 @@
 #define R3D_LIGHT_H
 
 #include "r3d.h"
-#include "r3d_projection.h"
+#include "raymath.h"
 #include <raylib.h>
 
 /* === Types === */
@@ -68,7 +68,7 @@ typedef struct {
 
 typedef struct {
     r3d_light_t* data;
-    r3d_project_light_result_t pResult;
+    BoundingBox aabb;
 } r3d_light_batched_t;
 
 /* === Functions === */
@@ -80,6 +80,8 @@ void r3d_light_destroy_shadow_map(r3d_light_t* light);
 
 void r3d_light_process_shadow_update(r3d_light_t* light);
 void r3d_light_indicate_shadow_update(r3d_light_t* light);
+
+BoundingBox r3d_light_get_bounding_box(const r3d_light_t* light);
 
 void r3d_light_get_matrix_vp_dir(r3d_light_t* light, BoundingBox sceneBounds, Matrix* view, Matrix* proj);
 

@@ -17,6 +17,7 @@
  *   3. This notice may not be removed or altered from any source distribution.
  */
 
+#include "details/r3d_frustum.h"
 #include "r3d.h"
 
 #include <raylib.h>
@@ -32,7 +33,6 @@
 #include "./details/r3d_billboard.h"
 #include "./details/r3d_collision.h"
 #include "./details/r3d_primitives.h"
-#include "./details/r3d_projection.h"
 #include "./details/containers/r3d_array.h"
 #include "./details/containers/r3d_registry.h"
 
@@ -745,46 +745,38 @@ void r3d_prepare_process_lights_and_batch(void)
     // Compute view / projection matrix
     Matrix viewProj = MatrixMultiply(R3D.state.transform.view, R3D.state.transform.proj);
 
-    for (int id = 1; id <= (int)r3d_registry_get_allocated_count(&R3D.container.rLights); id++) {
-        // Check if the light in the registry is still valid
-        if (!r3d_registry_is_valid(&R3D.container.rLights, id)) continue;
+    for (int id = 1; id <= (int)r3d_registry_get_allocated_count(&R3D.container.rLights); id++)
+    {
+        /* --- Check if the light in the registry is still valid --- */
 
-        // Get the valid light and check if it is active
+        if (!r3d_registry_is_valid(&R3D.container.rLights, id)) {
+            continue;
+        }
+
+        /* --- Get the valid light and check if it is active --- */
+
         r3d_light_t* light = r3d_registry_get(&R3D.container.rLights, id);
         if (!light->enabled) continue;
 
-        // Process shadow update mode
+        /* --- Process shadow update mode --- */
+
         if (light->shadow.enabled) {
             r3d_light_process_shadow_update(light);
         }
 
-        // Compute the projected area of the light into the screen
-        r3d_project_light_result_t pLightResult = { 0 };
-        switch (light->type) {
-        case R3D_LIGHT_DIR:
-            pLightResult.coversEntireScreen = true;
-            pLightResult.isVisible = true;
-            break;
-        case R3D_LIGHT_SPOT: {
-            pLightResult = r3d_project_cone_light(
-                light->position, light->direction, light->range, fabsf(light->range * light->outerCutOff), //< r = h * cos(phi)
-                R3D.state.transform.position, viewProj, R3D.state.resolution.width, R3D.state.resolution.height,
-                0.05f
-            );
-        } break;
-        case R3D_LIGHT_OMNI:
-            pLightResult = r3d_project_sphere_light(
-                light->position, light->range, R3D.state.transform.position, viewProj,
-                R3D.state.resolution.width, R3D.state.resolution.height, 0.05f
-            );
-            break;
+        /* --- Frustum culling of lights areas --- */
+
+        BoundingBox aabb = r3d_light_get_bounding_box(light);
+
+        if (light->type != R3D_LIGHT_DIR) {
+            if (!r3d_frustum_is_aabb_in(&R3D.state.frustum.shape, &aabb)) {
+                continue;
+            }
         }
 
-        // Determine if the light illuminates a part visible to the screen
-        if (!pLightResult.isVisible) continue;
+        /* --- Here the light is supposed to be visible --- */
 
-        // Here the light is supposed to be visible
-        r3d_light_batched_t batched = { .data = light, .pResult = pLightResult };
+        r3d_light_batched_t batched = { .data = light, .aabb = aabb };
         r3d_array_push_back(&R3D.container.aLightBatch, &batched);
     }
 }
@@ -1392,19 +1384,7 @@ void r3d_pass_deferred_lights(void)
                     r3d_shader_set_int(screen.lighting, uLight.shadow, false);
                 }
 
-                //if (!light->pResult.coversEntireScreen) {
-                //    glEnable(GL_SCISSOR_TEST);
-                //    glScissor(
-                //        light->pResult.screenRect.x, light->pResult.screenRect.y,
-                //        light->pResult.screenRect.width, light->pResult.screenRect.height
-                //    );
-                //}
-
                 r3d_primitive_bind_and_draw_screen();
-
-                //if (!light->pResult.coversEntireScreen) {
-                //    glDisable(GL_SCISSOR_TEST);
-                //}
             }
 
             r3d_shader_unbind_sampler2D(screen.lighting, uTexAlbedo);

@@ -3,6 +3,7 @@
 #include <raymath.h>
 #include <stddef.h>
 #include <string.h>
+#include <float.h>
 #include <rlgl.h>
 #include <glad.h>
 
@@ -216,6 +217,65 @@ void r3d_light_indicate_shadow_update(r3d_light_t* light)
     case R3D_SHADOW_UPDATE_CONTINUOUS:
         break;
     }
+}
+
+BoundingBox r3d_light_get_bounding_box(const r3d_light_t* light)
+{
+    BoundingBox aabb = {
+        { -FLT_MAX, -FLT_MAX, -FLT_MAX },
+        { +FLT_MAX, +FLT_MAX, +FLT_MAX },
+    };
+
+    switch (light->type)
+    {
+    case R3D_LIGHT_DIR:
+        break;
+
+    case R3D_LIGHT_OMNI:
+        {
+            const float r = light->range;
+            const Vector3* p = &light->position;
+            for (int i = 0; i < 3; ++i) {
+                ((float*)&aabb.min)[i] = ((float*)p)[i] - r;
+                ((float*)&aabb.max)[i] = ((float*)p)[i] + r;
+            }
+        }
+        break;
+
+    case R3D_LIGHT_SPOT:
+        {
+            // Get radius of the cone base
+            const float h = light->range;
+            const float theta = light->outerCutOff;
+            const float r = h * tanf(theta);
+
+            // Tip of the cone = light->position
+            // End point of the cone
+            Vector3 tip = light->position;
+            Vector3 base = {
+                light->position.x + light->direction.x * h,
+                light->position.y + light->direction.y * h,
+                light->position.y + light->direction.y * h
+            };
+
+            // Now build the bounding box that encloses the cone
+            // We assume a circular base with radius `r` centered at `base`.
+
+            // Include tip
+            aabb.min = aabb.max = tip;
+
+            // Approximate the base area by adding/subtracting `r` in all directions from the base point
+            for (int i = 0; i < 3; ++i) {
+                float bmin = ((float*)&base)[i] - r;
+                float bmax = ((float*)&base)[i] + r;
+                ((float*)&aabb.min)[i] = fminf(((float*)&aabb.min)[i], bmin);
+                ((float*)&aabb.max)[i] = fmaxf(((float*)&aabb.max)[i], bmax);
+            }
+        }
+        break;
+    }
+
+    return aabb;
 }
 
 void r3d_light_get_matrix_vp_dir(r3d_light_t* light, BoundingBox sceneBounds, Matrix* view, Matrix* proj)
