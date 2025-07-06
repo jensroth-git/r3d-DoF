@@ -1,5 +1,3 @@
-- Fix issue with light culling and impl glScissor for deferred lighting
-- PBR ambient lighting (without skybox)
 - Adding intensity factor or something else for the skybox
 - Adding texcoord scale/offset and normal scale to R3D_Material
 - Adding light affect occlusion parameter (SSAO/MaterialORM)
