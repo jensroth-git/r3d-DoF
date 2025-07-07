@@ -42,7 +42,7 @@ const char* Init(void)
     material = R3D_GetDefaultMaterial();
 
     material.emission.color = ColorFromHSV(hueCube, 1.0f, 1.0f);
-    material.emission.multiplier = 1.0f;
+    material.emission.energy = 1.0f;
     material.albedo.color = BLACK;
 
     camera = (Camera3D){

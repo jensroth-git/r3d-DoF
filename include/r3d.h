@@ -234,7 +234,7 @@ typedef struct R3D_Material {
     struct R3D_MapEmission {
         Texture2D texture;   /**< Emission texture. */
         Color color;         /**< Emission color. */
-        float multiplier;    /**< Emission intensity multiplier. */
+        float energy;        /**< Emission energy multiplier. */
     } emission;
 
     struct R3D_MapNormal {

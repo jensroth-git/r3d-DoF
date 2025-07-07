@@ -1884,7 +1884,7 @@ R3D_Material R3D_GetDefaultMaterial(void)
     // Emission map
     material.emission.texture = R3D_GetWhiteTexture();
     material.emission.color = WHITE;
-    material.emission.multiplier = 0.0f;
+    material.emission.energy = 0.0f;
 
     // Normal map
     material.normal.texture = R3D_GetNormalTexture();
@@ -2627,12 +2627,12 @@ bool process_assimp_materials(const struct aiScene* scene, R3D_Material** materi
         struct aiColor4D emissionColor;
         if (aiGetMaterialColor(aiMat, AI_MATKEY_COLOR_EMISSIVE, &emissionColor) == AI_SUCCESS) {
             mat->emission.color = r3d_color_from_ai_color(&emissionColor);
-            mat->emission.multiplier = 1.0f;
+            mat->emission.energy = 1.0f;
         }
 
         mat->emission.texture = r3d_load_assimp_texture(scene, aiMat, aiTextureType_EMISSIVE, 0, basePath);
         if (mat->emission.texture.id == 0) mat->emission.texture = R3D_GetWhiteTexture();
-        else mat->emission.multiplier = 1.0f; //< Success
+        else mat->emission.energy = 1.0f; //< Success
 
         /* --- Load ORM map --- */
 

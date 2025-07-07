@@ -27,7 +27,7 @@ const char* Init(void)
 
     material = R3D_GetDefaultMaterial();
     material.emission.color = (Color) { 255, 0, 0, 255 };
-    material.emission.multiplier = 1.0f;
+    material.emission.energy = 1.0f;
 
     curve = R3D_LoadInterpolationCurve(3);
     R3D_AddKeyframe(&curve, 0.0f, 0.0f);

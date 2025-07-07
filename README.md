@@ -276,7 +276,7 @@ material.orm.occlusion = 1.0f;       // Ambient occlusion (1.0 = no occlusion)
 // Set up emission properties
 material.emission.texture = myEmissionTexture;  // Optional: emission texture
 material.emission.color = RED;                 // Emission color
-material.emission.multiplier = 3.0f;           // Emission intensity
+material.emission.energy = 3.0f;           // Emission intensity
 
 // Configure normal mapping
 material.normal.texture = myNormalTexture;
