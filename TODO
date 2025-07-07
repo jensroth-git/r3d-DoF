@@ -1,7 +1,7 @@
 - Adding intensity factor or something else for the skybox
-- Adding texcoord scale/offset and normal scale to R3D_Material
+- Adding texcoord scale/offset to R3D_Material (?)
+- Adding instanced animation (?) (same frame for all instances...)
 - Adding light affect occlusion parameter (SSAO/MaterialORM)
-- Adding an optionnal pass for debanding
 - Use Sample2DArray for shadow maps
 
 - Apply the alpha scissor test directly in the depth shaders (this will work for both forward rendering and shadow maps).  
