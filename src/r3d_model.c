@@ -2624,13 +2624,15 @@ bool process_assimp_materials(const struct aiScene* scene, R3D_Material** materi
 
         /* --- Load emission map --- */
 
-        mat->emission.texture = r3d_load_assimp_texture(scene, aiMat, aiTextureType_EMISSIVE, 0, basePath);
-        if (mat->emission.texture.id == 0) {
-            mat->emission.texture = R3D_GetWhiteTexture();
-        }
-        else {
+        struct aiColor4D emissionColor;
+        if (aiGetMaterialColor(aiMat, AI_MATKEY_COLOR_EMISSIVE, &emissionColor) == AI_SUCCESS) {
+            mat->emission.color = r3d_color_from_ai_color(&emissionColor);
             mat->emission.multiplier = 1.0f;
         }
+
+        mat->emission.texture = r3d_load_assimp_texture(scene, aiMat, aiTextureType_EMISSIVE, 0, basePath);
+        if (mat->emission.texture.id == 0) mat->emission.texture = R3D_GetWhiteTexture();
+        else mat->emission.multiplier = 1.0f; //< Success
 
         /* --- Load ORM map --- */
 
