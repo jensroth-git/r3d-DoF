@@ -1909,7 +1909,7 @@ void R3D_UnloadMaterial(const R3D_Material* material)
 {
 #define UNLOAD_TEXTURE_IF_VALID(id) \
     do { \
-        if ((id) != 0 && !r3d_is_default_texture(id)) { \
+        if ((id) != 0 && !r3d_texture_is_default(id)) { \
             rlUnloadTexture(id); \
         } \
     } while (0)

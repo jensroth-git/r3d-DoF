@@ -32,10 +32,10 @@
 
 #define R3D_GBUFFER_COUNT 4
 
-#define R3D_STENCIL_GEOMETRY_BIT     0x80                               // Bit 7 (MSB) pour la géométrie
-#define R3D_STENCIL_GEOMETRY_MASK    0x80                               // Masque pour le bit géométrie uniquement
-#define R3D_STENCIL_EFFECT_MASK      0x7F                               // Masque pour les bits d'effet (bits 0-6)
-#define R3D_STENCIL_EFFECT_ID(n)     ((n) & R3D_STENCIL_EFFECT_MASK)    // Extraction de l'ID d'effet (7 bits - 127 effets)
+#define R3D_STENCIL_GEOMETRY_BIT     0x80                               // Bit 7 (MSB) for geometry
+#define R3D_STENCIL_GEOMETRY_MASK    0x80                               // Mask for geometry bit only
+#define R3D_STENCIL_EFFECT_MASK      0x7F                               // Mask for effect bits (bits 0-6)
+#define R3D_STENCIL_EFFECT_ID(n)     ((n) & R3D_STENCIL_EFFECT_MASK)    // Extract effect ID (7 bits - 127 effects)
 
 /* === Global r3d state === */
 
@@ -43,10 +43,39 @@ extern struct R3D_State {
 
     // GPU Supports
     struct {
-        bool TEX_RG16F;
-        bool TEX_RGB16F;
-        bool TEX_RGB32F;
-        bool TEX_R11G11B10F;
+
+        // Single Channel Formats
+        int texR8;              // 8-bit normalized red channel
+        int texR16F;            // 16-bit half-precision floating point red channel
+        int texR32F;            // 32-bit full-precision floating point red channel
+
+        // Dual Channel Formats
+        int texRG8;             // 8-bit normalized red-green channels
+        int texRG16F;           // 16-bit half-precision floating point red-green channels
+        int texRG32F;           // 32-bit full-precision floating point red-green channels
+
+        // Triple Channel Formats (RGB)
+        int texRGB565;          // 5-6-5 bits RGB (packed, legacy)
+        int texRGB8;            // 8-bit normalized RGB channels
+        int texSRGB8;           // 8-bit sRGB color space RGB channels
+        int texRGB12;           // 12-bit normalized RGB channels
+        int texRGB16;           // 16-bit normalized RGB channels
+        int texRGB9_E5;         // RGB with shared 5-bit exponent (compact HDR format)
+        int texR11F_G11F_B10F;  // 11-bit red, 11-bit green, 10-bit blue floating point (packed HDR)
+        int texRGB16F;          // 16-bit half-precision floating point RGB channels
+        int texRGB32F;          // 32-bit full-precision floating point RGB channels
+
+        // Quad Channel Formats (RGBA)
+        int texRGBA4;           // 4-4-4-4 bits RGBA (packed, legacy)
+        int texRGB5_A1;         // 5-5-5-1 bits RGBA (packed, legacy)
+        int texRGBA8;           // 8-bit normalized RGBA channels
+        int texSRGB8_ALPHA8;    // 8-bit sRGB RGB + 8-bit linear alpha channel
+        int texRGB10_A2;        // 10-bit RGB + 2-bit alpha (HDR color with minimal alpha)
+        int texRGBA12;          // 12-bit normalized RGBA channels
+        int texRGBA16;          // 16-bit normalized RGBA channels
+        int texRGBA16F;         // 16-bit half-precision floating point RGBA channels
+        int texRGBA32F;         // 32-bit full-precision floating point RGBA channels
+
     } support;
 
     // Framebuffers
@@ -56,7 +85,7 @@ extern struct R3D_State {
         struct r3d_fb_gbuffer_t {
             unsigned int id;
             unsigned int albedo;            ///< RGB[8|8|8]
-            unsigned int emission;          ///< RGB[11|11|10] (if compatible, otherwise 16F || 32F || 8UI)
+            unsigned int emission;          ///< RGB[11|11|10] (or fallbacks)
             unsigned int normal;            ///< RG[16|16] (or) RG[8|8] (R3D_FLAGS_8_BIT_NORMALS or 16F not supported)
             unsigned int orm;               ///< RGB[8|8|8]
             unsigned int depth;             ///< DS[24|8] -> Stencil: Last bit is a true/false geometry and others bits are for the rest
@@ -75,8 +104,8 @@ extern struct R3D_State {
         //  - Lit from lights
         struct r3d_fb_deferred_t {
             unsigned int id;
-            unsigned int diffuse;           ///< RGB[11|11|10] (or 16F || 32F || 8UI) -> Diffuse contribution
-            unsigned int specular;          ///< RGB[11|11|10] (or 16F || 32F || 8UI) -> Specular contribution
+            unsigned int diffuse;           ///< RGB[11|11|10] (or fallbacks) -> Diffuse contribution
+            unsigned int specular;          ///< RGB[11|11|10] (or fallbacks) -> Specular contribution
         } deferred;
 
         // Final scene (before post process)
@@ -86,14 +115,14 @@ extern struct R3D_State {
         //  - Forward
         struct r3d_fb_scene_t {
             unsigned int id;
-            unsigned int color;             ///< RGB[11|11|10] (or 16F || 32F || 8UI) -> Also used for bloom
+            unsigned int color;             ///< RGB[11|11|10] (or fallbacks) -> Buffer is used for bloom
         } scene;
 
         // Ping-pong buffer for bloom blur processing (start at half internal resolution)
         struct r3d_fb_mipchain_bloom_t {
             unsigned int id;
             struct r3d_mip_bloom_t {
-                unsigned int id;            //< RGB[11|11|10] (or 16F || 32F || 8UI) //< 8UI: Break bloom
+                unsigned int id;            //< RGB[11|11|10] (or fallbacks)
                 int iW, iH;
                 float fW, fH;
             } *mipChain;
@@ -103,8 +132,8 @@ extern struct R3D_State {
         // Post-processing ping-pong buffer
         struct r3d_fb_pingpong_post_t {
             unsigned int id;
-            unsigned int source;            ///< RGB[11|11|10] (or 16F || 32F || 8UI)
-            unsigned int target;            ///< RGB[11|11|10] (or 16F || 32F || 8UI)
+            unsigned int source;            ///< RGB[11|11|10] (or fallbacks)
+            unsigned int target;            ///< RGB[11|11|10] (or fallbacks)
         } post;
 
         // Custom target (optional)
@@ -274,13 +303,13 @@ extern struct R3D_State {
 
 /* === Helper functions === */
 
-bool r3d_check_texture_format_support(unsigned int format);
-bool r3d_is_default_texture(unsigned int id);
-
+bool r3d_texture_is_default(unsigned int id);
 void r3d_calculate_bloom_prefilter_data();
 
 
 /* === Main loading functions === */
+
+void r3d_support_check_texture_internal_formats(void);
 
 void r3d_framebuffers_load(int width, int height);
 void r3d_framebuffers_unload(void);
