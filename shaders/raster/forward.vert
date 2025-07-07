@@ -42,7 +42,7 @@ uniform mat4 uMatMVP;
 
 uniform mat4 uMatLightVP[NUM_LIGHTS];
 
-uniform vec4 uColAlbedo;
+uniform vec4 uAlbedoColor;
 
 uniform vec2 uTexCoordOffset;
 uniform vec2 uTexCoordScale;
@@ -83,7 +83,7 @@ void main()
     vec4 worldPosition = uMatModel * vec4(skinnedPosition, 1.0);
     vPosition = worldPosition.xyz;
     vTexCoord = uTexCoordOffset + aTexCoord * uTexCoordScale;
-    vColor = aColor * uColAlbedo;
+    vColor = aColor * uAlbedoColor;
 
     vec3 T = normalize(vec3(uMatModel * vec4(skinnedTangent, 0.0)));
     vec3 N = normalize(vec3(uMatNormal * vec4(skinnedNormal, 1.0)));

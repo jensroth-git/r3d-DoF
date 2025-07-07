@@ -171,7 +171,7 @@ noperspective in vec2 vTexCoord;
 uniform sampler2D uTexAlbedo;
 uniform sampler2D uTexSSAO;
 uniform sampler2D uTexORM;
-uniform vec3 uColAmbient;
+uniform vec3 uAmbientColor;
 
 /* === Fragments === */
 
@@ -223,7 +223,7 @@ void main()
 
     /* --- Ambient lighting (diffuse + specular) --- */
 
-    vec3 ambient = uColAmbient;                                 // Ambient light tint (scene-level)
+    vec3 ambient = uAmbientColor;                                 // Ambient light tint (scene-level)
     ambient *= (kD * albedo + kS);                              // Apply material response
     ambient *= occlusion;                                       // Apply ambient occlusion
 

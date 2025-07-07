@@ -72,14 +72,14 @@ uniform sampler2D uTexORM;
 
 uniform sampler2D uTexNoise;   //< Noise texture (used for soft shadows)
 
-uniform float uValEmission;
+uniform float uEmissionEnergy;
 uniform float uNormalScale;
-uniform float uValOcclusion;
-uniform float uValRoughness;
-uniform float uValMetalness;
+uniform float uOcclusion;
+uniform float uRoughness;
+uniform float uMetalness;
 
-uniform vec3 uColAmbient;
-uniform vec3 uColEmission;
+uniform vec3 uAmbientColor;
+uniform vec3 uEmissionColor;
 
 uniform samplerCube uCubeIrradiance;
 uniform samplerCube uCubePrefilter;
@@ -334,15 +334,15 @@ void main()
 
     /* Sample emission texture */
 
-    vec3 emission = uValEmission * (uColEmission * texture(uTexEmission, vTexCoord).rgb);
+    vec3 emission = uEmissionEnergy * (uEmissionColor * texture(uTexEmission, vTexCoord).rgb);
 
     /* Sample ORM texture and extract values */
 
     vec3 orm = texture(uTexORM, vTexCoord).rgb;
 
-    float occlusion = uValOcclusion * orm.x;
-    float roughness = uValRoughness * orm.y;
-    float metalness = uValMetalness * orm.z;
+    float occlusion = uOcclusion * orm.x;
+    float roughness = uRoughness * orm.y;
+    float metalness = uMetalness * orm.z;
 
     /* Compute F0 (reflectance at normal incidence) based on the metallic factor */
 
@@ -438,7 +438,7 @@ void main()
 
     /* Compute ambient - (IBL diffuse) */
 
-    vec3 ambient = uColAmbient;
+    vec3 ambient = uAmbientColor;
 
     if (uHasSkybox)
     {

@@ -1352,7 +1352,7 @@ void r3d_pass_deferred_ambient(void)
                     r3d_shader_bind_sampler2D(screen.ambient, uTexSSAO, R3D.texture.white);
                 }
 
-                r3d_shader_set_vec3(screen.ambient, uColAmbient, R3D.env.ambientColor);
+                r3d_shader_set_vec3(screen.ambient, uAmbientColor, R3D.env.ambientColor);
 
                 r3d_primitive_bind_and_draw_screen();
 
@@ -1873,7 +1873,7 @@ void r3d_pass_scene_forward(void)
                     r3d_shader_set_int(raster.forwardInst, uHasSkybox, true);
                 }
                 else {
-                    r3d_shader_set_vec3(raster.forwardInst, uColAmbient, R3D.env.ambientColor);
+                    r3d_shader_set_vec3(raster.forwardInst, uAmbientColor, R3D.env.ambientColor);
                     r3d_shader_set_int(raster.forwardInst, uHasSkybox, false);
                 }
 
@@ -1916,7 +1916,7 @@ void r3d_pass_scene_forward(void)
                     r3d_shader_set_int(raster.forward, uHasSkybox, true);
                 }
                 else {
-                    r3d_shader_set_vec3(raster.forward, uColAmbient, R3D.env.ambientColor);
+                    r3d_shader_set_vec3(raster.forward, uAmbientColor, R3D.env.ambientColor);
                     r3d_shader_set_int(raster.forward, uHasSkybox, false);
                 }
 

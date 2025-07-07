@@ -49,7 +49,7 @@ uniform mat4 uMatVP;
 
 uniform lowp int uBillboardMode;
 
-uniform vec4 uColAlbedo;
+uniform vec4 uAlbedoColor;
 
 uniform vec2 uTexCoordOffset;
 uniform vec2 uTexCoordScale;
@@ -121,7 +121,7 @@ void BillboardY(inout mat4 model, inout mat3 normal)
 void main()
 {
     vTexCoord = uTexCoordOffset + aTexCoord * uTexCoordScale;
-    vColor = aColor * iColor * uColAlbedo;
+    vColor = aColor * iColor * uAlbedoColor;
 
     mat4 matModel = uMatModel * transpose(iMatModel);
     mat3 matNormal = mat3(0.0);

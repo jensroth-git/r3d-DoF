@@ -36,9 +36,9 @@ uniform sampler2D uTexEmission;
 uniform sampler2D uTexORM;
 
 uniform float uNormalScale;
-uniform float uValOcclusion;
-uniform float uValRoughness;
-uniform float uValMetalness;
+uniform float uOcclusion;
+uniform float uRoughness;
+uniform float uMetalness;
 
 
 /* === Fragments === */
@@ -85,7 +85,7 @@ void main()
 
     vec3 orm = texture(uTexORM, vTexCoord).rgb;
 
-    FragORM.r = uValOcclusion * orm.x;
-    FragORM.g = uValRoughness * orm.y;
-    FragORM.b = uValMetalness * orm.z;
+    FragORM.r = uOcclusion * orm.x;
+    FragORM.g = uRoughness * orm.y;
+    FragORM.b = uMetalness * orm.z;
 }

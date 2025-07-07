@@ -98,13 +98,13 @@ typedef struct {
     r3d_shader_uniform_sampler2D_t uTexNormal;
     r3d_shader_uniform_sampler2D_t uTexEmission;
     r3d_shader_uniform_sampler2D_t uTexORM;
-    r3d_shader_uniform_float_t uValEmission;
+    r3d_shader_uniform_float_t uEmissionEnergy;
     r3d_shader_uniform_float_t uNormalScale;
-    r3d_shader_uniform_float_t uValOcclusion;
-    r3d_shader_uniform_float_t uValRoughness;
-    r3d_shader_uniform_float_t uValMetalness;
-    r3d_shader_uniform_vec3_t uColAlbedo;
-    r3d_shader_uniform_vec3_t uColEmission;
+    r3d_shader_uniform_float_t uOcclusion;
+    r3d_shader_uniform_float_t uRoughness;
+    r3d_shader_uniform_float_t uMetalness;
+    r3d_shader_uniform_vec3_t uAlbedoColor;
+    r3d_shader_uniform_vec3_t uEmissionColor;
 } r3d_shader_raster_geometry_t;
 
 typedef struct {
@@ -119,13 +119,13 @@ typedef struct {
     r3d_shader_uniform_sampler2D_t uTexNormal;
     r3d_shader_uniform_sampler2D_t uTexEmission;
     r3d_shader_uniform_sampler2D_t uTexORM;
-    r3d_shader_uniform_float_t uValEmission;
+    r3d_shader_uniform_float_t uEmissionEnergy;
     r3d_shader_uniform_float_t uNormalScale;
-    r3d_shader_uniform_float_t uValOcclusion;
-    r3d_shader_uniform_float_t uValRoughness;
-    r3d_shader_uniform_float_t uValMetalness;
-    r3d_shader_uniform_vec3_t uColAlbedo;
-    r3d_shader_uniform_vec3_t uColEmission;
+    r3d_shader_uniform_float_t uOcclusion;
+    r3d_shader_uniform_float_t uRoughness;
+    r3d_shader_uniform_float_t uMetalness;
+    r3d_shader_uniform_vec3_t uAlbedoColor;
+    r3d_shader_uniform_vec3_t uEmissionColor;
 } r3d_shader_raster_geometry_inst_t;
 
 typedef struct {
@@ -224,14 +224,14 @@ typedef struct {
     r3d_shader_uniform_sampler2D_t uTexNormal;
     r3d_shader_uniform_sampler2D_t uTexORM;
     r3d_shader_uniform_sampler2D_t uTexNoise;
-    r3d_shader_uniform_float_t uValEmission;
+    r3d_shader_uniform_float_t uEmissionEnergy;
     r3d_shader_uniform_float_t uNormalScale;
-    r3d_shader_uniform_float_t uValOcclusion;
-    r3d_shader_uniform_float_t uValRoughness;
-    r3d_shader_uniform_float_t uValMetalness;
-    r3d_shader_uniform_vec3_t uColAmbient;
-    r3d_shader_uniform_vec4_t uColAlbedo;
-    r3d_shader_uniform_vec3_t uColEmission;
+    r3d_shader_uniform_float_t uOcclusion;
+    r3d_shader_uniform_float_t uRoughness;
+    r3d_shader_uniform_float_t uMetalness;
+    r3d_shader_uniform_vec3_t uAmbientColor;
+    r3d_shader_uniform_vec4_t uAlbedoColor;
+    r3d_shader_uniform_vec3_t uEmissionColor;
     r3d_shader_uniform_samplerCube_t uCubeIrradiance;
     r3d_shader_uniform_samplerCube_t uCubePrefilter;
     r3d_shader_uniform_sampler2D_t uTexBrdfLut;
@@ -276,14 +276,14 @@ typedef struct {
     r3d_shader_uniform_sampler2D_t uTexNormal;
     r3d_shader_uniform_sampler2D_t uTexORM;
     r3d_shader_uniform_sampler2D_t uTexNoise;
-    r3d_shader_uniform_float_t uValEmission;
+    r3d_shader_uniform_float_t uEmissionEnergy;
     r3d_shader_uniform_float_t uNormalScale;
-    r3d_shader_uniform_float_t uValOcclusion;
-    r3d_shader_uniform_float_t uValRoughness;
-    r3d_shader_uniform_float_t uValMetalness;
-    r3d_shader_uniform_vec3_t uColAmbient;
-    r3d_shader_uniform_vec4_t uColAlbedo;
-    r3d_shader_uniform_vec3_t uColEmission;
+    r3d_shader_uniform_float_t uOcclusion;
+    r3d_shader_uniform_float_t uRoughness;
+    r3d_shader_uniform_float_t uMetalness;
+    r3d_shader_uniform_vec3_t uAmbientColor;
+    r3d_shader_uniform_vec4_t uAlbedoColor;
+    r3d_shader_uniform_vec3_t uEmissionColor;
     r3d_shader_uniform_samplerCube_t uCubeIrradiance;
     r3d_shader_uniform_samplerCube_t uCubePrefilter;
     r3d_shader_uniform_sampler2D_t uTexBrdfLut;
@@ -331,7 +331,7 @@ typedef struct {
     r3d_shader_uniform_sampler2D_t uTexAlbedo;
     r3d_shader_uniform_sampler2D_t uTexSSAO;
     r3d_shader_uniform_sampler2D_t uTexORM;
-    r3d_shader_uniform_vec3_t uColAmbient;
+    r3d_shader_uniform_vec3_t uAmbientColor;
 } r3d_shader_screen_ambient_t;
 
 typedef struct {

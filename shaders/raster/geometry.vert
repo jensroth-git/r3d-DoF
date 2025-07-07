@@ -39,9 +39,9 @@ uniform mat4 uMatNormal;
 uniform mat4 uMatModel;
 uniform mat4 uMatMVP;
 
-uniform float uValEmission;
-uniform vec3 uColEmission;
-uniform vec3 uColAlbedo;
+uniform float uEmissionEnergy;
+uniform vec3 uEmissionColor;
+uniform vec3 uAlbedoColor;
 
 uniform vec2 uTexCoordOffset;
 uniform vec2 uTexCoordScale;
@@ -78,8 +78,8 @@ void main()
     }
 
     vTexCoord = uTexCoordOffset + aTexCoord * uTexCoordScale;
-    vColor = aColor.rgb * uColAlbedo;
-    vEmission = uColEmission * uValEmission;
+    vColor = aColor.rgb * uAlbedoColor;
+    vEmission = uEmissionColor * uEmissionEnergy;
 
     vec3 T = normalize(vec3(uMatModel * vec4(skinnedTangent, 0.0)));
     vec3 N = normalize(vec3(uMatNormal * vec4(skinnedNormal, 0.0)));

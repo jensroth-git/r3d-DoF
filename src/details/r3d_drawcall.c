@@ -332,15 +332,15 @@ void r3d_drawcall_raster_geometry(const r3d_drawcall_t* call)
     r3d_shader_set_mat4(raster.geometry, uMatMVP, matMVP);
 
     // Set factor material maps
-    r3d_shader_set_float(raster.geometry, uValEmission, call->material.emission.energy);
+    r3d_shader_set_float(raster.geometry, uEmissionEnergy, call->material.emission.energy);
     r3d_shader_set_float(raster.geometry, uNormalScale, call->material.normal.scale);
-    r3d_shader_set_float(raster.geometry, uValOcclusion, call->material.orm.occlusion);
-    r3d_shader_set_float(raster.geometry, uValRoughness, call->material.orm.roughness);
-    r3d_shader_set_float(raster.geometry, uValMetalness, call->material.orm.metalness);
+    r3d_shader_set_float(raster.geometry, uOcclusion, call->material.orm.occlusion);
+    r3d_shader_set_float(raster.geometry, uRoughness, call->material.orm.roughness);
+    r3d_shader_set_float(raster.geometry, uMetalness, call->material.orm.metalness);
 
     // Set color material maps
-    r3d_shader_set_col3(raster.geometry, uColAlbedo, call->material.albedo.color);
-    r3d_shader_set_col3(raster.geometry, uColEmission, call->material.emission.color);
+    r3d_shader_set_col3(raster.geometry, uAlbedoColor, call->material.albedo.color);
+    r3d_shader_set_col3(raster.geometry, uEmissionColor, call->material.emission.color);
 
     // Bind active texture maps
     r3d_shader_bind_sampler2D_opt(raster.geometry, uTexAlbedo, call->material.albedo.texture.id, white);
@@ -406,15 +406,15 @@ void r3d_drawcall_raster_geometry_inst(const r3d_drawcall_t* call)
     r3d_shader_set_mat4(raster.geometryInst, uMatVP, matVP);
 
     // Set factor material maps
-    r3d_shader_set_float(raster.geometryInst, uValEmission, call->material.emission.energy);
+    r3d_shader_set_float(raster.geometryInst, uEmissionEnergy, call->material.emission.energy);
     r3d_shader_set_float(raster.geometryInst, uNormalScale, call->material.normal.scale);
-    r3d_shader_set_float(raster.geometryInst, uValOcclusion, call->material.orm.occlusion);
-    r3d_shader_set_float(raster.geometryInst, uValRoughness, call->material.orm.roughness);
-    r3d_shader_set_float(raster.geometryInst, uValMetalness, call->material.orm.metalness);
+    r3d_shader_set_float(raster.geometryInst, uOcclusion, call->material.orm.occlusion);
+    r3d_shader_set_float(raster.geometryInst, uRoughness, call->material.orm.roughness);
+    r3d_shader_set_float(raster.geometryInst, uMetalness, call->material.orm.metalness);
 
     // Set color material maps
-    r3d_shader_set_col3(raster.geometryInst, uColAlbedo, call->material.albedo.color);
-    r3d_shader_set_col3(raster.geometryInst, uColEmission, call->material.emission.color);
+    r3d_shader_set_col3(raster.geometryInst, uAlbedoColor, call->material.albedo.color);
+    r3d_shader_set_col3(raster.geometryInst, uEmissionColor, call->material.emission.color);
 
     // Setup billboard mode
     r3d_shader_set_int(raster.geometryInst, uBillboardMode, call->material.billboardMode);
@@ -464,18 +464,18 @@ void r3d_drawcall_raster_forward(const r3d_drawcall_t* call)
     r3d_shader_set_mat4(raster.forward, uMatMVP, matMVP);
 
     // Set factor material maps
-    r3d_shader_set_float(raster.forward, uValEmission, call->material.emission.energy);
+    r3d_shader_set_float(raster.forward, uEmissionEnergy, call->material.emission.energy);
     r3d_shader_set_float(raster.forward, uNormalScale, call->material.normal.scale);
-    r3d_shader_set_float(raster.forward, uValOcclusion, call->material.orm.occlusion);
-    r3d_shader_set_float(raster.forward, uValRoughness, call->material.orm.roughness);
-    r3d_shader_set_float(raster.forward, uValMetalness, call->material.orm.metalness);
+    r3d_shader_set_float(raster.forward, uOcclusion, call->material.orm.occlusion);
+    r3d_shader_set_float(raster.forward, uRoughness, call->material.orm.roughness);
+    r3d_shader_set_float(raster.forward, uMetalness, call->material.orm.metalness);
 
     // Set misc material values
     r3d_shader_set_float(raster.forward, uAlphaCutoff, call->material.alphaCutoff);
 
     // Set color material maps
-    r3d_shader_set_col4(raster.forward, uColAlbedo, call->material.albedo.color);
-    r3d_shader_set_col3(raster.forward, uColEmission, call->material.emission.color);
+    r3d_shader_set_col4(raster.forward, uAlbedoColor, call->material.albedo.color);
+    r3d_shader_set_col3(raster.forward, uEmissionColor, call->material.emission.color);
 
     // Bind active texture maps
     r3d_shader_bind_sampler2D_opt(raster.forward, uTexAlbedo, call->material.albedo.texture.id, white);
@@ -542,18 +542,18 @@ void r3d_drawcall_raster_forward_inst(const r3d_drawcall_t* call)
     r3d_shader_set_mat4(raster.forwardInst, uMatVP, matVP);
 
     // Set factor material maps
-    r3d_shader_set_float(raster.forwardInst, uValEmission, call->material.emission.energy);
+    r3d_shader_set_float(raster.forwardInst, uEmissionEnergy, call->material.emission.energy);
     r3d_shader_set_float(raster.forwardInst, uNormalScale, call->material.normal.scale);
-    r3d_shader_set_float(raster.forwardInst, uValOcclusion, call->material.orm.occlusion);
-    r3d_shader_set_float(raster.forwardInst, uValRoughness, call->material.orm.roughness);
-    r3d_shader_set_float(raster.forwardInst, uValMetalness, call->material.orm.metalness);
+    r3d_shader_set_float(raster.forwardInst, uOcclusion, call->material.orm.occlusion);
+    r3d_shader_set_float(raster.forwardInst, uRoughness, call->material.orm.roughness);
+    r3d_shader_set_float(raster.forwardInst, uMetalness, call->material.orm.metalness);
 
     // Set misc material values
     r3d_shader_set_float(raster.forwardInst, uAlphaCutoff, call->material.alphaCutoff);
 
     // Set color material maps
-    r3d_shader_set_col4(raster.forwardInst, uColAlbedo, call->material.albedo.color);
-    r3d_shader_set_col3(raster.forwardInst, uColEmission, call->material.emission.color);
+    r3d_shader_set_col4(raster.forwardInst, uAlbedoColor, call->material.albedo.color);
+    r3d_shader_set_col3(raster.forwardInst, uEmissionColor, call->material.emission.color);
 
     // Setup billboard mode
     r3d_shader_set_int(raster.forwardInst, uBillboardMode, call->material.billboardMode);

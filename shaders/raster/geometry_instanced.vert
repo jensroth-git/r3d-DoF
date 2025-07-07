@@ -45,9 +45,9 @@ uniform mat4 uMatVP;
 
 uniform lowp int uBillboardMode;
 
-uniform float uValEmission;
-uniform vec3 uColEmission;
-uniform vec3 uColAlbedo;
+uniform float uEmissionEnergy;
+uniform vec3 uEmissionColor;
+uniform vec3 uAlbedoColor;
 
 uniform vec2 uTexCoordOffset;
 uniform vec2 uTexCoordScale;
@@ -117,8 +117,8 @@ void BillboardY(inout mat4 model, inout mat3 normal)
 void main()
 {
     vTexCoord = uTexCoordOffset + aTexCoord * uTexCoordScale;
-    vEmission = uColEmission * uValEmission;        // NOTE: Calculated here, in case we add different emission modes later.
-    vColor = aColor.rgb * iColor.rgb * uColAlbedo;
+    vEmission = uEmissionColor * uEmissionEnergy;        // NOTE: Calculated here, in case we add different emission modes later.
+    vColor = aColor.rgb * iColor.rgb * uAlbedoColor;
 
     mat4 matModel = uMatModel * transpose(iMatModel);
     mat3 matNormal = mat3(0.0);
