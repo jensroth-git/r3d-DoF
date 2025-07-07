@@ -38,8 +38,26 @@ r3d_skybox_load_from_panorama_hdr(const char* fileName, int size)
     // Load the HDR panorama texture
     Texture2D panorama = LoadTexture(fileName);
 
-    // Create skybox cubemap texture and depth renderbuffer
-    unsigned int cubemapId = rlLoadTextureCubemap(NULL, size, RL_PIXELFORMAT_UNCOMPRESSED_R16G16B16, 1);
+    // Choose the best HDR format available
+    GLenum format = r3d_texture_get_best_internal_format(GL_RGB16F);
+
+    // Create the skybox cubemap texture
+    unsigned int cubemapId = 0;
+    glGenTextures(1, &cubemapId);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapId);
+    for (int i = 0; i < 6; i++) {
+        glTexImage2D(
+            GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, format,
+            size, size, 0, GL_RGB, GL_FLOAT, NULL
+        );
+    }
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    // Create the temporary depth renderbuffer
     unsigned int rbo = rlLoadTextureDepth(size, size, true);
 
     // Create and configure framebuffer
@@ -100,8 +118,26 @@ static TextureCubemap r3d_skybox_generate_irradiance(TextureCubemap sky)
     int size = sky.width / 16;
     if (size < 32) size = 32;
 
-    // Create irradiance cubemap texture and depth renderbuffer
-    unsigned int irradianceId = rlLoadTextureCubemap(NULL, size, RL_PIXELFORMAT_UNCOMPRESSED_R32G32B32, 1);
+    // Choose the best HDR format available
+    GLenum format = r3d_texture_get_best_internal_format(GL_RGB16F);
+
+    // Create the irradiance cubemap texture
+    unsigned int irradianceId = 0;
+    glGenTextures(1, &irradianceId);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceId);
+    for (int i = 0; i < 6; i++) {
+        glTexImage2D(
+            GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, format,
+            size, size, 0, GL_RGB, GL_FLOAT, NULL
+        );
+    }
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    // Create the temporary depth renderbuffer
     unsigned int rbo = rlLoadTextureDepth(size, size, true);
 
     // Create and configure framebuffer
@@ -156,29 +192,29 @@ static TextureCubemap r3d_skybox_generate_irradiance(TextureCubemap sky)
 static TextureCubemap r3d_skybox_generate_prefilter(TextureCubemap sky)
 {
     static const int PREFILTER_SIZE = 128;
-    static const int MAX_MIP_LEVELS = 8;
+    static const int MAX_MIP_LEVELS = 8;    //< 1 + (int)floor(log2(PREFILTER_SIZE))
 
-    // Create prefilter cubemap texture
+    // Choose the best HDR format available
+    GLenum format = r3d_texture_get_best_internal_format(GL_RGB16F);
+
+    // Create the prefilter cubemap texture
     unsigned int prefilterId = 0;
     glGenTextures(1, &prefilterId);
     glBindTexture(GL_TEXTURE_CUBE_MAP, prefilterId);
-    for (int i = 0; i < 6; i++) {
-        glTexImage2D(
-            GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F,
-            128, 128, 0, GL_RGB, GL_FLOAT, NULL
-        );
+    for (int face = 0; face < 6; face++) {
+        for (int level = 0; level < MAX_MIP_LEVELS; level++) {
+            int size = PREFILTER_SIZE >> level;
+            glTexImage2D(
+                GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, level, format,
+                size, size, 0, GL_RGB, GL_FLOAT, NULL
+            );
+        }
     }
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
-
-    // Generate mipmaps
-    rlEnableTextureCubemap(prefilterId);
-    glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
-    rlDisableTextureCubemap();
 
     // Create depth renderbuffer and framebuffer
     unsigned int rbo = 0;
