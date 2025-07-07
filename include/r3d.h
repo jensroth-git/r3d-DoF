@@ -70,6 +70,7 @@ typedef unsigned int R3D_Flags;
 #define R3D_FLAG_NO_FRUSTUM_CULLING     (1 << 7)    /**< Disables internal frustum culling. Manual culling is allowed, but may break shadow visibility if objects casting shadows are skipped. */
 #define R3D_FLAG_TRANSPARENT_SORTING    (1 << 8)    /**< Back-to-front sorting of transparent objects for correct blending of non-discarded fragments. */
 #define R3D_FLAG_OPAQUE_SORTING         (1 << 9)    /**< Front-to-back sorting of opaque objects to optimize depth testing at the cost of additional sorting. */
+#define R3D_FLAG_LOW_PRECISION_BUFFERS  (1 << 10)   /**< Use 32-bit HDR formats like R11G11B10F for intermediate color buffers instead of full 16-bit floats. Saves memory and bandwidth. */
 
 /**
  * @brief Blend modes for rendering.

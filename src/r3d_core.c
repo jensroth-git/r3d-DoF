@@ -192,8 +192,13 @@ bool R3D_HasState(unsigned int flag)
 void R3D_SetState(unsigned int flags)
 {
     if (flags & R3D_FLAG_8_BIT_NORMALS) {
-        TraceLog(LOG_WARNING, "R3D: Cannot set 'R3D_FLAG_8_BIT_NORMALS'; this flag must be set before R3D initialization");
+        TraceLog(LOG_WARNING, "R3D: Cannot set 'R3D_FLAG_8_BIT_NORMALS'; this flag must be set during R3D initialization");
         flags &= ~R3D_FLAG_8_BIT_NORMALS;
+    }
+
+    if (flags & R3D_FLAG_LOW_PRECISION_BUFFERS) {
+        TraceLog(LOG_WARNING, "R3D: Cannot set 'R3D_FLAG_LOW_PRECISION_BUFFERS'; this flag must be set during R3D initialization");
+        flags &= ~R3D_FLAG_LOW_PRECISION_BUFFERS;
     }
 
     R3D.state.flags |= flags;
@@ -208,9 +213,14 @@ void R3D_SetState(unsigned int flags)
 void R3D_ClearState(unsigned int flags)
 {
     if (flags & R3D_FLAG_8_BIT_NORMALS) {
-        TraceLog(LOG_WARNING, "R3D: Cannot clear 'R3D_FLAG_8_BIT_NORMALS'; this flag must be set before R3D initialization");
+        TraceLog(LOG_WARNING, "R3D: Cannot clear 'R3D_FLAG_8_BIT_NORMALS'; this flag must be set during R3D initialization");
         flags &= ~R3D_FLAG_8_BIT_NORMALS;
-    }    
+    }
+
+    if (flags & R3D_FLAG_LOW_PRECISION_BUFFERS) {
+        TraceLog(LOG_WARNING, "R3D: Cannot clear 'R3D_FLAG_LOW_PRECISION_BUFFERS'; this flag must be set during R3D initialization");
+        flags &= ~R3D_FLAG_LOW_PRECISION_BUFFERS;
+    }
 
     R3D.state.flags &= ~flags;
 }

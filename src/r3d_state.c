@@ -591,6 +591,10 @@ void r3d_framebuffer_load_gbuffer(int width, int height)
 
     rlEnableFramebuffer(gBuffer->id);
 
+    // Determines the HDR color buffers precision
+    GLenum hdrFormat = (R3D.state.flags & R3D_FLAG_LOW_PRECISION_BUFFERS)
+        ? GL_R11F_G11F_B10F : GL_RGB16F;
+
     // Generate (albedo / orm) buffers
     gBuffer->albedo = rlLoadTexture(NULL, width, height, RL_PIXELFORMAT_UNCOMPRESSED_R8G8B8, 1);
     gBuffer->orm = rlLoadTexture(NULL, width, height, RL_PIXELFORMAT_UNCOMPRESSED_R8G8B8, 1);
@@ -598,7 +602,7 @@ void r3d_framebuffer_load_gbuffer(int width, int height)
     // Generate emission buffer
     glGenTextures(1, &gBuffer->emission);
     glBindTexture(GL_TEXTURE_2D, gBuffer->emission);
-    glTexImage2D(GL_TEXTURE_2D, 0, r3d_get_best_internal_format(GL_R11F_G11F_B10F), width, height, 0, GL_RGB, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, r3d_get_best_internal_format(hdrFormat), width, height, 0, GL_RGB, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -707,7 +711,7 @@ void r3d_framebuffer_load_deferred(int width, int height)
     glGenTextures(2, textures);
     for (int i = 0; i < 2; i++) {
         glBindTexture(GL_TEXTURE_2D, textures[i]);
-        glTexImage2D(GL_TEXTURE_2D, 0, r3d_get_best_internal_format(GL_R11F_G11F_B10F), width, height, 0, GL_RGB, GL_FLOAT, NULL);
+        glTexImage2D(GL_TEXTURE_2D, 0, r3d_get_best_internal_format(GL_RGB16F), width, height, 0, GL_RGB, GL_FLOAT, NULL);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -742,10 +746,14 @@ void r3d_framebuffer_load_scene(int width, int height)
 
     rlEnableFramebuffer(scene->id);
 
+    // Determines the HDR color buffers precision
+    GLenum hdrFormat = (R3D.state.flags & R3D_FLAG_LOW_PRECISION_BUFFERS)
+        ? GL_R11F_G11F_B10F : GL_RGB16F;
+
     // Generate color texture
     glGenTextures(1, &scene->color);
     glBindTexture(GL_TEXTURE_2D, scene->color);
-    glTexImage2D(GL_TEXTURE_2D, 0, r3d_get_best_internal_format(GL_R11F_G11F_B10F), width, height, 0, GL_RGB, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, r3d_get_best_internal_format(hdrFormat), width, height, 0, GL_RGB, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -776,20 +784,25 @@ void r3d_framebuffer_load_mipchain_bloom(int width, int height)
     glGenFramebuffers(1, &bloom->id);
     glBindFramebuffer(GL_FRAMEBUFFER, bloom->id);
 
-    int mipChainLength = (int)floor(log2(fminf(width, height)));
+    // Determines the HDR color buffers precision
+    GLenum hdrFormat = (R3D.state.flags & R3D_FLAG_LOW_PRECISION_BUFFERS)
+        ? GL_R11F_G11F_B10F : GL_RGB16F;
 
+    // Determine the length of the mip chain
+    int mipChainLength = (int)floor(log2(fminf(width, height)));
     bloom->mipChain = MemAlloc(mipChainLength * sizeof(struct r3d_mip_bloom_t));
     if (bloom->mipChain == NULL) {
         TraceLog(LOG_ERROR, "R3D: Failed to allocate memory to store bloom mip chain");
     }
-
     bloom->mipCount = mipChainLength;
 
+    // Dynamic value copy
     int iMipW = width;
     int iMipH = height;
     float fMipW = (float)iMipW;
     float fMipH = (float)iMipH;
 
+    // Create the mip chain
     for (GLuint i = 0; i < mipChainLength; i++) {
 
         struct r3d_mip_bloom_t* mip = &bloom->mipChain[i];
@@ -806,7 +819,7 @@ void r3d_framebuffer_load_mipchain_bloom(int width, int height)
 
         glGenTextures(1, &mip->id);
         glBindTexture(GL_TEXTURE_2D, mip->id);
-        glTexImage2D(GL_TEXTURE_2D, 0, r3d_get_best_internal_format(GL_R11F_G11F_B10F), width, height, 0, GL_RGB, GL_FLOAT, NULL);
+        glTexImage2D(GL_TEXTURE_2D, 0, r3d_get_best_internal_format(hdrFormat), width, height, 0, GL_RGB, GL_FLOAT, NULL);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -839,12 +852,16 @@ void r3d_framebuffer_load_pingpong_post(int width, int height)
 
     rlEnableFramebuffer(post->id);
 
+    // Determines the HDR color buffers precision
+    GLenum hdrFormat = (R3D.state.flags & R3D_FLAG_LOW_PRECISION_BUFFERS)
+        ? GL_R11F_G11F_B10F : GL_RGB16F;
+
     // Generate (color) buffers
     GLuint textures[2];
     glGenTextures(2, textures);
     for (int i = 0; i < 2; i++) {
         glBindTexture(GL_TEXTURE_2D, textures[i]);
-        glTexImage2D(GL_TEXTURE_2D, 0, r3d_get_best_internal_format(GL_R11F_G11F_B10F), width, height, 0, GL_RGB, GL_FLOAT, NULL);
+        glTexImage2D(GL_TEXTURE_2D, 0, r3d_get_best_internal_format(hdrFormat), width, height, 0, GL_RGB, GL_FLOAT, NULL);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
