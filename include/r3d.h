@@ -1685,6 +1685,7 @@ R3DAPI float R3D_GetLightAttenuation(R3D_Light id);
  *
  * This function sets the attenuation factor of the specified light.
  * A higher attenuation value causes the light to lose intensity more quickly as the distance increases.
+ * For a realistic effect, an attenuation factor of 2.0f is typically used.
  * Only applicable to spot lights or omni-lights.
  *
  * @param id The ID of the light.
