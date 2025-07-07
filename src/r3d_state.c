@@ -743,8 +743,20 @@ void r3d_framebuffer_load_mipchain_bloom(int width, int height)
     GLenum hdrFormat = (R3D.state.flags & R3D_FLAG_LOW_PRECISION_BUFFERS)
         ? GL_R11F_G11F_B10F : GL_RGB16F;
 
-    // Determine the length of the mip chain
-    int mipChainLength = (int)floor(log2(fminf(width, height)));
+    // Minimum mip size to avoid tiny levels
+    const int minSize = 8;
+
+    // Calculate max mip levels based on smallest dimension
+    int minDimension = (width < height) ? width : height;
+    int maxMipChainLength = (int)floor(log2((float)minDimension));
+
+    // Determine mip chain length stopping at minSize
+    int mipChainLength = 0;
+    for (; mipChainLength < maxMipChainLength; mipChainLength++) {
+        if ((minDimension >> mipChainLength) < minSize) break;
+    }
+
+    // Allocate the array containing the mipmaps
     bloom->mipChain = MemAlloc(mipChainLength * sizeof(struct r3d_mip_bloom));
     if (bloom->mipChain == NULL) {
         TraceLog(LOG_ERROR, "R3D: Failed to allocate memory to store bloom mip chain");
