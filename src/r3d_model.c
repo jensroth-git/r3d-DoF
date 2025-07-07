@@ -35,12 +35,12 @@ R3D_Mesh R3D_GenMeshPoly(int sides, float radius, bool upload)
     mesh.vertexCount = sides + 1;
     mesh.indexCount = sides * 3; // sides triangles, 3 indices per triangle
 
-    mesh.vertices = (R3D_Vertex*)malloc(mesh.vertexCount * sizeof(R3D_Vertex));
-    mesh.indices = (unsigned int*)malloc(mesh.indexCount * sizeof(unsigned int));
+    mesh.vertices = (R3D_Vertex*)RL_MALLOC(mesh.vertexCount * sizeof(R3D_Vertex));
+    mesh.indices = (unsigned int*)RL_MALLOC(mesh.indexCount * sizeof(unsigned int));
 
     if (!mesh.vertices || !mesh.indices) {
-        if (mesh.vertices) free(mesh.vertices);
-        if (mesh.indices) free(mesh.indices);
+        if (mesh.vertices) RL_FREE(mesh.vertices);
+        if (mesh.indices) RL_FREE(mesh.indices);
         return mesh;
     }
 
@@ -123,12 +123,12 @@ R3D_Mesh R3D_GenMeshPlane(float width, float length, int resX, int resZ, bool up
     mesh.indexCount = resX * resZ * 6; // 2 triangles per quad, 3 indices per triangle
 
     // Memory allocation
-    mesh.vertices = (R3D_Vertex*)malloc(mesh.vertexCount * sizeof(R3D_Vertex));
-    mesh.indices = (unsigned int*)malloc(mesh.indexCount * sizeof(unsigned int));
+    mesh.vertices = (R3D_Vertex*)RL_MALLOC(mesh.vertexCount * sizeof(R3D_Vertex));
+    mesh.indices = (unsigned int*)RL_MALLOC(mesh.indexCount * sizeof(unsigned int));
 
     if (!mesh.vertices || !mesh.indices) {
-        if (mesh.vertices) free(mesh.vertices);
-        if (mesh.indices) free(mesh.indices);
+        if (mesh.vertices) RL_FREE(mesh.vertices);
+        if (mesh.indices) RL_FREE(mesh.indices);
         return mesh;
     }
 
@@ -216,12 +216,12 @@ R3D_Mesh R3D_GenMeshCube(float width, float height, float length, bool upload)
     mesh.indexCount = 36;  // 2 triangles per face, 3 indices per triangle, 6 faces
 
     // Memory allocation
-    mesh.vertices = (R3D_Vertex*)malloc(mesh.vertexCount * sizeof(R3D_Vertex));
-    mesh.indices = (unsigned int*)malloc(mesh.indexCount * sizeof(unsigned int));
+    mesh.vertices = (R3D_Vertex*)RL_MALLOC(mesh.vertexCount * sizeof(R3D_Vertex));
+    mesh.indices = (unsigned int*)RL_MALLOC(mesh.indexCount * sizeof(unsigned int));
 
     if (!mesh.vertices || !mesh.indices) {
-        if (mesh.vertices) free(mesh.vertices);
-        if (mesh.indices) free(mesh.indices);
+        if (mesh.vertices) RL_FREE(mesh.vertices);
+        if (mesh.indices) RL_FREE(mesh.indices);
         return mesh;
     }
 
@@ -335,12 +335,12 @@ R3D_Mesh R3D_GenMeshSphere(float radius, int rings, int slices, bool upload)
     mesh.indexCount = rings * slices * 6; // 2 triangles per quad
 
     // Allocate memory for vertices and indices
-    mesh.vertices = (R3D_Vertex*)malloc(mesh.vertexCount * sizeof(R3D_Vertex));
-    mesh.indices = (unsigned int*)malloc(mesh.indexCount * sizeof(unsigned int));
+    mesh.vertices = (R3D_Vertex*)RL_MALLOC(mesh.vertexCount * sizeof(R3D_Vertex));
+    mesh.indices = (unsigned int*)RL_MALLOC(mesh.indexCount * sizeof(unsigned int));
 
     if (!mesh.vertices || !mesh.indices) {
-        if (mesh.vertices) free(mesh.vertices);
-        if (mesh.indices) free(mesh.indices);
+        if (mesh.vertices) RL_FREE(mesh.vertices);
+        if (mesh.indices) RL_FREE(mesh.indices);
         return mesh;
     }
 
@@ -454,12 +454,12 @@ R3D_Mesh R3D_GenMeshHemiSphere(float radius, int rings, int slices, bool upload)
     mesh.indexCount = hemisphereIndexCount + baseIndexCount;
 
     // Allocate memory
-    mesh.vertices = (R3D_Vertex*)malloc(mesh.vertexCount * sizeof(R3D_Vertex));
-    mesh.indices = (unsigned int*)malloc(mesh.indexCount * sizeof(unsigned int));
+    mesh.vertices = (R3D_Vertex*)RL_MALLOC(mesh.vertexCount * sizeof(R3D_Vertex));
+    mesh.indices = (unsigned int*)RL_MALLOC(mesh.indexCount * sizeof(unsigned int));
 
     if (!mesh.vertices || !mesh.indices) {
-        if (mesh.vertices) free(mesh.vertices);
-        if (mesh.indices) free(mesh.indices);
+        if (mesh.vertices) RL_FREE(mesh.vertices);
+        if (mesh.indices) RL_FREE(mesh.indices);
         return mesh;
     }
 
@@ -622,12 +622,12 @@ R3D_Mesh R3D_GenMeshCylinder(float radius, float height, int slices, bool upload
     mesh.indexCount = bodyIndexCount + capIndexCount;
 
     // Allocate memory
-    mesh.vertices = (R3D_Vertex*)malloc(mesh.vertexCount * sizeof(R3D_Vertex));
-    mesh.indices = (unsigned int*)malloc(mesh.indexCount * sizeof(unsigned int));
+    mesh.vertices = (R3D_Vertex*)RL_MALLOC(mesh.vertexCount * sizeof(R3D_Vertex));
+    mesh.indices = (unsigned int*)RL_MALLOC(mesh.indexCount * sizeof(unsigned int));
 
     if (!mesh.vertices || !mesh.indices) {
-        if (mesh.vertices) free(mesh.vertices);
-        if (mesh.indices) free(mesh.indices);
+        if (mesh.vertices) RL_FREE(mesh.vertices);
+        if (mesh.indices) RL_FREE(mesh.indices);
         return mesh;
     }
 
@@ -854,12 +854,12 @@ R3D_Mesh R3D_GenMeshCone(float radius, float height, int slices, bool upload)
     mesh.indexCount = sideIndexCount + baseIndexCount;
 
     // Memory allocation
-    mesh.vertices = (R3D_Vertex*)malloc(mesh.vertexCount * sizeof(R3D_Vertex));
-    mesh.indices = (unsigned int*)malloc(mesh.indexCount * sizeof(unsigned int));
+    mesh.vertices = (R3D_Vertex*)RL_MALLOC(mesh.vertexCount * sizeof(R3D_Vertex));
+    mesh.indices = (unsigned int*)RL_MALLOC(mesh.indexCount * sizeof(unsigned int));
 
     if (!mesh.vertices || !mesh.indices) {
-        if (mesh.vertices) free(mesh.vertices);
-        if (mesh.indices) free(mesh.indices);
+        if (mesh.vertices) RL_FREE(mesh.vertices);
+        if (mesh.indices) RL_FREE(mesh.indices);
         return mesh;
     }
 
@@ -982,12 +982,12 @@ R3D_Mesh R3D_GenMeshTorus(float radius, float size, int radSeg, int sides, bool 
     mesh.vertexCount = rings * segments;
     mesh.indexCount = radSeg * sides * 6;
 
-    mesh.vertices = (R3D_Vertex*)malloc(mesh.vertexCount * sizeof(R3D_Vertex));
-    mesh.indices = (unsigned int*)malloc(mesh.indexCount * sizeof(unsigned int));
+    mesh.vertices = (R3D_Vertex*)RL_MALLOC(mesh.vertexCount * sizeof(R3D_Vertex));
+    mesh.indices = (unsigned int*)RL_MALLOC(mesh.indexCount * sizeof(unsigned int));
 
     if (!mesh.vertices || !mesh.indices) {
-        if (mesh.vertices) free(mesh.vertices);
-        if (mesh.indices) free(mesh.indices);
+        if (mesh.vertices) RL_FREE(mesh.vertices);
+        if (mesh.indices) RL_FREE(mesh.indices);
         return mesh;
     }
 
@@ -1094,12 +1094,12 @@ R3D_Mesh R3D_GenMeshKnot(float radius, float tubeRadius, int segments, int sides
     mesh.vertexCount = knotSegments * tubeSides;
     mesh.indexCount = segments * sides * 6;
 
-    mesh.vertices = (R3D_Vertex*)malloc(mesh.vertexCount * sizeof(R3D_Vertex));
-    mesh.indices = (unsigned int*)malloc(mesh.indexCount * sizeof(unsigned int));
+    mesh.vertices = (R3D_Vertex*)RL_MALLOC(mesh.vertexCount * sizeof(R3D_Vertex));
+    mesh.indices = (unsigned int*)RL_MALLOC(mesh.indexCount * sizeof(unsigned int));
 
     if (!mesh.vertices || !mesh.indices) {
-        if (mesh.vertices) free(mesh.vertices);
-        if (mesh.indices) free(mesh.indices);
+        if (mesh.vertices) RL_FREE(mesh.vertices);
+        if (mesh.indices) RL_FREE(mesh.indices);
         return mesh;
     }
 
@@ -1258,12 +1258,12 @@ R3D_Mesh R3D_GenMeshHeightmap(Image heightmap, Vector3 size, bool upload)
     mesh.indexCount = (mapWidth - 1) * (mapHeight - 1) * 6; // 2 triangles per quad
 
     // Memory allocation
-    mesh.vertices = (R3D_Vertex*)malloc(mesh.vertexCount * sizeof(R3D_Vertex));
-    mesh.indices = (unsigned int*)malloc(mesh.indexCount * sizeof(unsigned int));
+    mesh.vertices = (R3D_Vertex*)RL_MALLOC(mesh.vertexCount * sizeof(R3D_Vertex));
+    mesh.indices = (unsigned int*)RL_MALLOC(mesh.indexCount * sizeof(unsigned int));
 
     if (!mesh.vertices || !mesh.indices) {
-        if (mesh.vertices) free(mesh.vertices);
-        if (mesh.indices) free(mesh.indices);
+        if (mesh.vertices) RL_FREE(mesh.vertices);
+        if (mesh.indices) RL_FREE(mesh.indices);
         return mesh;
     }
 
@@ -1454,12 +1454,12 @@ R3D_Mesh R3D_GenMeshCubicmap(Image cubicmap, Vector3 cubeSize, bool upload)
     }
 
     // Allocation of temporary tables
-    R3D_Vertex* vertices = (R3D_Vertex*)malloc(maxFaces * 4 * sizeof(R3D_Vertex));
-    unsigned int* indices = (unsigned int*)malloc(maxFaces * 6 * sizeof(unsigned int));
+    R3D_Vertex* vertices = (R3D_Vertex*)RL_MALLOC(maxFaces * 4 * sizeof(R3D_Vertex));
+    unsigned int* indices = (unsigned int*)RL_MALLOC(maxFaces * 6 * sizeof(unsigned int));
 
     if (!vertices || !indices) {
-        if (vertices) free(vertices);
-        if (indices) free(indices);
+        if (vertices) RL_FREE(vertices);
+        if (indices) RL_FREE(indices);
         UnloadImageColors(pixels);
         return mesh;
     }
@@ -1739,9 +1739,9 @@ void R3D_UnloadMesh(const R3D_Mesh* mesh)
         glDeleteVertexArrays(1, &mesh->vao);
     }
 
-    free(mesh->indices);
-    free(mesh->vertices);
-    free(mesh->boneMatrices);
+    RL_FREE(mesh->indices);
+    RL_FREE(mesh->vertices);
+    RL_FREE(mesh->boneMatrices);
 }
 
 bool R3D_UploadMesh(R3D_Mesh* mesh, bool dynamic)
@@ -1976,8 +1976,8 @@ static bool r3d_process_assimp_mesh(R3D_Model* model, int meshIndex, const struc
         if ((mesh)->vao != 0) {                     \
             glDeleteVertexArrays(1, &(mesh)->vao);  \
         }                                           \
-        free((mesh)->indices);                      \
-        free((mesh)->vertices);                     \
+        RL_FREE((mesh)->indices);                      \
+        RL_FREE((mesh)->vertices);                     \
         (mesh)->indices = NULL;                     \
         (mesh)->vertices = NULL;                    \
         (mesh)->vertexCount = 0;                    \
@@ -2012,16 +2012,16 @@ static bool r3d_process_assimp_mesh(R3D_Model* model, int meshIndex, const struc
 
     /* --- Allocate vertex and index buffers --- */
 
-    mesh->vertices = calloc(mesh->vertexCount, sizeof(R3D_Vertex));
+    mesh->vertices = RL_CALLOC(mesh->vertexCount, sizeof(R3D_Vertex));
     if (!mesh->vertices) {
         TraceLog(LOG_ERROR, "R3D: Unable to allocate memory for vertices");
         return false;
     }
 
-    mesh->indices = calloc(mesh->indexCount, sizeof(unsigned int));
+    mesh->indices = RL_CALLOC(mesh->indexCount, sizeof(unsigned int));
     if (!mesh->indices) {
         TraceLog(LOG_ERROR, "R3D: Unable to allocate memory for indices");
-        free(mesh->vertices);
+        RL_FREE(mesh->vertices);
         return false;
     }
 
@@ -2500,7 +2500,7 @@ static Texture2D r3d_load_assimp_orm_texture(
     /* --- Create combined ORM texture --- */
     
     Image ormImage = {
-        .data = malloc(refWidth * refHeight * 3 * sizeof(uint8_t)),
+        .data = RL_MALLOC(refWidth * refHeight * 3 * sizeof(uint8_t)),
         .format = RL_PIXELFORMAT_UNCOMPRESSED_R8G8B8,
         .width = refWidth,
         .height = refHeight,
@@ -2561,7 +2561,7 @@ bool process_assimp_materials(const struct aiScene* scene, R3D_Material** materi
     /* --- Allocate material array --- */
 
     *materialCount = scene->mNumMaterials;
-    *materials = malloc(*materialCount * sizeof(R3D_Material));
+    *materials = RL_MALLOC(*materialCount * sizeof(R3D_Material));
     if (!*materials) {
         TraceLog(LOG_ERROR, "R3D: Unable to allocate memory for materials");
         return false;
@@ -2761,11 +2761,11 @@ bool r3d_process_bones_and_offsets(R3D_Model* model, const struct aiScene* scene
     }
 
     // Allocate final bone and offset arrays directly in the model.
-    model->bones = (BoneInfo*)calloc(maxPossibleBones, sizeof(BoneInfo));
-    model->boneOffsets = (Matrix*)calloc(maxPossibleBones, sizeof(Matrix));
+    model->bones = (BoneInfo*)RL_CALLOC(maxPossibleBones, sizeof(BoneInfo));
+    model->boneOffsets = (Matrix*)RL_CALLOC(maxPossibleBones, sizeof(Matrix));
     if (!model->bones || !model->boneOffsets) {
-        free(model->bones);
-        free(model->boneOffsets);
+        RL_FREE(model->bones);
+        RL_FREE(model->boneOffsets);
         model->bones = NULL;
         model->boneOffsets = NULL;
         model->boneCount = 0;
@@ -2799,7 +2799,7 @@ bool r3d_process_bones_and_offsets(R3D_Model* model, const struct aiScene* scene
     // Allocate a boneMatrices cache array for all meshes
     // Which will be used to calculate only one of the matrices and be reused between passes
     for (int i = 0; i < model->meshCount; i++) {
-        model->meshes[i].boneMatrices = malloc(R3D_SHADER_MAX_BONES * sizeof(Matrix));
+        model->meshes[i].boneMatrices = RL_MALLOC(R3D_SHADER_MAX_BONES * sizeof(Matrix));
     }
     
     return true;
@@ -3051,13 +3051,13 @@ bool r3d_process_animation(R3D_ModelAnimation* animation, const struct aiScene* 
 
     /* --- Allocate memory for bones and frame poses --- */
 
-    animation->bones = calloc(animation->boneCount, sizeof(BoneInfo));
-    animation->framePoses = calloc(animation->frameCount, sizeof(Matrix*));
+    animation->bones = RL_CALLOC(animation->boneCount, sizeof(BoneInfo));
+    animation->framePoses = RL_CALLOC(animation->frameCount, sizeof(Matrix*));
 
     if (!animation->bones || !animation->framePoses) {
         TraceLog(LOG_ERROR, "R3D: Failed to allocate memory for animation data");
-        free(animation->framePoses);
-        free(animation->bones);
+        RL_FREE(animation->framePoses);
+        RL_FREE(animation->bones);
         return false;
     }
 
@@ -3087,12 +3087,12 @@ bool r3d_process_animation(R3D_ModelAnimation* animation, const struct aiScene* 
     /* --- Allocate matrices for each animation frame --- */
 
     for (int frame = 0; frame < animation->frameCount; frame++) {
-        animation->framePoses[frame] = calloc(animation->boneCount, sizeof(Matrix));
+        animation->framePoses[frame] = RL_CALLOC(animation->boneCount, sizeof(Matrix));
         if (!animation->framePoses[frame]) {
             TraceLog(LOG_ERROR, "R3D: Failed to allocate memory for frame %d", frame);
-            for (int i = 0; i < frame; i++) free(animation->framePoses[i]);
-            free(animation->framePoses);
-            free(animation->bones);
+            for (int i = 0; i < frame; i++) RL_FREE(animation->framePoses[i]);
+            RL_FREE(animation->framePoses);
+            RL_FREE(animation->bones);
             return false;
         }
     }
@@ -3166,7 +3166,7 @@ R3D_Model R3D_LoadModel(const char* filePath)
 
     model.meshCount = scene->mNumMeshes;
 
-    model.meshes = calloc(model.meshCount, sizeof(R3D_Mesh));
+    model.meshes = RL_CALLOC(model.meshCount, sizeof(R3D_Mesh));
     if (model.meshes == NULL) {
         TraceLog(LOG_ERROR, "R3D: Unable to allocate memory for meshes; The model will be invalid");
         R3D_UnloadModel(&model, true);
@@ -3174,12 +3174,12 @@ R3D_Model R3D_LoadModel(const char* filePath)
         return model;
     }
 
-    model.meshMaterials = calloc(model.meshCount, sizeof(int));
+    model.meshMaterials = RL_CALLOC(model.meshCount, sizeof(int));
     if (model.meshMaterials == NULL) {
         TraceLog(LOG_ERROR, "R3D: Unable to allocate memory for mesh materials array; The model will be invalid");
         R3D_UnloadModel(&model, true);
         aiReleaseImport(scene);
-        free(model.meshes);
+        RL_FREE(model.meshes);
         return model;
     }
 
@@ -3248,7 +3248,7 @@ R3D_Model R3D_LoadModelFromMemory(const char* fileType, const void* data, unsign
     /* --- Initialize model and allocate meshes --- */
 
     model.meshCount = scene->mNumMeshes;
-    model.meshes = malloc(model.meshCount * sizeof(R3D_Mesh));
+    model.meshes = RL_MALLOC(model.meshCount * sizeof(R3D_Mesh));
 
     if (model.meshes == NULL) {
         TraceLog(LOG_ERROR, "R3D: Unable to allocate memory for meshes; The model will be invalid");
@@ -3293,15 +3293,15 @@ R3D_Model R3D_LoadModelFromMesh(const R3D_Mesh* mesh)
         return model;
     }
 
-    model.meshes = malloc(sizeof(R3D_Mesh));
+    model.meshes = RL_MALLOC(sizeof(R3D_Mesh));
     model.meshes[0] = *mesh;
     model.meshCount = 1;
 
-    model.materials = malloc(sizeof(R3D_Material));
+    model.materials = RL_MALLOC(sizeof(R3D_Material));
     model.materials[0] = R3D_GetDefaultMaterial();
     model.materialCount = 1;
 
-    model.meshMaterials = malloc(sizeof(int));
+    model.meshMaterials = RL_MALLOC(sizeof(int));
     model.meshMaterials[0] = 0;
 
     R3D_UpdateModelBoundingBox(&model, false);
@@ -3321,12 +3321,12 @@ void R3D_UnloadModel(const R3D_Model* model, bool unloadMaterials)
         }
     }
 
-    free(model->meshMaterials);
-    free(model->materials);
-    free(model->meshes);
+    RL_FREE(model->meshMaterials);
+    RL_FREE(model->materials);
+    RL_FREE(model->meshes);
 
-    free(model->boneOffsets);
-    free(model->bones);
+    RL_FREE(model->boneOffsets);
+    RL_FREE(model->bones);
 }
 
 void R3D_UpdateModelBoundingBox(R3D_Model* model, bool updateMeshBoundingBoxes)
@@ -3383,7 +3383,7 @@ R3D_ModelAnimation* R3D_LoadModelAnimations(const char* fileName, int* animCount
 
     /* --- Allocate animations array --- */
 
-    R3D_ModelAnimation* animations = calloc(scene->mNumAnimations, sizeof(R3D_ModelAnimation));
+    R3D_ModelAnimation* animations = RL_CALLOC(scene->mNumAnimations, sizeof(R3D_ModelAnimation));
     if (!animations) {
         TraceLog(LOG_ERROR, "R3D: Unable to allocate memory for animations");
         aiReleaseImport(scene);
@@ -3408,13 +3408,13 @@ R3D_ModelAnimation* R3D_LoadModelAnimations(const char* fileName, int* animCount
 
     if (successCount == 0) {
         TraceLog(LOG_ERROR, "R3D: No animations were successfully loaded");
-        free(animations);
+        RL_FREE(animations);
         return NULL;
     }
 
     if (successCount < (int)scene->mNumAnimations) {
         TraceLog(LOG_WARNING, "R3D: Only %d out of %d animations were successfully loaded", successCount, scene->mNumAnimations);
-        R3D_ModelAnimation* resizedAnims = realloc(animations, successCount * sizeof(R3D_ModelAnimation));
+        R3D_ModelAnimation* resizedAnims = RL_REALLOC(animations, successCount * sizeof(R3D_ModelAnimation));
         if (resizedAnims) animations = resizedAnims;
     }
 
@@ -3434,16 +3434,16 @@ void R3D_UnloadModelAnimations(R3D_ModelAnimation* animations, int animCount)
         // Free frame poses
         if (anim->framePoses) {
             for (int frame = 0; frame < anim->frameCount; frame++) {
-                free(anim->framePoses[frame]);
+                RL_FREE(anim->framePoses[frame]);
             }
-            free(anim->framePoses);
+            RL_FREE(anim->framePoses);
         }
         
         // Free bones
-        free(anim->bones);
+        RL_FREE(anim->bones);
     }
     
-    free(animations);
+    RL_FREE(animations);
 }
 
 R3D_ModelAnimation* R3D_GetModelAnimation(R3D_ModelAnimation* animations, int animCount, const char* name)
