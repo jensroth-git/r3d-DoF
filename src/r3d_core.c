@@ -72,8 +72,7 @@ static void r3d_pass_scene_forward(void);
 static void r3d_pass_post_setup(void);
 static void r3d_pass_post_bloom(void);
 static void r3d_pass_post_fog(void);
-static void r3d_pass_post_tonemap(void);
-static void r3d_pass_post_adjustment(void);
+static void r3d_pass_post_output(void);
 static void r3d_pass_post_fxaa(void);
 
 static void r3d_pass_final_blit(void);
@@ -394,11 +393,7 @@ void R3D_End(void)
         r3d_pass_post_fog();
     }
 
-    if (R3D.env.tonemapMode != R3D_TONEMAP_LINEAR || R3D.env.tonemapExposure != 1.0f) {
-        r3d_pass_post_tonemap();
-    }
-
-    r3d_pass_post_adjustment();
+    r3d_pass_post_output();
 
     if (R3D.state.flags & R3D_FLAG_FXAA) {
         r3d_pass_post_fxaa();
@@ -2105,44 +2100,30 @@ void r3d_pass_post_fog(void)
     }
 }
 
-void r3d_pass_post_tonemap(void)
+void r3d_pass_post_output(void)
 {
-    rlEnableFramebuffer(R3D.framebuffer.pingPong.id);
-    {
-        rlViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
+    R3D_Tonemap tonemap = R3D.env.tonemapMode;
 
-        r3d_framebuffer_swap_pingpong(R3D.framebuffer.pingPong);
-
-        r3d_shader_enable(screen.tonemap);
-        {
-            r3d_shader_bind_sampler2D(screen.tonemap, uTexColor, R3D.framebuffer.pingPong.source);
-
-            r3d_shader_set_int(screen.tonemap, uTonemapMode, R3D.env.tonemapMode);
-            r3d_shader_set_float(screen.tonemap, uTonemapExposure, R3D.env.tonemapExposure);
-            r3d_shader_set_float(screen.tonemap, uTonemapWhite, R3D.env.tonemapWhite);
-
-            r3d_primitive_bind_and_draw_screen();
-        }
-        r3d_shader_disable();
+    if (R3D.shader.screen.output[tonemap].id == 0) {
+        r3d_shader_load_screen_output(tonemap);
     }
-}
 
-void r3d_pass_post_adjustment(void)
-{
     rlEnableFramebuffer(R3D.framebuffer.pingPong.id);
     {
         rlViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
 
         r3d_framebuffer_swap_pingpong(R3D.framebuffer.pingPong);
 
-        r3d_shader_enable(screen.adjustment);
+        r3d_shader_enable(screen.output[tonemap]);
         {
-            r3d_shader_bind_sampler2D(screen.adjustment, uTexColor, R3D.framebuffer.pingPong.source);
+            r3d_shader_bind_sampler2D(screen.output[tonemap], uTexColor, R3D.framebuffer.pingPong.source);
 
-            r3d_shader_set_float(screen.adjustment, uBrightness, R3D.env.brightness);
-            r3d_shader_set_float(screen.adjustment, uContrast, R3D.env.contrast);
-            r3d_shader_set_float(screen.adjustment, uSaturation, R3D.env.saturation);
-            r3d_shader_set_vec2(screen.adjustment, uResolution, (Vector2) {
+            r3d_shader_set_float(screen.output[tonemap], uTonemapExposure, R3D.env.tonemapExposure);
+            r3d_shader_set_float(screen.output[tonemap], uTonemapWhite, R3D.env.tonemapWhite);
+            r3d_shader_set_float(screen.output[tonemap], uBrightness, R3D.env.brightness);
+            r3d_shader_set_float(screen.output[tonemap], uContrast, R3D.env.contrast);
+            r3d_shader_set_float(screen.output[tonemap], uSaturation, R3D.env.saturation);
+            r3d_shader_set_vec2(screen.output[tonemap], uResolution, (Vector2) {
                 (float)R3D.state.resolution.width, (float)R3D.state.resolution.height
             });
 

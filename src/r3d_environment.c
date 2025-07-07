@@ -256,6 +256,14 @@ float R3D_GetFogDensity(void)
 void R3D_SetTonemapMode(R3D_Tonemap mode)
 {
 	R3D.env.tonemapMode = mode;
+
+	// NOTE: The output shader for this tonemap mode
+	//       will be loaded during the next output pass
+	//       in `R3D_End()`
+
+	//if (R3D.shader.screen.output[mode].id == 0) {
+	//	r3d_shader_load_screen_output(mode);
+	//}
 }
 
 R3D_Tonemap R3D_GetTonemapMode(void)

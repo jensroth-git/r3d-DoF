@@ -490,12 +490,14 @@ void r3d_textures_unload(void)
 
 void r3d_shaders_load(void)
 {
-    // Load generation shaders
+    /* --- Generation shader passes --- */
+
     r3d_shader_load_generate_cubemap_from_equirectangular();
     r3d_shader_load_generate_irradiance_convolution();
     r3d_shader_load_generate_prefilter();
 
-    // Load raster shaders
+    /* --- Scene shader passes --- */
+
     r3d_shader_load_raster_geometry();
     r3d_shader_load_raster_geometry_inst();
     r3d_shader_load_raster_forward();
@@ -507,13 +509,23 @@ void r3d_shaders_load(void)
     r3d_shader_load_raster_depth_cube();
     r3d_shader_load_raster_depth_cube_inst();
 
-    // Load screen shaders
+    /* --- Screen shader passes --- */
+
     r3d_shader_load_screen_ambient_ibl();
     r3d_shader_load_screen_ambient();
     r3d_shader_load_screen_lighting();
     r3d_shader_load_screen_scene();
-    r3d_shader_load_screen_tonemap();
-    r3d_shader_load_screen_adjustment();
+
+    // NOTE: Don't load the output shader here to avoid keeping an unused tonemap mode
+    //       in memory in case the tonemap mode changes after initialization.
+    //       It is loaded on demand during `R3D_End()`
+
+    // TODO: Revisit the shader loading mechanism. Constantly checking and loading
+    //       it during `R3D_End()` doesn't feel like the cleanest approach
+
+    //r3d_shader_load_screen_output(R3D.env.tonemapMode);
+
+    /* --- Additional screen shader passes --- */
 
     if (R3D.env.ssaoEnabled) {
         r3d_shader_load_generate_gaussian_blur_dual_pass();
@@ -557,8 +569,12 @@ void r3d_shaders_unload(void)
     rlUnloadShaderProgram(R3D.shader.screen.ambient.id);
     rlUnloadShaderProgram(R3D.shader.screen.lighting.id);
     rlUnloadShaderProgram(R3D.shader.screen.scene.id);
-    rlUnloadShaderProgram(R3D.shader.screen.tonemap.id);
-    rlUnloadShaderProgram(R3D.shader.screen.adjustment.id);
+
+    for (int i = 0; i < R3D_TONEMAP_COUNT; i++) {
+        if (R3D.shader.screen.output[i].id != 0) {
+            rlUnloadShaderProgram(R3D.shader.screen.output[i].id);
+        }
+    }
 
     if (R3D.shader.screen.ssao.id != 0) {
         rlUnloadShaderProgram(R3D.shader.screen.ssao.id);
@@ -1527,36 +1543,29 @@ void r3d_shader_load_screen_fog(void)
     r3d_shader_disable();
 }
 
-void r3d_shader_load_screen_tonemap(void)
+void r3d_shader_load_screen_output(R3D_Tonemap tonemap)
 {
-    R3D.shader.screen.tonemap.id = rlLoadShaderCode(
-        SCREEN_VERT, TONEMAP_FRAG
-    );
+    assert(R3D.shader.screen.output[tonemap].id == 0);
 
-    r3d_shader_get_location(screen.tonemap, uTexColor);
-    r3d_shader_get_location(screen.tonemap, uTonemapMode);
-    r3d_shader_get_location(screen.tonemap, uTonemapExposure);
-    r3d_shader_get_location(screen.tonemap, uTonemapWhite);
+    const char* defines[] = {
+        TextFormat("#define TONEMAPPER %i", tonemap)
+    };
 
-    r3d_shader_enable(screen.tonemap);
-    r3d_shader_set_sampler2D_slot(screen.tonemap, uTexColor, 0);
-    r3d_shader_disable();
-}
+    char* fsCode = r3d_shader_inject_defines(OUTPUT_FRAG, defines, 1);
+    R3D.shader.screen.output[tonemap].id = rlLoadShaderCode(SCREEN_VERT, fsCode);
 
-void r3d_shader_load_screen_adjustment(void)
-{
-    R3D.shader.screen.adjustment.id = rlLoadShaderCode(
-        SCREEN_VERT, ADJUSTMENT_FRAG
-    );
+    RL_FREE(fsCode);
 
-    r3d_shader_get_location(screen.adjustment, uTexColor);
-    r3d_shader_get_location(screen.adjustment, uBrightness);
-    r3d_shader_get_location(screen.adjustment, uContrast);
-    r3d_shader_get_location(screen.adjustment, uSaturation);
-    r3d_shader_get_location(screen.adjustment, uResolution);
+    r3d_shader_get_location(screen.output[tonemap], uTexColor);
+    r3d_shader_get_location(screen.output[tonemap], uTonemapExposure);
+    r3d_shader_get_location(screen.output[tonemap], uTonemapWhite);
+    r3d_shader_get_location(screen.output[tonemap], uBrightness);
+    r3d_shader_get_location(screen.output[tonemap], uContrast);
+    r3d_shader_get_location(screen.output[tonemap], uSaturation);
+    r3d_shader_get_location(screen.output[tonemap], uResolution);
 
-    r3d_shader_enable(screen.adjustment);
-    r3d_shader_set_sampler2D_slot(screen.adjustment, uTexColor, 0);
+    r3d_shader_enable(screen.output[tonemap]);
+    r3d_shader_set_sampler2D_slot(screen.output[tonemap], uTexColor, 0);
     r3d_shader_disable();
 }
 

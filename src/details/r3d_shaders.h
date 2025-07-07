@@ -398,19 +398,13 @@ typedef struct {
 typedef struct {
     unsigned int id;
     r3d_shader_uniform_sampler2D_t uTexColor;
-    r3d_shader_uniform_int_t uTonemapMode;
     r3d_shader_uniform_float_t uTonemapExposure;
     r3d_shader_uniform_float_t uTonemapWhite;
-} r3d_shader_screen_tonemap_t;
-
-typedef struct {
-    unsigned int id;
-    r3d_shader_uniform_sampler2D_t uTexColor;
     r3d_shader_uniform_float_t uBrightness;
     r3d_shader_uniform_float_t uContrast;
     r3d_shader_uniform_float_t uSaturation;
     r3d_shader_uniform_vec2_t uResolution;
-} r3d_shader_screen_adjustment_t;
+} r3d_shader_screen_output_t;
 
 typedef struct {
     unsigned int id;

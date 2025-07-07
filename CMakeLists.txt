@@ -228,8 +228,7 @@ EmbedShaders(${PROJECT_NAME}
     "${R3D_ROOT_PATH}/shaders/screen/scene.frag"
     "${R3D_ROOT_PATH}/shaders/screen/bloom.frag"
     "${R3D_ROOT_PATH}/shaders/screen/fog.frag"
-    "${R3D_ROOT_PATH}/shaders/screen/tonemap.frag"
-    "${R3D_ROOT_PATH}/shaders/screen/adjustment.frag"
+    "${R3D_ROOT_PATH}/shaders/screen/output.frag"
     "${R3D_ROOT_PATH}/shaders/screen/fxaa.frag"
 )
 

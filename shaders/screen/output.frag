@@ -33,16 +33,19 @@ noperspective in vec2 vTexCoord;
 
 /* === Uniforms === */
 
-uniform sampler2D uTexColor;
-uniform lowp int uTonemapMode;
-uniform float uTonemapExposure;
-uniform float uTonemapWhite;
+uniform sampler2D uTexColor;        //< Scene color texture
+uniform float uTonemapExposure;     //< Tonemap exposure
+uniform float uTonemapWhite;        //< Tonemap white point, not used with AGX
+uniform float uBrightness;          //< Brightness adjustment
+uniform float uContrast;            //< Contrast adjustment
+uniform float uSaturation;          //< Saturation adjustment
+uniform vec2 uResolution;           //< Resolution used for dithering
 
 /* === Fragments === */
 
 out vec4 FragColor;
 
-// === Helper functions === //
+/* === Tonemap Functions === */
 
 // Based on Reinhard's extended formula, see equation 4 in https://doi.org/cjbgrt
 vec3 TonemapReinhard(vec3 color, float pWhite)
@@ -163,29 +166,71 @@ vec3 TonemapAgX(vec3 color)
     return color;
 }
 
-vec3 Tonemapping(vec3 color, float pWhite) // inputs are LINEAR
+/* === Helper Functions === */
+
+float GradientNoise(vec2 uv)
+{
+    // Gradient noise from Jorge Jimenez's presentation:
+    // http://www.iryoku.com/next-generation-post-processing-in-call-of-duty-advanced-warfare
+	return fract(52.9829189 * fract(dot(uv, vec2(0.06711056, 0.00583715))));
+}
+
+/* === Main Functions === */ 
+
+vec3 Tonemapping(vec3 color, float exposure, float pWhite) // inputs are LINEAR
 {
     // Ensure color values passed to tonemappers are positive.
     // They can be negative in the case of negative lights, which leads to undesired behavior.
-    if (uTonemapMode == TONEMAP_REINHARD) return TonemapReinhard(max(vec3(0.0f), color), pWhite);
-    if (uTonemapMode == TONEMAP_FILMIC) return TonemapFilmic(max(vec3(0.0f), color), pWhite);
-    if (uTonemapMode == TONEMAP_ACES) return TonemapACES(max(vec3(0.0f), color), pWhite);
-    if (uTonemapMode == TONEMAP_AGX) return TonemapAgX(color);
-    return color; // TONEMAP_LINEAR
+
+    color *= exposure;
+
+#if TONEMAPPER == TONEMAP_REINHARD
+    color = TonemapReinhard(max(vec3(0.0), color), pWhite);
+#elif TONEMAPPER == TONEMAP_FILMIC
+    color = TonemapFilmic(max(vec3(0.0), color), pWhite);
+#elif TONEMAPPER == TONEMAP_ACES
+    color = TonemapACES(max(vec3(0.0), color), pWhite);
+#elif TONEMAPPER == TONEMAP_AGX
+    color = TonemapAgX(color);
+#endif
+
+    return color;
 }
 
+vec3 Adjustments(vec3 color, float brightness, float contrast, float saturation)
+{
+    color = mix(vec3(0.0), color, brightness);
+    color = mix(vec3(0.5), color, contrast);
+    color = mix(vec3(dot(vec3(1.0), color) * 0.33333), color, saturation);
 
-// === Main program === //
+    return color;
+}
+
+vec3 Debanding(vec3 color)
+{
+    const float ditherStrength = 255.0; // lower is stronger
+    color += vec3((1.0 / ditherStrength) * GradientNoise(vTexCoord * uResolution) - (0.5 / ditherStrength));
+    return color;
+}
+
+vec3 LinearToSRGB(vec3 color)
+{
+	// color = clamp(color, vec3(0.0), vec3(1.0));
+	// const vec3 a = vec3(0.055f);
+	// return mix((vec3(1.0f) + a) * pow(color.rgb, vec3(1.0f / 2.4f)) - a, 12.92f * color.rgb, lessThan(color.rgb, vec3(0.0031308f)));
+	// Approximation from http://chilliant.blogspot.com/2012/08/srgb-approximations-for-hlsl.html
+	return max(vec3(1.055) * pow(color, vec3(0.416666667)) - vec3(0.055), vec3(0.0));
+}
+
+/* === Main program === */
 
 void main()
 {
-    // Sampling scene color texture
-    vec3 result = texture(uTexColor, vTexCoord).rgb;
+    vec3 color = texture(uTexColor, vTexCoord).rgb;
 
-    // Appply tonemapping
-    result *= uTonemapExposure;
-    result = Tonemapping(result, uTonemapWhite);
+    color = Tonemapping(color, uTonemapExposure, uTonemapWhite);
+    color = Adjustments(color, uBrightness, uContrast, uSaturation);
+    color = Debanding(color);
 
-    // Final color output
-    FragColor = vec4(result, 1.0);
+    FragColor = vec4(LinearToSRGB(color), 1.0);
 }

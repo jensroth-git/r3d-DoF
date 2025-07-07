@@ -175,7 +175,8 @@ typedef enum R3D_Tonemap {
     R3D_TONEMAP_REINHARD, ///< Reinhard tone mapping, a balanced method for compressing HDR values.
     R3D_TONEMAP_FILMIC,   ///< Filmic tone mapping, mimicking the response of photographic film.
     R3D_TONEMAP_ACES,     ///< ACES tone mapping, a high-quality cinematic rendering technique.
-    R3D_TONEMAP_AGX       ///< AGX tone mapping, a modern technique designed to preserve both highlight and shadow details for HDR rendering.
+    R3D_TONEMAP_AGX,      ///< AGX tone mapping, a modern technique designed to preserve both highlight and shadow details for HDR rendering.
+    R3D_TONEMAP_COUNT     ///< Number of tone mapping modes (used internally)
 } R3D_Tonemap;
 
 

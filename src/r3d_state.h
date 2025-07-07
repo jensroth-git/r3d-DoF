@@ -186,8 +186,7 @@ extern struct R3D_State {
             r3d_shader_screen_scene_t scene;
             r3d_shader_screen_bloom_t bloom;
             r3d_shader_screen_fog_t fog;
-            r3d_shader_screen_tonemap_t tonemap;
-            r3d_shader_screen_adjustment_t adjustment;
+            r3d_shader_screen_output_t output[R3D_TONEMAP_COUNT];
             r3d_shader_screen_fxaa_t fxaa;
         } screen;
 
@@ -356,8 +355,7 @@ void r3d_shader_load_screen_lighting(void);
 void r3d_shader_load_screen_scene(void);
 void r3d_shader_load_screen_bloom(void);
 void r3d_shader_load_screen_fog(void);
-void r3d_shader_load_screen_tonemap(void);
-void r3d_shader_load_screen_adjustment(void);
+void r3d_shader_load_screen_output(R3D_Tonemap tonemap);
 void r3d_shader_load_screen_fxaa(void);
 
 
