@@ -118,18 +118,31 @@ void r3d_drawcall_raster_depth(const r3d_drawcall_t* call, bool shadow)
     // Send model view projection matrix
     r3d_shader_set_mat4(raster.depth, uMatMVP, matMVP);
 
+    // Setup geometry type related uniforms
+    switch (call->geometryType) {
+    case R3D_DRAWCALL_GEOMETRY_MODEL:
+        {
+            // Send bone matrices and animation related data
+            if (call->geometry.model.anim != NULL && call->geometry.model.boneOffsets != NULL) {
+                r3d_shader_set_mat4_v(raster.depth, uBoneMatrices[0], call->geometry.model.mesh->boneMatrices, call->geometry.model.anim->boneCount);
+                r3d_shader_set_int(raster.depth, uUseSkinning, true);
+            }
+            else {
+                r3d_shader_set_int(raster.depth, uUseSkinning, false);
+            }
+        }
+        break;
+    case R3D_DRAWCALL_GEOMETRY_SPRITE:
+        {
+            // Send bone matrices and animation related data
+            r3d_shader_set_int(raster.depth, uUseSkinning, false);
+        }
+        break;
+    }
+
     // Send alpha and bind albedo
     r3d_shader_set_float(raster.depth, uAlpha, ((float)call->material.albedo.color.a / 255));
     r3d_shader_bind_sampler2D_opt(raster.depth, uTexAlbedo, call->material.albedo.texture.id, white);
-
-    // Send bone matrices if necessary
-    if (call->geometry.model.anim != NULL && call->geometry.model.boneOffsets != NULL) {
-        r3d_shader_set_mat4_v(raster.depth, uBoneMatrices[0], call->geometry.model.mesh->boneMatrices, call->geometry.model.anim->boneCount);
-        r3d_shader_set_int(raster.depth, uUseSkinning, true);
-    }
-    else {
-        r3d_shader_set_int(raster.depth, uUseSkinning, false);
-    }
 
     // Applying material parameters that are independent of shaders
     if (shadow) {
@@ -207,6 +220,28 @@ void r3d_drawcall_raster_depth_cube(const r3d_drawcall_t* call, bool shadow)
     // Send matrices
     r3d_shader_set_mat4(raster.depthCube, uMatModel, matModel);
     r3d_shader_set_mat4(raster.depthCube, uMatMVP, matMVP);
+
+    // Setup geometry type related uniforms
+    switch (call->geometryType) {
+    case R3D_DRAWCALL_GEOMETRY_MODEL:
+        {
+            // Send bone matrices and animation related data
+            if (call->geometry.model.anim != NULL && call->geometry.model.boneOffsets != NULL) {
+                r3d_shader_set_mat4_v(raster.depthCube, uBoneMatrices[0], call->geometry.model.mesh->boneMatrices, call->geometry.model.anim->boneCount);
+                r3d_shader_set_int(raster.depthCube, uUseSkinning, true);
+            }
+            else {
+                r3d_shader_set_int(raster.depthCube, uUseSkinning, false);
+            }
+        }
+        break;
+    case R3D_DRAWCALL_GEOMETRY_SPRITE:
+        {
+            // Send bone matrices and animation related data
+            r3d_shader_set_int(raster.depthCube, uUseSkinning, false);
+        }
+        break;
+    }
 
     // Send alpha and bind albedo
     r3d_shader_set_float(raster.depthCube, uAlpha, ((float)call->material.albedo.color.a / 255));
@@ -312,23 +347,34 @@ void r3d_drawcall_raster_geometry(const r3d_drawcall_t* call)
     r3d_shader_bind_sampler2D_opt(raster.geometry, uTexEmission, call->material.emission.texture.id, black);
     r3d_shader_bind_sampler2D_opt(raster.geometry, uTexORM, call->material.orm.texture.id, white);
 
-    // Setup sprite related uniforms
-    if (call->geometryType == R3D_DRAWCALL_GEOMETRY_SPRITE) {
-        r3d_shader_set_vec2(raster.geometry, uTexCoordOffset, call->geometry.sprite.uvOffset);
-        r3d_shader_set_vec2(raster.geometry, uTexCoordScale, call->geometry.sprite.uvScale);
-    }
-    else {
-        r3d_shader_set_vec2(raster.geometry, uTexCoordOffset, ((Vector2) { 0, 0 }));
-        r3d_shader_set_vec2(raster.geometry, uTexCoordScale, ((Vector2) { 1, 1 }));
-    }
+    // Setup geometry type related uniforms
+    switch (call->geometryType) {
+    case R3D_DRAWCALL_GEOMETRY_MODEL:
+        {
+            // Send texcoord offset/scale
+            r3d_shader_set_vec2(raster.geometry, uTexCoordOffset, ((Vector2) { 0, 0 }));
+            r3d_shader_set_vec2(raster.geometry, uTexCoordScale, ((Vector2) { 1, 1 }));
 
-    // Send bone matrices if necessary
-    if (call->geometry.model.anim != NULL && call->geometry.model.boneOffsets != NULL) {
-        r3d_shader_set_mat4_v(raster.geometry, uBoneMatrices[0], call->geometry.model.mesh->boneMatrices, call->geometry.model.anim->boneCount);
-        r3d_shader_set_int(raster.geometry, uUseSkinning, true);
-    }
-    else {
-        r3d_shader_set_int(raster.geometry, uUseSkinning, false);
+            // Send bone matrices and animation related data
+            if (call->geometry.model.anim != NULL && call->geometry.model.boneOffsets != NULL) {
+                r3d_shader_set_mat4_v(raster.geometry, uBoneMatrices[0], call->geometry.model.mesh->boneMatrices, call->geometry.model.anim->boneCount);
+                r3d_shader_set_int(raster.geometry, uUseSkinning, true);
+            }
+            else {
+                r3d_shader_set_int(raster.geometry, uUseSkinning, false);
+            }
+        }
+        break;
+    case R3D_DRAWCALL_GEOMETRY_SPRITE:
+        {
+            // Send texcoord offset/scale
+            r3d_shader_set_vec2(raster.geometry, uTexCoordOffset, call->geometry.sprite.uvOffset);
+            r3d_shader_set_vec2(raster.geometry, uTexCoordScale, call->geometry.sprite.uvScale);
+
+            // Send bone matrices and animation related data
+            r3d_shader_set_int(raster.geometry, uUseSkinning, false);
+        }
+        break;
     }
 
     // Applying material parameters that are independent of shaders
@@ -434,23 +480,34 @@ void r3d_drawcall_raster_forward(const r3d_drawcall_t* call)
     r3d_shader_bind_sampler2D_opt(raster.forward, uTexEmission, call->material.emission.texture.id, black);
     r3d_shader_bind_sampler2D_opt(raster.forward, uTexORM, call->material.orm.texture.id, white);
 
-    // Setup sprite related uniforms
-    if (call->geometryType == R3D_DRAWCALL_GEOMETRY_SPRITE) {
-        r3d_shader_set_vec2(raster.forward, uTexCoordOffset, call->geometry.sprite.uvOffset);
-        r3d_shader_set_vec2(raster.forward, uTexCoordScale, call->geometry.sprite.uvScale);
-    }
-    else {
-        r3d_shader_set_vec2(raster.forward, uTexCoordOffset, ((Vector2) { 0, 0 }));
-        r3d_shader_set_vec2(raster.forward, uTexCoordScale, ((Vector2) { 1, 1 }));
-    }
+    // Setup geometry type related uniforms
+    switch (call->geometryType) {
+    case R3D_DRAWCALL_GEOMETRY_MODEL:
+        {
+            // Send texcoord offset/scale
+            r3d_shader_set_vec2(raster.forward, uTexCoordOffset, ((Vector2) { 0, 0 }));
+            r3d_shader_set_vec2(raster.forward, uTexCoordScale, ((Vector2) { 1, 1 }));
 
-    // Send bone matrices if necessary
-    if (call->geometry.model.anim != NULL && call->geometry.model.boneOffsets != NULL) {
-        r3d_shader_set_mat4_v(raster.forward, uBoneMatrices[0], call->geometry.model.mesh->boneMatrices, call->geometry.model.anim->boneCount);
-        r3d_shader_set_int(raster.forward, uUseSkinning, true);
-    }
-    else {
-        r3d_shader_set_int(raster.forward, uUseSkinning, false);
+            // Send bone matrices and animation related data
+            if (call->geometry.model.anim != NULL && call->geometry.model.boneOffsets != NULL) {
+                r3d_shader_set_mat4_v(raster.forward, uBoneMatrices[0], call->geometry.model.mesh->boneMatrices, call->geometry.model.anim->boneCount);
+                r3d_shader_set_int(raster.forward, uUseSkinning, true);
+            }
+            else {
+                r3d_shader_set_int(raster.forward, uUseSkinning, false);
+            }
+        }
+        break;
+    case R3D_DRAWCALL_GEOMETRY_SPRITE:
+        {
+            // Send texcoord offset/scale
+            r3d_shader_set_vec2(raster.forward, uTexCoordOffset, call->geometry.sprite.uvOffset);
+            r3d_shader_set_vec2(raster.forward, uTexCoordScale, call->geometry.sprite.uvScale);
+
+            // Send bone matrices and animation related data
+            r3d_shader_set_int(raster.forward, uUseSkinning, false);
+        }
+        break;
     }
 
     // Applying material parameters that are independent of shaders
