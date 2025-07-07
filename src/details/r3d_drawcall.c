@@ -333,6 +333,7 @@ void r3d_drawcall_raster_geometry(const r3d_drawcall_t* call)
 
     // Set factor material maps
     r3d_shader_set_float(raster.geometry, uValEmission, call->material.emission.energy);
+    r3d_shader_set_float(raster.geometry, uNormalScale, call->material.normal.scale);
     r3d_shader_set_float(raster.geometry, uValOcclusion, call->material.orm.occlusion);
     r3d_shader_set_float(raster.geometry, uValRoughness, call->material.orm.roughness);
     r3d_shader_set_float(raster.geometry, uValMetalness, call->material.orm.metalness);
@@ -406,6 +407,7 @@ void r3d_drawcall_raster_geometry_inst(const r3d_drawcall_t* call)
 
     // Set factor material maps
     r3d_shader_set_float(raster.geometryInst, uValEmission, call->material.emission.energy);
+    r3d_shader_set_float(raster.geometryInst, uNormalScale, call->material.normal.scale);
     r3d_shader_set_float(raster.geometryInst, uValOcclusion, call->material.orm.occlusion);
     r3d_shader_set_float(raster.geometryInst, uValRoughness, call->material.orm.roughness);
     r3d_shader_set_float(raster.geometryInst, uValMetalness, call->material.orm.metalness);
@@ -463,6 +465,7 @@ void r3d_drawcall_raster_forward(const r3d_drawcall_t* call)
 
     // Set factor material maps
     r3d_shader_set_float(raster.forward, uValEmission, call->material.emission.energy);
+    r3d_shader_set_float(raster.forward, uNormalScale, call->material.normal.scale);
     r3d_shader_set_float(raster.forward, uValOcclusion, call->material.orm.occlusion);
     r3d_shader_set_float(raster.forward, uValRoughness, call->material.orm.roughness);
     r3d_shader_set_float(raster.forward, uValMetalness, call->material.orm.metalness);
@@ -540,6 +543,7 @@ void r3d_drawcall_raster_forward_inst(const r3d_drawcall_t* call)
 
     // Set factor material maps
     r3d_shader_set_float(raster.forwardInst, uValEmission, call->material.emission.energy);
+    r3d_shader_set_float(raster.forwardInst, uNormalScale, call->material.normal.scale);
     r3d_shader_set_float(raster.forwardInst, uValOcclusion, call->material.orm.occlusion);
     r3d_shader_set_float(raster.forwardInst, uValRoughness, call->material.orm.roughness);
     r3d_shader_set_float(raster.forwardInst, uValMetalness, call->material.orm.metalness);

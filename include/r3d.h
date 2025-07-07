@@ -227,25 +227,26 @@ typedef struct R3D_Mesh {
 typedef struct R3D_Material {
 
     struct R3D_MapAlbedo {
-        Texture2D texture;   /**< Albedo (base color) texture. */
-        Color color;         /**< Albedo color multiplier. */
+        Texture2D texture;      /**< Albedo (base color) texture. */
+        Color color;            /**< Albedo color multiplier. */
     } albedo;
 
     struct R3D_MapEmission {
-        Texture2D texture;   /**< Emission texture. */
-        Color color;         /**< Emission color. */
-        float energy;        /**< Emission energy multiplier. */
+        Texture2D texture;      /**< Emission texture. */
+        Color color;            /**< Emission color. */
+        float energy;           /**< Emission energy multiplier. */
     } emission;
 
     struct R3D_MapNormal {
-        Texture2D texture;   /**< Normal map texture. */
+        Texture2D texture;      /**< Normal map texture. */
+        float scale;            /**< Normal scale. */
     } normal;
 
     struct R3D_MapORM {
-        Texture2D texture;   /**< Combined Occlusion-Roughness-Metalness texture. */
-        float occlusion;     /**< Occlusion multiplier. */
-        float roughness;     /**< Roughness multiplier. */
-        float metalness;     /**< Metalness multiplier. */
+        Texture2D texture;      /**< Combined Occlusion-Roughness-Metalness texture. */
+        float occlusion;        /**< Occlusion multiplier. */
+        float roughness;        /**< Roughness multiplier. */
+        float metalness;        /**< Metalness multiplier. */
     } orm;
 
     R3D_BlendMode blendMode;              /**< Blend mode used for rendering the material. */

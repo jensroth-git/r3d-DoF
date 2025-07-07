@@ -301,13 +301,12 @@ vec3 GetPositionFromDepth(float depth)
     return (uMatInvView * viewPos).xyz;
 }
 
-vec2 OctahedronWrap(vec2 _val)
+vec2 OctahedronWrap(vec2 val)
 {
     // Reference(s):
     // - Octahedron normal vector encoding
     //   https://web.archive.org/web/20191027010600/https://knarkowicz.wordpress.com/2014/04/16/octahedron-normal-vector-encoding/comment-page-1/
-    return (1.0 - abs(_val.yx) )
-            * mix(vec2(-1.0), vec2(1.0), vec2(greaterThanEqual(_val.xy, vec2(0.0) ) ) );
+    return (1.0 - abs(val.yx)) * mix(vec2(-1.0), vec2(1.0), vec2(greaterThanEqual(val.xy, vec2(0.0))));
 }
 
 vec3 DecodeOctahedral(vec2 encoded)

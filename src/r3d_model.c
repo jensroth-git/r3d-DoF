@@ -1888,6 +1888,7 @@ R3D_Material R3D_GetDefaultMaterial(void)
 
     // Normal map
     material.normal.texture = R3D_GetNormalTexture();
+    material.normal.scale = 1.0f;
 
     // ORM map
     material.orm.texture = R3D_GetWhiteTexture();
@@ -2615,12 +2616,9 @@ bool process_assimp_materials(const struct aiScene* scene, R3D_Material** materi
         /* --- Load normal map --- */
 
         mat->normal.texture = r3d_load_assimp_texture(scene, aiMat, aiTextureType_NORMALS, 0, basePath);
-
         if (mat->normal.texture.id == 0) {
             mat->normal.texture = R3D_GetNormalTexture();
         }
-
-        //mat->normal.scale = 1.0f;
 
         /* --- Load emission map --- */
 

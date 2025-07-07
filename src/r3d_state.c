@@ -1033,6 +1033,7 @@ void r3d_shader_load_raster_geometry(void)
     r3d_shader_get_location(raster.geometry, uTexEmission);
     r3d_shader_get_location(raster.geometry, uTexORM);
     r3d_shader_get_location(raster.geometry, uValEmission);
+    r3d_shader_get_location(raster.geometry, uNormalScale);
     r3d_shader_get_location(raster.geometry, uValOcclusion);
     r3d_shader_get_location(raster.geometry, uValRoughness);
     r3d_shader_get_location(raster.geometry, uValMetalness);
@@ -1064,6 +1065,7 @@ void r3d_shader_load_raster_geometry_inst(void)
     r3d_shader_get_location(raster.geometryInst, uTexEmission);
     r3d_shader_get_location(raster.geometryInst, uTexORM);
     r3d_shader_get_location(raster.geometryInst, uValEmission);
+    r3d_shader_get_location(raster.geometryInst, uNormalScale);
     r3d_shader_get_location(raster.geometryInst, uValOcclusion);
     r3d_shader_get_location(raster.geometryInst, uValRoughness);
     r3d_shader_get_location(raster.geometryInst, uValMetalness);
@@ -1104,6 +1106,7 @@ void r3d_shader_load_raster_forward(void)
     r3d_shader_get_location(raster.forward, uTexORM);
     r3d_shader_get_location(raster.forward, uTexNoise);
     r3d_shader_get_location(raster.forward, uValEmission);
+    r3d_shader_get_location(raster.forward, uNormalScale);
     r3d_shader_get_location(raster.forward, uValOcclusion);
     r3d_shader_get_location(raster.forward, uValRoughness);
     r3d_shader_get_location(raster.forward, uValMetalness);
@@ -1179,6 +1182,7 @@ void r3d_shader_load_raster_forward_inst(void)
     r3d_shader_get_location(raster.forwardInst, uTexORM);
     r3d_shader_get_location(raster.forwardInst, uTexNoise);
     r3d_shader_get_location(raster.forwardInst, uValEmission);
+    r3d_shader_get_location(raster.forwardInst, uNormalScale);
     r3d_shader_get_location(raster.forwardInst, uValOcclusion);
     r3d_shader_get_location(raster.forwardInst, uValRoughness);
     r3d_shader_get_location(raster.forwardInst, uValMetalness);

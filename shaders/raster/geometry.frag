@@ -35,6 +35,7 @@ uniform sampler2D uTexNormal;
 uniform sampler2D uTexEmission;
 uniform sampler2D uTexORM;
 
+uniform float uNormalScale;
 uniform float uValOcclusion;
 uniform float uValRoughness;
 uniform float uValMetalness;
@@ -50,13 +51,19 @@ layout(location = 3) out vec3 FragORM;
 
 /* === Helper functions === */
 
-vec2 OctahedronWrap(vec2 _val)
+vec3 NormalScale(vec3 normal, float scale)
+{
+    normal.xy *= scale;
+    normal.z = sqrt(1.0 - clamp(dot(normal.xy, normal.xy), 0.0, 1.0));
+    return normal;
+}
+
+vec2 OctahedronWrap(vec2 val)
 {
     // Reference(s):
     // - Octahedron normal vector encoding
     //   https://web.archive.org/web/20191027010600/https://knarkowicz.wordpress.com/2014/04/16/octahedron-normal-vector-encoding/comment-page-1/
-    return (1.0 - abs(_val.yx) )
-            * mix(vec2(-1.0), vec2(1.0), vec2(greaterThanEqual(_val.xy, vec2(0.0) ) ) );
+    return (1.0 - abs(val.yx)) * mix(vec2(-1.0), vec2(1.0), vec2(greaterThanEqual(val.xy, vec2(0.0))));
 }
 
 vec2 EncodeOctahedral(vec3 normal)
@@ -74,7 +81,7 @@ void main()
 {
     FragAlbedo = vColor * texture(uTexAlbedo, vTexCoord).rgb;
     FragEmission = vEmission * texture(uTexEmission, vTexCoord).rgb;
-    FragNormal = EncodeOctahedral(normalize(vTBN * (texture(uTexNormal, vTexCoord).rgb * 2.0 - 1.0)));
+    FragNormal = EncodeOctahedral(normalize(vTBN * NormalScale(texture(uTexNormal, vTexCoord).rgb * 2.0 - 1.0, uNormalScale)));
 
     vec3 orm = texture(uTexORM, vTexCoord).rgb;
 

@@ -99,6 +99,7 @@ typedef struct {
     r3d_shader_uniform_sampler2D_t uTexEmission;
     r3d_shader_uniform_sampler2D_t uTexORM;
     r3d_shader_uniform_float_t uValEmission;
+    r3d_shader_uniform_float_t uNormalScale;
     r3d_shader_uniform_float_t uValOcclusion;
     r3d_shader_uniform_float_t uValRoughness;
     r3d_shader_uniform_float_t uValMetalness;
@@ -119,6 +120,7 @@ typedef struct {
     r3d_shader_uniform_sampler2D_t uTexEmission;
     r3d_shader_uniform_sampler2D_t uTexORM;
     r3d_shader_uniform_float_t uValEmission;
+    r3d_shader_uniform_float_t uNormalScale;
     r3d_shader_uniform_float_t uValOcclusion;
     r3d_shader_uniform_float_t uValRoughness;
     r3d_shader_uniform_float_t uValMetalness;
@@ -223,6 +225,7 @@ typedef struct {
     r3d_shader_uniform_sampler2D_t uTexORM;
     r3d_shader_uniform_sampler2D_t uTexNoise;
     r3d_shader_uniform_float_t uValEmission;
+    r3d_shader_uniform_float_t uNormalScale;
     r3d_shader_uniform_float_t uValOcclusion;
     r3d_shader_uniform_float_t uValRoughness;
     r3d_shader_uniform_float_t uValMetalness;
@@ -274,6 +277,7 @@ typedef struct {
     r3d_shader_uniform_sampler2D_t uTexORM;
     r3d_shader_uniform_sampler2D_t uTexNoise;
     r3d_shader_uniform_float_t uValEmission;
+    r3d_shader_uniform_float_t uNormalScale;
     r3d_shader_uniform_float_t uValOcclusion;
     r3d_shader_uniform_float_t uValRoughness;
     r3d_shader_uniform_float_t uValMetalness;

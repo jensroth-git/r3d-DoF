@@ -73,6 +73,7 @@ uniform sampler2D uTexORM;
 uniform sampler2D uTexNoise;   //< Noise texture (used for soft shadows)
 
 uniform float uValEmission;
+uniform float uNormalScale;
 uniform float uValOcclusion;
 uniform float uValRoughness;
 uniform float uValMetalness;
@@ -307,6 +308,13 @@ float Shadow(int i, float cNdotL)
 
 /* === Misc functions === */
 
+vec3 NormalScale(vec3 normal, float scale)
+{
+    normal.xy *= scale;
+    normal.z = sqrt(1.0 - clamp(dot(normal.xy, normal.xy), 0.0, 1.0));
+    return normal;
+}
+
 vec3 RotateWithQuat(vec3 v, vec4 q)
 {
     vec3 t = 2.0 * cross(q.xyz, v);
@@ -342,7 +350,7 @@ void main()
 
     /* Sample normal and compute view direction vector */
 
-    vec3 N = normalize(vTBN * (texture(uTexNormal, vTexCoord).rgb * 2.0 - 1.0));
+    vec3 N = normalize(vTBN * NormalScale(texture(uTexNormal, vTexCoord).rgb * 2.0 - 1.0, uNormalScale))
     vec3 V = normalize(uViewPosition - vPosition);
 
     /* Compute the dot product of the normal and view direction */
