@@ -80,10 +80,8 @@ void Draw(void)
     {
         R3D_DrawModel(&plane, (Vector3) { 0, -0.5f, 0 }, 1.0f);
         R3D_DrawModel(&sphere, (Vector3) { 0 }, 1.0f);
-
         R3D_DrawModel(&cube, (Vector3) { 0 }, 1.0f);
     }
-
     R3D_End();
 }
 
