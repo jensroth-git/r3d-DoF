@@ -58,7 +58,7 @@ Texture2D R3D_GetNormalTexture(void)
 Texture2D R3D_GetBufferColor(void)
 {
     Texture2D texture = { 0 };
-    texture.id = R3D.framebuffer.post.target;
+    texture.id = R3D.framebuffer.pingPong.target;
     texture.width = R3D.state.resolution.width;
     texture.height = R3D.state.resolution.height;
     texture.mipmaps = 1;

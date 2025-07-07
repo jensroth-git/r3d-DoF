@@ -431,8 +431,7 @@ void r3d_framebuffers_load(int width, int height)
 {
     r3d_framebuffer_load_gbuffer(width, height);
     r3d_framebuffer_load_deferred(width, height);
-    r3d_framebuffer_load_scene(width, height);
-    r3d_framebuffer_load_pingpong_post(width, height);
+    r3d_framebuffer_load_pingpong(width, height);
 
     if (R3D.env.ssaoEnabled) {
         r3d_framebuffer_load_pingpong_ssao(width, height);
@@ -447,8 +446,7 @@ void r3d_framebuffers_unload(void)
 {
     r3d_framebuffer_unload_gbuffer();
     r3d_framebuffer_unload_deferred();
-    r3d_framebuffer_unload_scene();
-    r3d_framebuffer_unload_pingpong_post();
+    r3d_framebuffer_unload_pingpong();
 
     if (R3D.framebuffer.pingPongSSAO.id != 0) {
         r3d_framebuffer_unload_pingpong_ssao();
@@ -581,7 +579,7 @@ void r3d_shaders_unload(void)
 
 void r3d_framebuffer_load_gbuffer(int width, int height)
 {
-    struct r3d_fb_gbuffer_t* gBuffer = &R3D.framebuffer.gBuffer;
+    struct r3d_fb_gbuffer* gBuffer = &R3D.framebuffer.gBuffer;
 
     gBuffer->id = rlLoadFramebuffer();
     if (gBuffer->id == 0) {
@@ -655,7 +653,7 @@ void r3d_framebuffer_load_gbuffer(int width, int height)
 
 void r3d_framebuffer_load_pingpong_ssao(int width, int height)
 {
-    struct r3d_fb_pingpong_ssao_t* ssao = &R3D.framebuffer.pingPongSSAO;
+    struct r3d_fb_pingpong_ssao* ssao = &R3D.framebuffer.pingPongSSAO;
 
     width /= 2, height /= 2;
 
@@ -696,7 +694,7 @@ void r3d_framebuffer_load_pingpong_ssao(int width, int height)
 
 void r3d_framebuffer_load_deferred(int width, int height)
 {
-    struct r3d_fb_deferred_t* deferred = &R3D.framebuffer.deferred;
+    struct r3d_fb_deferred* deferred = &R3D.framebuffer.deferred;
 
     deferred->id = rlLoadFramebuffer();
     if (deferred->id == 0) {
@@ -734,52 +732,9 @@ void r3d_framebuffer_load_deferred(int width, int height)
     }
 }
 
-void r3d_framebuffer_load_scene(int width, int height)
-{
-    struct r3d_fb_scene_t* scene = &R3D.framebuffer.scene;
-
-    scene->id = rlLoadFramebuffer();
-    if (scene->id == 0) {
-        TraceLog(LOG_WARNING, "Failed to create framebuffer");
-        return;
-    }
-
-    rlEnableFramebuffer(scene->id);
-
-    // Determines the HDR color buffers precision
-    GLenum hdrFormat = (R3D.state.flags & R3D_FLAG_LOW_PRECISION_BUFFERS)
-        ? GL_R11F_G11F_B10F : GL_RGB16F;
-
-    // Generate color texture
-    glGenTextures(1, &scene->color);
-    glBindTexture(GL_TEXTURE_2D, scene->color);
-    glTexImage2D(GL_TEXTURE_2D, 0, r3d_get_best_internal_format(hdrFormat), width, height, 0, GL_RGB, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-    // Attach the depth-stencil buffer from the G-buffer
-    glFramebufferTexture2D(
-        GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT,
-        GL_TEXTURE_2D, R3D.framebuffer.gBuffer.depth, 0
-    );
-
-    // Activate the draw buffers for all the attachments
-    rlActiveDrawBuffers(1);
-
-    // Attach the textures to the framebuffer
-    rlFramebufferAttach(scene->id, scene->color, RL_ATTACHMENT_COLOR_CHANNEL0, RL_ATTACHMENT_TEXTURE2D, 0);
-
-    // Check if the framebuffer is complete
-    if (!rlFramebufferComplete(scene->id)) {
-        TraceLog(LOG_WARNING, "Framebuffer is not complete");
-    }
-}
-
 void r3d_framebuffer_load_mipchain_bloom(int width, int height)
 {
-    struct r3d_fb_mipchain_bloom_t* bloom = &R3D.framebuffer.mipChainBloom;
+    struct r3d_fb_mipchain_bloom* bloom = &R3D.framebuffer.mipChainBloom;
 
     glGenFramebuffers(1, &bloom->id);
     glBindFramebuffer(GL_FRAMEBUFFER, bloom->id);
@@ -790,7 +745,7 @@ void r3d_framebuffer_load_mipchain_bloom(int width, int height)
 
     // Determine the length of the mip chain
     int mipChainLength = (int)floor(log2(fminf(width, height)));
-    bloom->mipChain = MemAlloc(mipChainLength * sizeof(struct r3d_mip_bloom_t));
+    bloom->mipChain = MemAlloc(mipChainLength * sizeof(struct r3d_mip_bloom));
     if (bloom->mipChain == NULL) {
         TraceLog(LOG_ERROR, "R3D: Failed to allocate memory to store bloom mip chain");
     }
@@ -805,7 +760,7 @@ void r3d_framebuffer_load_mipchain_bloom(int width, int height)
     // Create the mip chain
     for (GLuint i = 0; i < mipChainLength; i++) {
 
-        struct r3d_mip_bloom_t* mip = &bloom->mipChain[i];
+        struct r3d_mip_bloom* mip = &bloom->mipChain[i];
     
         iMipW /= 2;
         iMipH /= 2;
@@ -819,7 +774,7 @@ void r3d_framebuffer_load_mipchain_bloom(int width, int height)
 
         glGenTextures(1, &mip->id);
         glBindTexture(GL_TEXTURE_2D, mip->id);
-        glTexImage2D(GL_TEXTURE_2D, 0, r3d_get_best_internal_format(hdrFormat), width, height, 0, GL_RGB, GL_FLOAT, NULL);
+        glTexImage2D(GL_TEXTURE_2D, 0, r3d_get_best_internal_format(hdrFormat), iMipW, iMipH, 0, GL_RGB, GL_FLOAT, NULL);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -840,17 +795,17 @@ void r3d_framebuffer_load_mipchain_bloom(int width, int height)
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void r3d_framebuffer_load_pingpong_post(int width, int height)
+void r3d_framebuffer_load_pingpong(int width, int height)
 {
-    struct r3d_fb_pingpong_post_t* post = &R3D.framebuffer.post;
+    struct r3d_fb_pingpong* pingPong = &R3D.framebuffer.pingPong;
 
-    post->id = rlLoadFramebuffer();
-    if (post->id == 0) {
+    pingPong->id = rlLoadFramebuffer();
+    if (pingPong->id == 0) {
         TraceLog(LOG_WARNING, "Failed to create framebuffer");
         return;
     }
 
-    rlEnableFramebuffer(post->id);
+    rlEnableFramebuffer(pingPong->id);
 
     // Determines the HDR color buffers precision
     GLenum hdrFormat = (R3D.state.flags & R3D_FLAG_LOW_PRECISION_BUFFERS)
@@ -868,24 +823,24 @@ void r3d_framebuffer_load_pingpong_post(int width, int height)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     }
     glBindTexture(GL_TEXTURE_2D, 0);
-    post->target = textures[0];
-    post->source = textures[1];
+    pingPong->target = textures[0];
+    pingPong->source = textures[1];
 
     // Activate the draw buffers for all the attachments
     rlActiveDrawBuffers(1);
 
     // Attach the textures to the framebuffer
-    rlFramebufferAttach(post->id, post->target, RL_ATTACHMENT_COLOR_CHANNEL0, RL_ATTACHMENT_TEXTURE2D, 0);
+    rlFramebufferAttach(pingPong->id, pingPong->target, RL_ATTACHMENT_COLOR_CHANNEL0, RL_ATTACHMENT_TEXTURE2D, 0);
 
     // Check if the framebuffer is complete
-    if (!rlFramebufferComplete(post->id)) {
+    if (!rlFramebufferComplete(pingPong->id)) {
         TraceLog(LOG_WARNING, "Framebuffer is not complete");
     }
 }
 
 void r3d_framebuffer_unload_gbuffer(void)
 {
-    struct r3d_fb_gbuffer_t* gBuffer = &R3D.framebuffer.gBuffer;
+    struct r3d_fb_gbuffer* gBuffer = &R3D.framebuffer.gBuffer;
 
     rlUnloadTexture(gBuffer->albedo);
     rlUnloadTexture(gBuffer->emission);
@@ -895,47 +850,36 @@ void r3d_framebuffer_unload_gbuffer(void)
 
     rlUnloadFramebuffer(gBuffer->id);
 
-    memset(gBuffer, 0, sizeof(struct r3d_fb_gbuffer_t));
+    memset(gBuffer, 0, sizeof(struct r3d_fb_gbuffer));
 }
 
 void r3d_framebuffer_unload_pingpong_ssao(void)
 {
-    struct r3d_fb_pingpong_ssao_t* ssao = &R3D.framebuffer.pingPongSSAO;
+    struct r3d_fb_pingpong_ssao* ssao = &R3D.framebuffer.pingPongSSAO;
 
     rlUnloadTexture(ssao->source);
     rlUnloadTexture(ssao->target);
 
     rlUnloadFramebuffer(ssao->id);
 
-    memset(ssao, 0, sizeof(struct r3d_fb_pingpong_ssao_t));
+    memset(ssao, 0, sizeof(struct r3d_fb_pingpong_ssao));
 }
 
 void r3d_framebuffer_unload_deferred(void)
 {
-    struct r3d_fb_deferred_t* deferred = &R3D.framebuffer.deferred;
+    struct r3d_fb_deferred* deferred = &R3D.framebuffer.deferred;
 
     rlUnloadTexture(deferred->diffuse);
     rlUnloadTexture(deferred->specular);
 
     rlUnloadFramebuffer(deferred->id);
 
-    memset(deferred, 0, sizeof(struct r3d_fb_deferred_t));
-}
-
-void r3d_framebuffer_unload_scene(void)
-{
-    struct r3d_fb_scene_t* scene = &R3D.framebuffer.scene;
-
-    rlUnloadTexture(scene->color);
-
-    rlUnloadFramebuffer(scene->id);
-
-    memset(scene, 0, sizeof(struct r3d_fb_scene_t));
+    memset(deferred, 0, sizeof(struct r3d_fb_deferred));
 }
 
 void r3d_framebuffer_unload_mipchain_bloom(void)
 {
-    struct r3d_fb_mipchain_bloom_t* bloom = &R3D.framebuffer.mipChainBloom;
+    struct r3d_fb_mipchain_bloom* bloom = &R3D.framebuffer.mipChainBloom;
 
     for (int i = 0; i < bloom->mipCount; i++) {
         glDeleteTextures(1, &bloom->mipChain[i].id);
@@ -949,16 +893,16 @@ void r3d_framebuffer_unload_mipchain_bloom(void)
     bloom->id = 0;
 }
 
-void r3d_framebuffer_unload_pingpong_post(void)
+void r3d_framebuffer_unload_pingpong(void)
 {
-    struct r3d_fb_pingpong_post_t* post = &R3D.framebuffer.post;
+    struct r3d_fb_pingpong* pingPong = &R3D.framebuffer.pingPong;
 
-    rlUnloadTexture(post->source);
-    rlUnloadTexture(post->target);
+    rlUnloadTexture(pingPong->source);
+    rlUnloadTexture(pingPong->target);
 
-    rlUnloadFramebuffer(post->id);
+    rlUnloadFramebuffer(pingPong->id);
 
-    memset(post, 0, sizeof(struct r3d_fb_pingpong_post_t));
+    memset(pingPong, 0, sizeof(struct r3d_fb_pingpong));
 }
 
 

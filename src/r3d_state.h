@@ -82,7 +82,7 @@ extern struct R3D_State {
     struct {
 
         // G-Buffer
-        struct r3d_fb_gbuffer_t {
+        struct r3d_fb_gbuffer {
             unsigned int id;
             unsigned int albedo;            ///< RGB[8|8|8]
             unsigned int emission;          ///< RGB[11|11|10] (or fallbacks)
@@ -92,7 +92,7 @@ extern struct R3D_State {
         } gBuffer;
 
         // Ping-pong buffer for SSAO blur processing (half internal resolution)
-        struct r3d_fb_pingpong_ssao_t {
+        struct r3d_fb_pingpong_ssao {
             unsigned int id;
             unsigned int source;            ///< R[8] -> Used for initial SSAO rendering + blur effect
             unsigned int target;            ///< R[8] -> Used for initial SSAO rendering + blur effect
@@ -102,26 +102,16 @@ extern struct R3D_State {
         // Receive in order:
         //  - IBL (from skybox)
         //  - Lit from lights
-        struct r3d_fb_deferred_t {
+        struct r3d_fb_deferred {
             unsigned int id;
             unsigned int diffuse;           ///< RGB[11|11|10] (or fallbacks) -> Diffuse contribution
             unsigned int specular;          ///< RGB[11|11|10] (or fallbacks) -> Specular contribution
         } deferred;
 
-        // Final scene (before post process)
-        // Receive in order:
-        //  - Environment
-        //  - Deferred
-        //  - Forward
-        struct r3d_fb_scene_t {
-            unsigned int id;
-            unsigned int color;             ///< RGB[11|11|10] (or fallbacks) -> Buffer is used for bloom
-        } scene;
-
         // Ping-pong buffer for bloom blur processing (start at half internal resolution)
-        struct r3d_fb_mipchain_bloom_t {
+        struct r3d_fb_mipchain_bloom {
             unsigned int id;
-            struct r3d_mip_bloom_t {
+            struct r3d_mip_bloom {
                 unsigned int id;            //< RGB[11|11|10] (or fallbacks)
                 int iW, iH;
                 float fW, fH;
@@ -129,12 +119,17 @@ extern struct R3D_State {
             int mipCount;
         } mipChainBloom;
 
-        // Post-processing ping-pong buffer
-        struct r3d_fb_pingpong_post_t {
+        // Final ping-pong buffer used for compositing and post processing
+        // Receive in order:
+        //  - Environment
+        //  - Deferred
+        //  - Forward
+        //  - Post FX
+        struct r3d_fb_pingpong {
             unsigned int id;
             unsigned int source;            ///< RGB[11|11|10] (or fallbacks)
             unsigned int target;            ///< RGB[11|11|10] (or fallbacks)
-        } post;
+        } pingPong;
 
         // Custom target (optional)
         RenderTexture customTarget;
@@ -326,16 +321,14 @@ void r3d_shaders_unload(void);
 void r3d_framebuffer_load_gbuffer(int width, int height);
 void r3d_framebuffer_load_pingpong_ssao(int width, int height);
 void r3d_framebuffer_load_deferred(int width, int height);
-void r3d_framebuffer_load_scene(int width, int height);
 void r3d_framebuffer_load_mipchain_bloom(int width, int height);
-void r3d_framebuffer_load_pingpong_post(int width, int height);
+void r3d_framebuffer_load_pingpong(int width, int height);
 
 void r3d_framebuffer_unload_gbuffer(void);
 void r3d_framebuffer_unload_pingpong_ssao(void);
 void r3d_framebuffer_unload_deferred(void);
-void r3d_framebuffer_unload_scene(void);
 void r3d_framebuffer_unload_mipchain_bloom(void);
-void r3d_framebuffer_unload_pingpong_post(void);
+void r3d_framebuffer_unload_pingpong(void);
 
 
 /* === Shader loading functions === */

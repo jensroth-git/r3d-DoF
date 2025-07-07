@@ -70,7 +70,7 @@ static void r3d_pass_scene_deferred(void);
 static void r3d_pass_scene_forward_depth_prepass(void);
 static void r3d_pass_scene_forward(void);
 
-static void r3d_pass_post_init(unsigned int fb, unsigned srcAttach);
+static void r3d_pass_post_setup(void);
 static void r3d_pass_post_bloom(void);
 static void r3d_pass_post_fog(void);
 static void r3d_pass_post_tonemap(void);
@@ -345,7 +345,7 @@ void R3D_End(void)
     r3d_prepare_sort_drawcalls();
     r3d_prepare_anim_drawcalls();
 
-    /* --- Rendering! --- */
+    /* --- Rasterizing Geometries in G-Buffer --- */
 
     if (r3d_has_deferred_calls()) {
         r3d_pass_gbuffer(); //< This pass also clear the gbuffer...
@@ -354,14 +354,20 @@ void R3D_End(void)
         r3d_clear_gbuffer(true, false, true, true);
     }
 
+    /* --- Calculates ambient occlusion for opaque objects --- */
+
     if (R3D.env.ssaoEnabled) {
         r3d_pass_ssao();
     }
+
+    /* --- Accumulation of deferred lighting --- */
 
     if (r3d_has_deferred_calls()) {
         r3d_pass_deferred_ambient();
         r3d_pass_deferred_lights();
     }
+
+    /* --- Final rendering of the scene --- */
 
     r3d_pass_scene_background();
 
@@ -376,10 +382,9 @@ void R3D_End(void)
         r3d_pass_scene_forward();
     }
 
-    r3d_pass_post_init(
-        R3D.framebuffer.scene.id,
-        GL_COLOR_ATTACHMENT0
-    );
+    /* --- Applying effects over the scene and final blit --- */
+
+    r3d_pass_post_setup();
 
     if (R3D.env.bloomMode != R3D_BLOOM_DISABLED) {
         r3d_pass_post_bloom();
@@ -400,6 +405,8 @@ void R3D_End(void)
     }
 
     r3d_pass_final_blit();
+
+    /* --- Reset states changed by R3D --- */
 
     r3d_reset_raylib_state();
 }
@@ -1521,7 +1528,7 @@ void r3d_pass_deferred_lights(void)
 
 void r3d_pass_scene_background(void)
 {
-    rlEnableFramebuffer(R3D.framebuffer.scene.id);
+    rlEnableFramebuffer(R3D.framebuffer.pingPong.id);
     {
         rlViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
 
@@ -1586,7 +1593,7 @@ void r3d_pass_scene_background(void)
 
 void r3d_pass_scene_deferred(void)
 {
-    rlEnableFramebuffer(R3D.framebuffer.scene.id);
+    rlEnableFramebuffer(R3D.framebuffer.pingPong.id);
     {
         rlViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
         rlDisableColorBlend();
@@ -1612,6 +1619,9 @@ void r3d_pass_scene_deferred(void)
             r3d_shader_unbind_sampler2D(screen.scene, uTexSpecular);
         }
         r3d_shader_disable();
+
+        // Disables the test stencil for subsequent passes
+        r3d_stencil_disable();
     }
 }
 
@@ -1774,7 +1784,7 @@ static void r3d_pass_scene_forward_instanced_filter_and_send_lights(const r3d_dr
 
 void r3d_pass_scene_forward_depth_prepass(void)
 {
-    rlEnableFramebuffer(R3D.framebuffer.scene.id);
+    rlEnableFramebuffer(R3D.framebuffer.pingPong.id);
     {
         rlViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
         rlEnableBackfaceCulling();
@@ -1836,7 +1846,7 @@ void r3d_pass_scene_forward_depth_prepass(void)
 
 void r3d_pass_scene_forward(void)
 {
-    rlEnableFramebuffer(R3D.framebuffer.scene.id);
+    rlEnableFramebuffer(R3D.framebuffer.pingPong.id);
     {
         rlViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
         rlColorMask(true, true, true, true);
@@ -1958,34 +1968,22 @@ void r3d_pass_scene_forward(void)
     }
 }
 
-void r3d_pass_post_init(unsigned int fb, unsigned srcAttach)
+void r3d_pass_post_setup(void)
 {
-    r3d_stencil_disable();
+    glDisable(GL_STENCIL_TEST);
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_BLEND);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.post.id);
-
-    r3d_framebuffer_swap_pingpong(R3D.framebuffer.post);
-
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, R3D.framebuffer.post.id);
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, fb);
-
-    glReadBuffer(srcAttach);
-    glDrawBuffer(GL_COLOR_ATTACHMENT0);
-
-    glBlitFramebuffer(
-        0, 0, R3D.state.resolution.width, R3D.state.resolution.height,
-        0, 0, R3D.state.resolution.width, R3D.state.resolution.height,
-        GL_COLOR_BUFFER_BIT, GL_NEAREST
-    );
+    glDepthMask(GL_FALSE);
+    glStencilMask(0x00);
 }
 
 void r3d_pass_post_bloom(void)
 {
+    /* ---- Generate mip chain --- */
+
     rlEnableFramebuffer(R3D.framebuffer.mipChainBloom.id);
     {
-        rlDisableColorBlend();
-        rlDisableDepthTest();
-
         /* --- Bloom: Down Sampling --- */
 
         r3d_shader_enable(generate.downsampling);
@@ -1999,11 +1997,11 @@ void r3d_pass_post_bloom(void)
             r3d_shader_set_vec4(generate.downsampling, uPrefilter, R3D.env.bloomPrefilter);
 
             // Bind scene color (HDR color buffer) as initial texture input
-            r3d_shader_bind_sampler2D(generate.downsampling, uTexture, R3D.framebuffer.scene.color);
+            r3d_shader_bind_sampler2D(generate.downsampling, uTexture, R3D.framebuffer.pingPong.target);
         
             // Progressively downsample through the mip chain
             for (int i = 0; i < R3D.framebuffer.mipChainBloom.mipCount; i++) {
-                const struct r3d_mip_bloom_t* mip = &R3D.framebuffer.mipChainBloom.mipChain[i];
+                const struct r3d_mip_bloom* mip = &R3D.framebuffer.mipChainBloom.mipChain[i];
 
                 glViewport(0, 0, mip->iW, mip->iH);
                 glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, mip->id, 0);
@@ -2040,8 +2038,8 @@ void r3d_pass_post_bloom(void)
             r3d_shader_set_vec2(generate.upsampling, uFilterRadius, filterRadius);
         
             for (int i = R3D.framebuffer.mipChainBloom.mipCount - 1; i > 0; i--) {
-                const struct r3d_mip_bloom_t* mip = &R3D.framebuffer.mipChainBloom.mipChain[i];
-                const struct r3d_mip_bloom_t* nextMip = &R3D.framebuffer.mipChainBloom.mipChain[i-1];
+                const struct r3d_mip_bloom* mip = &R3D.framebuffer.mipChainBloom.mipChain[i];
+                const struct r3d_mip_bloom* nextMip = &R3D.framebuffer.mipChainBloom.mipChain[i-1];
 
                 // Bind viewport and texture from where to read
                 glActiveTexture(GL_TEXTURE0);
@@ -2060,17 +2058,17 @@ void r3d_pass_post_bloom(void)
         }
     }
 
-    rlEnableFramebuffer(R3D.framebuffer.post.id);
+    /* --- Apply bloom to the scene --- */
+
+    rlEnableFramebuffer(R3D.framebuffer.pingPong.id);
     {
         rlViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
-        rlDisableColorBlend();
-        rlDisableDepthTest();
 
-        r3d_framebuffer_swap_pingpong(R3D.framebuffer.post);
+        r3d_framebuffer_swap_pingpong(R3D.framebuffer.pingPong);
 
         r3d_shader_enable(screen.bloom);
         {
-            r3d_shader_bind_sampler2D(screen.bloom, uTexColor, R3D.framebuffer.post.source);
+            r3d_shader_bind_sampler2D(screen.bloom, uTexColor, R3D.framebuffer.pingPong.source);
             r3d_shader_bind_sampler2D(screen.bloom, uTexBloomBlur, R3D.framebuffer.mipChainBloom.mipChain[0].id);
 
             r3d_shader_set_int(screen.bloom, uBloomMode, R3D.env.bloomMode);
@@ -2084,17 +2082,15 @@ void r3d_pass_post_bloom(void)
 
 void r3d_pass_post_fog(void)
 {
-    rlEnableFramebuffer(R3D.framebuffer.post.id);
+    rlEnableFramebuffer(R3D.framebuffer.pingPong.id);
     {
         rlViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
-        rlDisableColorBlend();
-        rlDisableDepthTest();
 
-        r3d_framebuffer_swap_pingpong(R3D.framebuffer.post);
+        r3d_framebuffer_swap_pingpong(R3D.framebuffer.pingPong);
 
         r3d_shader_enable(screen.fog);
         {
-            r3d_shader_bind_sampler2D(screen.fog, uTexColor, R3D.framebuffer.post.source);
+            r3d_shader_bind_sampler2D(screen.fog, uTexColor, R3D.framebuffer.pingPong.source);
             r3d_shader_bind_sampler2D(screen.fog, uTexDepth, R3D.framebuffer.gBuffer.depth);
 
             r3d_shader_set_float(screen.fog, uNear, (float)rlGetCullDistanceNear());
@@ -2113,17 +2109,15 @@ void r3d_pass_post_fog(void)
 
 void r3d_pass_post_tonemap(void)
 {
-    rlEnableFramebuffer(R3D.framebuffer.post.id);
+    rlEnableFramebuffer(R3D.framebuffer.pingPong.id);
     {
         rlViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
-        rlDisableColorBlend();
-        rlDisableDepthTest();
 
-        r3d_framebuffer_swap_pingpong(R3D.framebuffer.post);
+        r3d_framebuffer_swap_pingpong(R3D.framebuffer.pingPong);
 
         r3d_shader_enable(screen.tonemap);
         {
-            r3d_shader_bind_sampler2D(screen.tonemap, uTexColor, R3D.framebuffer.post.source);
+            r3d_shader_bind_sampler2D(screen.tonemap, uTexColor, R3D.framebuffer.pingPong.source);
 
             r3d_shader_set_int(screen.tonemap, uTonemapMode, R3D.env.tonemapMode);
             r3d_shader_set_float(screen.tonemap, uTonemapExposure, R3D.env.tonemapExposure);
@@ -2137,24 +2131,22 @@ void r3d_pass_post_tonemap(void)
 
 void r3d_pass_post_adjustment(void)
 {
-    rlEnableFramebuffer(R3D.framebuffer.post.id);
+    rlEnableFramebuffer(R3D.framebuffer.pingPong.id);
     {
         rlViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
-        rlDisableColorBlend();
-        rlDisableDepthTest();
 
-        r3d_framebuffer_swap_pingpong(R3D.framebuffer.post);
+        r3d_framebuffer_swap_pingpong(R3D.framebuffer.pingPong);
 
         r3d_shader_enable(screen.adjustment);
         {
-            r3d_shader_bind_sampler2D(screen.adjustment, uTexColor, R3D.framebuffer.post.source);
+            r3d_shader_bind_sampler2D(screen.adjustment, uTexColor, R3D.framebuffer.pingPong.source);
 
             r3d_shader_set_float(screen.adjustment, uBrightness, R3D.env.brightness);
             r3d_shader_set_float(screen.adjustment, uContrast, R3D.env.contrast);
             r3d_shader_set_float(screen.adjustment, uSaturation, R3D.env.saturation);
             r3d_shader_set_vec2(screen.adjustment, uResolution, (
                 (Vector2) { (float)R3D.state.resolution.width, (float)R3D.state.resolution.height }
-                ));
+            ));
 
             r3d_primitive_bind_and_draw_screen();
         }
@@ -2164,17 +2156,15 @@ void r3d_pass_post_adjustment(void)
 
 void r3d_pass_post_fxaa(void)
 {
-    rlEnableFramebuffer(R3D.framebuffer.post.id);
+    rlEnableFramebuffer(R3D.framebuffer.pingPong.id);
     {
         rlViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
-        rlDisableColorBlend();
-        rlDisableDepthTest();
 
-        r3d_framebuffer_swap_pingpong(R3D.framebuffer.post);
+        r3d_framebuffer_swap_pingpong(R3D.framebuffer.pingPong);
 
         r3d_shader_enable(screen.fxaa);
         {
-            r3d_shader_bind_sampler2D(screen.fxaa, uTexture, R3D.framebuffer.post.source);
+            r3d_shader_bind_sampler2D(screen.fxaa, uTexture, R3D.framebuffer.pingPong.source);
 
             r3d_shader_set_vec2(screen.fxaa, uTexelSize, ((Vector2) {
                 R3D.state.resolution.texelX,
@@ -2221,7 +2211,7 @@ void r3d_pass_final_blit(void)
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, dstId);
 
     // Blit only the color data from the post-processing framebuffer to the main framebuffer
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, R3D.framebuffer.post.id);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, R3D.framebuffer.pingPong.id);
     glBlitFramebuffer(
         0, 0, R3D.state.resolution.width, R3D.state.resolution.height,
         dstX, dstY, dstX + dstW, dstY + dstH, GL_COLOR_BUFFER_BIT,
