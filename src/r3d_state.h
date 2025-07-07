@@ -85,8 +85,8 @@ extern struct R3D_State {
         struct r3d_fb_gbuffer {
             unsigned int id;
             unsigned int albedo;            ///< RGB[8|8|8]
-            unsigned int emission;          ///< RGB[11|11|10] (or fallbacks)
-            unsigned int normal;            ///< RG[16|16] (or) RG[8|8] (R3D_FLAGS_8_BIT_NORMALS or 16F not supported)
+            unsigned int emission;          ///< RGB[16|16|16] (or R11G11B10 in low precision) (or fallbacks)
+            unsigned int normal;            ///< RG[16|16] (8-bit if R3D_FLAGS_8_BIT_NORMALS or 16F not supported)
             unsigned int orm;               ///< RGB[8|8|8]
             unsigned int depth;             ///< DS[24|8] -> Stencil: Last bit is a true/false geometry and others bits are for the rest
         } gBuffer;
@@ -104,15 +104,15 @@ extern struct R3D_State {
         //  - Lit from lights
         struct r3d_fb_deferred {
             unsigned int id;
-            unsigned int diffuse;           ///< RGB[11|11|10] (or fallbacks) -> Diffuse contribution
-            unsigned int specular;          ///< RGB[11|11|10] (or fallbacks) -> Specular contribution
+            unsigned int diffuse;           ///< RGB[16|16|16] (or fallbacks) -> Diffuse contribution
+            unsigned int specular;          ///< RGB[16|16|16] (or fallbacks) -> Specular contribution
         } deferred;
 
         // Ping-pong buffer for bloom blur processing (start at half internal resolution)
         struct r3d_fb_mipchain_bloom {
             unsigned int id;
             struct r3d_mip_bloom {
-                unsigned int id;            //< RGB[11|11|10] (or fallbacks)
+                unsigned int id;            //< RGB[16|16|16] (or R11G11B10 in low precision) (or fallbacks)
                 int iW, iH;
                 float fW, fH;
             } *mipChain;
@@ -127,8 +127,8 @@ extern struct R3D_State {
         //  - Post FX
         struct r3d_fb_pingpong {
             unsigned int id;
-            unsigned int source;            ///< RGB[11|11|10] (or fallbacks)
-            unsigned int target;            ///< RGB[11|11|10] (or fallbacks)
+            unsigned int source;            ///< RGB[16|16|16] (or R11G11B10 in low precision) (or fallbacks)
+            unsigned int target;            ///< RGB[16|16|16] (or R11G11B10 in low precision) (or fallbacks)
         } pingPong;
 
         // Custom target (optional)
