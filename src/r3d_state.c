@@ -336,7 +336,7 @@ static GLenum r3d_get_best_internal_format(GLenum requestedFormat)
             }
             
             // No alternatives found
-            TraceLog(LOG_FATAL, "R3D: Le format de texture [0x%04x] n'est pas supporté et aucun fallback n'a pu être trouvé", requestedFormat);
+            TraceLog(LOG_FATAL, "R3D: Texture format [0x%04x] is not supported and no fallback could be found", requestedFormat);
             return GL_NONE;
         }
     }
@@ -599,7 +599,7 @@ void r3d_framebuffer_load_gbuffer(int width, int height)
 
     gBuffer->id = rlLoadFramebuffer();
     if (gBuffer->id == 0) {
-        TraceLog(LOG_WARNING, "Failed to create framebuffer");
+        TraceLog(LOG_FATAL, "R3D: Failed to create G-Buffer");
         return;
     }
 
@@ -663,7 +663,7 @@ void r3d_framebuffer_load_gbuffer(int width, int height)
 
     // Check if the framebuffer is complete
     if (!rlFramebufferComplete(gBuffer->id)) {
-        TraceLog(LOG_WARNING, "Framebuffer is not complete");
+        TraceLog(LOG_WARNING, "R3D: The G-Buffer is not complete");
     }
 }
 
@@ -675,7 +675,7 @@ void r3d_framebuffer_load_pingpong_ssao(int width, int height)
 
     ssao->id = rlLoadFramebuffer();
     if (ssao->id == 0) {
-        TraceLog(LOG_WARNING, "Failed to create framebuffer");
+        TraceLog(LOG_FATAL, "R3D: Failed to create the SSAO ping-pong buffer");
         return;
     }
 
@@ -704,7 +704,7 @@ void r3d_framebuffer_load_pingpong_ssao(int width, int height)
 
     // Check if the framebuffer is complete
     if (!rlFramebufferComplete(ssao->id)) {
-        TraceLog(LOG_WARNING, "Framebuffer is not complete");
+        TraceLog(LOG_WARNING, "R3D: The SSAO ping-pong buffer is not complete");
     }
 }
 
@@ -714,7 +714,7 @@ void r3d_framebuffer_load_deferred(int width, int height)
 
     deferred->id = rlLoadFramebuffer();
     if (deferred->id == 0) {
-        TraceLog(LOG_WARNING, "Failed to create framebuffer");
+        TraceLog(LOG_FATAL, "R3D: Failed to create the deferred pass framebuffer");
         return;
     }
 
@@ -744,7 +744,7 @@ void r3d_framebuffer_load_deferred(int width, int height)
 
     // Check if the framebuffer is complete
     if (!rlFramebufferComplete(deferred->id)) {
-        TraceLog(LOG_WARNING, "Framebuffer is not complete");
+        TraceLog(LOG_WARNING, "R3D: The deferred pass framebuffer is not complete");
     }
 }
 
@@ -753,6 +753,11 @@ void r3d_framebuffer_load_mipchain_bloom(int width, int height)
     struct r3d_fb_mipchain_bloom* bloom = &R3D.framebuffer.mipChainBloom;
 
     glGenFramebuffers(1, &bloom->id);
+    if (bloom->id == 0) {
+        TraceLog(LOG_FATAL, "R3D: Failed to create the bloom mipchain framebuffer");
+        return;
+    }
+
     glBindFramebuffer(GL_FRAMEBUFFER, bloom->id);
 
     // Determines the HDR color buffers precision
@@ -776,6 +781,7 @@ void r3d_framebuffer_load_mipchain_bloom(int width, int height)
     bloom->mipChain = MemAlloc(mipChainLength * sizeof(struct r3d_mip_bloom));
     if (bloom->mipChain == NULL) {
         TraceLog(LOG_ERROR, "R3D: Failed to allocate memory to store bloom mip chain");
+        return;
     }
     bloom->mipCount = mipChainLength;
 
@@ -817,7 +823,7 @@ void r3d_framebuffer_load_mipchain_bloom(int width, int height)
     glDrawBuffers(1, attachments);
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-        TraceLog(LOG_WARNING, "Framebuffer is not complete");
+        TraceLog(LOG_WARNING, "R3D: The bloom mipchain framebuffer is not complete");
     }
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -829,7 +835,7 @@ void r3d_framebuffer_load_pingpong(int width, int height)
 
     pingPong->id = rlLoadFramebuffer();
     if (pingPong->id == 0) {
-        TraceLog(LOG_WARNING, "Failed to create framebuffer");
+        TraceLog(LOG_FATAL, "R3D: Failed to create the final ping-pong framebuffer");
         return;
     }
 
@@ -862,7 +868,7 @@ void r3d_framebuffer_load_pingpong(int width, int height)
 
     // Check if the framebuffer is complete
     if (!rlFramebufferComplete(pingPong->id)) {
-        TraceLog(LOG_WARNING, "Framebuffer is not complete");
+        TraceLog(LOG_WARNING, "R3D: The final ping-pong framebuffer is not complete");
     }
 }
 
