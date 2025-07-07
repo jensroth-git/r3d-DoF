@@ -2171,7 +2171,7 @@ static bool r3d_process_assimp_mesh(R3D_Model* model, int meshIndex, const struc
             }
         }
     } else {
-        TraceLog(LOG_INFO, "R3D: No bones found for mesh %d", meshIndex);
+        // No bones found for this mesh
         for (size_t i = 0; i < mesh->vertexCount; i++) {
             mesh->vertices[i].weights[0] = 1.0f;
             mesh->vertices[i].boneIds[0] = 0;
@@ -3395,9 +3395,6 @@ R3D_ModelAnimation* R3D_LoadModelAnimations(const char* fileName, int* animCount
     int successCount = 0;
     for (unsigned int i = 0; i < scene->mNumAnimations; i++) {
         const struct aiAnimation* aiAnim = scene->mAnimations[i];
-
-        TraceLog(LOG_INFO, "R3D: Processing animation %d: '%s'", i, aiAnim->mName.data);
-
         if (r3d_process_animation(&animations[successCount], scene, aiAnim, targetFrameRate)) {
             successCount++;
         } else {
