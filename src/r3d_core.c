@@ -88,6 +88,7 @@ void R3D_Init(int resWidth, int resHeight, unsigned int flags)
     // Set parameter flags
     R3D.state.flags = flags;
 
+    // Check GPU supports
     r3d_support_check_texture_internal_formats();
 
     // Load draw call arrays
