@@ -128,11 +128,11 @@ void r3d_light_init(r3d_light_t* light, R3D_LightType type)
 
     light->specular = 0.5f;
     light->energy = 1.0f;
-    light->range = 100.0f;
+    light->range = 50.0f;
 
     light->attenuation = 1.0f;
-    light->innerCutOff = -1.0f;
-    light->outerCutOff = -1.0f;
+    light->innerCutOff = cosf(22.5f * DEG2RAD);
+    light->outerCutOff = cosf(45.0f * DEG2RAD);
 
     light->type = type;
     light->enabled = false;
