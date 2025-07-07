@@ -224,7 +224,7 @@ float R3D_GetLightAttenuation(R3D_Light id)
 void R3D_SetLightAttenuation(R3D_Light id, float attenuation)
 {
     r3d_get_and_check_light(light, id);
-    light->attenuation = 1.0f / attenuation;
+    light->attenuation = (attenuation > 1e-4f) ? 1.0f / attenuation : 10000.0f;
 }
 
 float R3D_GetLightInnerCutOff(R3D_Light id)
