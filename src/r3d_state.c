@@ -326,21 +326,21 @@ int r3d_texture_get_best_internal_format(int internalFormat)
     
     // Search for format in table
     for (const struct format_fallback* fallback = fallbacks; fallback->requested_format != GL_NONE; fallback++) {
-        if (fallback->requested_format == requestedFormat) {
+        if (fallback->requested_format == internalFormat) {
             // Test each alternative in order
             for (int i = 0; fallback->alternatives[i].format != GL_NONE; i++) {
                 const struct format_info* alt = &fallback->alternatives[i];
                 if (*(alt->supportFlag)) {
                     // Log if this is not the exact format requested
                     if (i > 0) {
-                        TraceLog(LOG_WARNING, "R3D: %s not supported, using %s instead", r3d_get_internal_format_name(requestedFormat), alt->name);
+                        TraceLog(LOG_WARNING, "R3D: %s not supported, using %s instead", r3d_get_internal_format_name(internalFormat), alt->name);
                     }
                     return alt->format;
                 }
             }
             
             // No alternatives found
-            TraceLog(LOG_FATAL, "R3D: Texture format [0x%04x] is not supported and no fallback could be found", requestedFormat);
+            TraceLog(LOG_FATAL, "R3D: Texture format [0x%04x] is not supported and no fallback could be found", internalFormat);
             return GL_NONE;
         }
     }
