@@ -1,5 +1,6 @@
 #include "./r3d_light.h"
 
+#include <raylib.h>
 #include <raymath.h>
 #include <stddef.h>
 #include <string.h>
@@ -245,75 +246,108 @@ BoundingBox r3d_light_get_bounding_box(const r3d_light_t* light)
     case R3D_LIGHT_SPOT:
         {
             const float h = light->range;
-            const float r = h * tanf(light->outerCutOff);
-            
-            // Tip of the cone = light->position
+            const float cosTheta = light->outerCutOff;
+
+            // Handle extreme wide angles (> ~84°) to avoid numerical instability
+            if (cosTheta < 0.1f) {
+                // Treat as omnidirectional light with range limit
+                const Vector3* p = &light->position;
+                for (int i = 0; i < 3; ++i) {
+                    ((float*)&aabb.min)[i] = ((float*)p)[i] - h;
+                    ((float*)&aabb.max)[i] = ((float*)p)[i] + h;
+                }
+                break;
+            }
+
+            // Stable radius calculation: tan(acos(cosTheta)) = sqrt(1 - cosTheta²) / cosTheta
+            const float sinTheta = sqrtf(1.0f - cosTheta * cosTheta);
+            const float r = h * sinTheta / cosTheta;
+
+            // Additional safety: clamp radius to reasonable bounds
+            const float maxR = h * 5.0f;
+            const float clampedR = fminf(r, maxR);
+
+            // Cone tip at light position
             Vector3 tip = light->position;
-            
-            // End point of the cone (center of the base)
+
+            // Center of cone base
             Vector3 base = {
                 light->position.x + light->direction.x * h,
                 light->position.y + light->direction.y * h,
                 light->position.z + light->direction.z * h
             };
-            
-            // Initialize bounding box with the tip
+
+            // Initialize bounding box with the cone tip
             aabb.min = aabb.max = tip;
-            
-            // Extend to include the base center
+
+            // Extend to include base center
             for (int i = 0; i < 3; ++i) {
                 float baseCoord = ((float*)&base)[i];
                 ((float*)&aabb.min)[i] = fminf(((float*)&aabb.min)[i], baseCoord);
                 ((float*)&aabb.max)[i] = fmaxf(((float*)&aabb.max)[i], baseCoord);
             }
-            
-            // Calculate orthogonal vectors to the light direction
+
+            // Calculate orthogonal vectors to light direction
             Vector3 dir = light->direction;
             Vector3 up, right;
-            
-            // Find a vector that's not parallel to dir
+
+            // Choose reference vector that's not parallel to direction
             if (fabsf(dir.x) < 0.9f) {
                 up = (Vector3){1.0f, 0.0f, 0.0f};
             } else {
                 up = (Vector3){0.0f, 1.0f, 0.0f};
             }
-            
+
             // Calculate right vector (cross product)
             right = (Vector3){
                 dir.y * up.z - dir.z * up.y,
                 dir.z * up.x - dir.x * up.z,
                 dir.x * up.y - dir.y * up.x
             };
-            
+
             // Normalize right vector
             float rightLen = sqrtf(right.x * right.x + right.y * right.y + right.z * right.z);
-            if (rightLen > 0.0f) {
+            if (rightLen > 1e-6f) {
                 right.x /= rightLen;
                 right.y /= rightLen;
                 right.z /= rightLen;
+            } else {
+                // Direction was parallel to chosen up vector, try another
+                up = (Vector3){0.0f, 0.0f, 1.0f};
+                right = (Vector3){
+                    dir.y * up.z - dir.z * up.y,
+                    dir.z * up.x - dir.x * up.z,
+                    dir.x * up.y - dir.y * up.x
+                };
+                rightLen = sqrtf(right.x * right.x + right.y * right.y + right.z * right.z);
+                if (rightLen > 1e-6f) {
+                    right.x /= rightLen;
+                    right.y /= rightLen;
+                    right.z /= rightLen;
+                }
             }
-            
+
             // Calculate up vector (cross product of dir and right)
             up = (Vector3){
                 dir.y * right.z - dir.z * right.y,
                 dir.z * right.x - dir.x * right.z,
                 dir.x * right.y - dir.y * right.x
             };
-            
-            // Sample points on the circular base to get accurate bounding box
-            const int numSamples = 8; // 8 points should be sufficient for most cases
+
+            // Sample points on circular base to get accurate bounding box
+            const int numSamples = 12;
             for (int i = 0; i < numSamples; ++i) {
                 float angle = (float)(i * 2.0 * PI / numSamples);
                 float cosAngle = cosf(angle);
                 float sinAngle = sinf(angle);
-                
+
                 // Point on the circular base
                 Vector3 point = {
-                    base.x + r * (cosAngle * right.x + sinAngle * up.x),
-                    base.y + r * (cosAngle * right.y + sinAngle * up.y),
-                    base.z + r * (cosAngle * right.z + sinAngle * up.z)
+                    base.x + clampedR * (cosAngle * right.x + sinAngle * up.x),
+                    base.y + clampedR * (cosAngle * right.y + sinAngle * up.y),
+                    base.z + clampedR * (cosAngle * right.z + sinAngle * up.z)
                 };
-                
+
                 // Extend bounding box to include this point
                 for (int j = 0; j < 3; ++j) {
                     float coord = ((float*)&point)[j];
