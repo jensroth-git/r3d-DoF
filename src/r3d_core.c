@@ -31,7 +31,6 @@
 #include "./details/r3d_light.h"
 #include "./details/r3d_drawcall.h"
 #include "./details/r3d_billboard.h"
-#include "./details/r3d_collision.h"
 #include "./details/r3d_primitives.h"
 #include "./details/containers/r3d_array.h"
 #include "./details/containers/r3d_registry.h"
