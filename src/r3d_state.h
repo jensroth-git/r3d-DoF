@@ -389,103 +389,103 @@ void r3d_texture_load_ibl_brdf_lut(void);
 /* === Shader helper macros === */
 
 #define r3d_shader_enable(shader_name)                                                          \
-{                                                                                               \
+do {                                                                                            \
     rlEnableShader(R3D.shader.shader_name.id);                                                  \
-}
+} while(0)
 
 #define r3d_shader_disable()                                                                    \
-{                                                                                               \
+do {                                                                                            \
     rlDisableShader();                                                                          \
-}
+} while(0)
 
 #define r3d_shader_get_location(shader_name, uniform)                                           \
-{                                                                                               \
+do {                                                                                            \
     R3D.shader.shader_name.uniform.loc = rlGetLocationUniform(                                  \
         R3D.shader.shader_name.id, #uniform                                                     \
     );                                                                                          \
-}
+} while(0)
 
 #define r3d_shader_set_sampler1D_slot(shader_name, uniform, value)                              \
-{                                                                                               \
-    if (R3D.shader.shader_name.uniform.slot1D != value) {                                       \
-        R3D.shader.shader_name.uniform.slot1D = value;                                          \
+do {                                                                                            \
+    if (R3D.shader.shader_name.uniform.slot1D != (value)) {                                     \
+        R3D.shader.shader_name.uniform.slot1D = (value);                                        \
         rlSetUniform(                                                                           \
             R3D.shader.shader_name.uniform.loc,                                                 \
             &R3D.shader.shader_name.uniform.slot1D,                                             \
             RL_SHADER_UNIFORM_INT, 1                                                            \
         );                                                                                      \
     }                                                                                           \
-}
+} while(0)
 
 #define r3d_shader_set_sampler2D_slot(shader_name, uniform, value)                              \
-{                                                                                               \
-    if (R3D.shader.shader_name.uniform.slot2D != value) {                                       \
-        R3D.shader.shader_name.uniform.slot2D = value;                                          \
+do {                                                                                            \
+    if (R3D.shader.shader_name.uniform.slot2D != (value)) {                                     \
+        R3D.shader.shader_name.uniform.slot2D = (value);                                        \
         rlSetUniform(                                                                           \
             R3D.shader.shader_name.uniform.loc,                                                 \
             &R3D.shader.shader_name.uniform.slot2D,                                             \
             RL_SHADER_UNIFORM_INT, 1                                                            \
         );                                                                                      \
     }                                                                                           \
-}
+} while(0)
 
 #define r3d_shader_set_samplerCube_slot(shader_name, uniform, value)                            \
-{                                                                                               \
-    if (R3D.shader.shader_name.uniform.slotCube != value) {                                     \
-        R3D.shader.shader_name.uniform.slotCube = value;                                        \
+do {                                                                                            \
+    if (R3D.shader.shader_name.uniform.slotCube != (value)) {                                   \
+        R3D.shader.shader_name.uniform.slotCube = (value);                                      \
         rlSetUniform(                                                                           \
             R3D.shader.shader_name.uniform.loc,                                                 \
             &R3D.shader.shader_name.uniform.slotCube,                                           \
             RL_SHADER_UNIFORM_INT, 1                                                            \
         );                                                                                      \
     }                                                                                           \
-}
+} while(0)
 
 #define r3d_shader_bind_sampler1D(shader_name, uniform, texId)                                  \
-{                                                                                               \
+do {                                                                                            \
     glActiveTexture(GL_TEXTURE0 + R3D.shader.shader_name.uniform.slot1D);                       \
     glBindTexture(GL_TEXTURE_1D, (texId));                                                      \
-}
+} while(0)
 
 #define r3d_shader_bind_sampler2D(shader_name, uniform, texId)                                  \
-{                                                                                               \
+do {                                                                                            \
     glActiveTexture(GL_TEXTURE0 + R3D.shader.shader_name.uniform.slot2D);                       \
     glBindTexture(GL_TEXTURE_2D, (texId));                                                      \
-}
+} while(0)
 
 #define r3d_shader_bind_sampler2D_opt(shader_name, uniform, texId, altTex)                      \
-{                                                                                               \
+do {                                                                                            \
     glActiveTexture(GL_TEXTURE0 + R3D.shader.shader_name.uniform.slot2D);                       \
     if (texId != 0) glBindTexture(GL_TEXTURE_2D, (texId));                                      \
     else glBindTexture(GL_TEXTURE_2D, R3D.texture.altTex);                                      \
-}
+} while(0)
 
 #define r3d_shader_bind_samplerCube(shader_name, uniform, texId)                                \
-{                                                                                               \
+do {                                                                                            \
     glActiveTexture(GL_TEXTURE0 + R3D.shader.shader_name.uniform.slotCube);                     \
     glBindTexture(GL_TEXTURE_CUBE_MAP, (texId));                                                \
-}
+} while(0)
 
 #define r3d_shader_unbind_sampler1D(shader_name, uniform)                                       \
-{                                                                                               \
+do {                                                                                            \
     glActiveTexture(GL_TEXTURE0 + R3D.shader.shader_name.uniform.slot1D);                       \
     glBindTexture(GL_TEXTURE_1D, 0);                                                            \
-}
+} while(0)
 
 #define r3d_shader_unbind_sampler2D(shader_name, uniform)                                       \
-{                                                                                               \
+do {                                                                                            \
     glActiveTexture(GL_TEXTURE0 + R3D.shader.shader_name.uniform.slot2D);                       \
     glBindTexture(GL_TEXTURE_2D, 0);                                                            \
-}
+} while(0)
 
 #define r3d_shader_unbind_samplerCube(shader_name, uniform)                                     \
-{                                                                                               \
+do {                                                                                            \
     glActiveTexture(GL_TEXTURE0 + R3D.shader.shader_name.uniform.slotCube);                     \
     glBindTexture(GL_TEXTURE_CUBE_MAP, 0);                                                      \
-}
+} while(0)
 
 #define r3d_shader_set_int(shader_name, uniform, value)                                         \
-{                                                                                               \
+do {                                                                                            \
     if (R3D.shader.shader_name.uniform.val != (value)) {                                        \
         R3D.shader.shader_name.uniform.val = (value);                                           \
         rlSetUniform(                                                                           \
@@ -494,10 +494,10 @@ void r3d_texture_load_ibl_brdf_lut(void);
             RL_SHADER_UNIFORM_INT, 1                                                            \
         );                                                                                      \
     }                                                                                           \
-}
+} while(0)
 
 #define r3d_shader_set_float(shader_name, uniform, value)                                       \
-{                                                                                               \
+do {                                                                                            \
     if (R3D.shader.shader_name.uniform.val != (value)) {                                        \
         R3D.shader.shader_name.uniform.val = (value);                                           \
         rlSetUniform(                                                                           \
@@ -506,47 +506,54 @@ void r3d_texture_load_ibl_brdf_lut(void);
             RL_SHADER_UNIFORM_FLOAT, 1                                                          \
         );                                                                                      \
     }                                                                                           \
-}
+} while(0)
 
-#define r3d_shader_set_vec2(shader_name, uniform, value)                                        \
-{                                                                                               \
-    if (!Vector2Equals(R3D.shader.shader_name.uniform.val, (value))) {                          \
-        R3D.shader.shader_name.uniform.val = (value);                                           \
+#define r3d_shader_set_vec2(shader_name, uniform, ...)                                          \
+do {                                                                                            \
+    const Vector2 tmp = (__VA_ARGS__);                                                          \
+    if (!Vector2Equals(R3D.shader.shader_name.uniform.val, tmp)) {                              \
+        R3D.shader.shader_name.uniform.val = tmp;                                               \
         rlSetUniform(                                                                           \
             R3D.shader.shader_name.uniform.loc,                                                 \
             &R3D.shader.shader_name.uniform.val,                                                \
             RL_SHADER_UNIFORM_VEC2, 1                                                           \
         );                                                                                      \
     }                                                                                           \
-}
+} while(0)
 
-#define r3d_shader_set_vec3(shader_name, uniform, value)                                        \
-{                                                                                               \
-    if (!Vector3Equals(R3D.shader.shader_name.uniform.val, (value))) {                          \
-        R3D.shader.shader_name.uniform.val = (value);                                           \
+#define r3d_shader_set_vec3(shader_name, uniform, ...)                                          \
+do {                                                                                            \
+    const Vector3 tmp = (__VA_ARGS__);                                                          \
+    if (!Vector3Equals(R3D.shader.shader_name.uniform.val, tmp)) {                              \
+        R3D.shader.shader_name.uniform.val = tmp;                                               \
         rlSetUniform(                                                                           \
             R3D.shader.shader_name.uniform.loc,                                                 \
             &R3D.shader.shader_name.uniform.val,                                                \
             RL_SHADER_UNIFORM_VEC3, 1                                                           \
         );                                                                                      \
     }                                                                                           \
-}
+} while(0)
 
-#define r3d_shader_set_vec4(shader_name, uniform, value)                                        \
-{                                                                                               \
-    if (!Vector4Equals(R3D.shader.shader_name.uniform.val, (value))) {                          \
-        R3D.shader.shader_name.uniform.val = (value);                                           \
+#define r3d_shader_set_vec4(shader_name, uniform, ...)                                          \
+do {                                                                                            \
+    const Vector4 tmp = (__VA_ARGS__);                                                          \
+    if (!Vector4Equals(R3D.shader.shader_name.uniform.val, tmp)) {                              \
+        R3D.shader.shader_name.uniform.val = tmp;                                               \
         rlSetUniform(                                                                           \
             R3D.shader.shader_name.uniform.loc,                                                 \
             &R3D.shader.shader_name.uniform.val,                                                \
             RL_SHADER_UNIFORM_VEC4, 1                                                           \
         );                                                                                      \
     }                                                                                           \
-}
+} while(0)
 
 #define r3d_shader_set_col3(shader_name, uniform, value)                                        \
-{                                                                                               \
-    Vector3 v = { value.r / 255.0f, value.g / 255.0f, value.b / 255.0f };                       \
+do {                                                                                            \
+    const Vector3 v = {                                                                         \
+        (value).r / 255.0f,                                                                     \
+        (value).g / 255.0f,                                                                     \
+        (value).b / 255.0f                                                                      \
+    };                                                                                          \
     if (!Vector3Equals(R3D.shader.shader_name.uniform.val, v)) {                                \
         R3D.shader.shader_name.uniform.val = v;                                                 \
         rlSetUniform(                                                                           \
@@ -555,11 +562,16 @@ void r3d_texture_load_ibl_brdf_lut(void);
             RL_SHADER_UNIFORM_VEC3, 1                                                           \
         );                                                                                      \
     }                                                                                           \
-}
+} while(0)
 
 #define r3d_shader_set_col4(shader_name, uniform, value)                                        \
-{                                                                                               \
-    Vector4 v = { value.r / 255.0f, value.g / 255.0f, value.b / 255.0f, value.a / 255.0f };     \
+do {                                                                                            \
+    const Vector4 v = {                                                                         \
+        (value).r / 255.0f,                                                                     \
+        (value).g / 255.0f,                                                                     \
+        (value).b / 255.0f,                                                                     \
+        (value).a / 255.0f                                                                      \
+    };                                                                                          \
     if (!Vector4Equals(R3D.shader.shader_name.uniform.val, v)) {                                \
         R3D.shader.shader_name.uniform.val = v;                                                 \
         rlSetUniform(                                                                           \
@@ -568,17 +580,17 @@ void r3d_texture_load_ibl_brdf_lut(void);
             RL_SHADER_UNIFORM_VEC4, 1                                                           \
         );                                                                                      \
     }                                                                                           \
-}
+} while(0)
 
 #define r3d_shader_set_mat4(shader_name, uniform, value)                                        \
-{                                                                                               \
-    rlSetUniformMatrix(R3D.shader.shader_name.uniform.loc, value);                              \
-}
+do {                                                                                            \
+    rlSetUniformMatrix(R3D.shader.shader_name.uniform.loc, (value));                            \
+} while(0)
 
 #define r3d_shader_set_mat4_v(shader_name, uniform, array, count)                               \
-{                                                                                               \
-    rlSetUniformMatrices(R3D.shader.shader_name.uniform.loc, array, count);                     \
-}
+do {                                                                                            \
+    rlSetUniformMatrices(R3D.shader.shader_name.uniform.loc, (array), (count));                 \
+} while(0)
 
 
 /* === Primitive helper macros */

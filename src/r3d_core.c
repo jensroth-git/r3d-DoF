@@ -1224,10 +1224,10 @@ void r3d_pass_ssao(void)
             r3d_shader_set_mat4(screen.ssao, uMatProj, R3D.state.transform.proj);
             r3d_shader_set_mat4(screen.ssao, uMatView, R3D.state.transform.view);
 
-            r3d_shader_set_vec2(screen.ssao, uResolution, ((Vector2) {
+            r3d_shader_set_vec2(screen.ssao, uResolution, (Vector2) {
                 (float)R3D.state.resolution.width / 2,
                 (float)R3D.state.resolution.height / 2
-            }));
+            });
 
             r3d_shader_set_float(screen.ssao, uNear, (float)rlGetCullDistanceNear());
             r3d_shader_set_float(screen.ssao, uFar, (float)rlGetCullDistanceFar());
@@ -1250,14 +1250,14 @@ void r3d_pass_ssao(void)
         r3d_shader_disable();
 
         // Blur SSAO
-        r3d_shader_enable(generate.gaussianBlurDualPass)
+        r3d_shader_enable(generate.gaussianBlurDualPass);
         {
             for (int i = 0, horizontal = true; i < R3D.env.ssaoIterations; i++, horizontal = !horizontal) {
                 r3d_framebuffer_swap_pingpong(R3D.framebuffer.pingPongSSAO);
                 r3d_shader_set_vec2(generate.gaussianBlurDualPass, uTexelDir,
-                    ((horizontal)
+                    (horizontal)
                         ? (Vector2) { R3D.state.resolution.texelX, 0 }
-                        : (Vector2) { 0, R3D.state.resolution.texelY })
+                        : (Vector2) { 0, R3D.state.resolution.texelY }
                 );
                 r3d_shader_bind_sampler2D(
                     generate.gaussianBlurDualPass, uTexture,
@@ -1988,9 +1988,9 @@ void r3d_pass_post_bloom(void)
 
         r3d_shader_enable(generate.downsampling);
         {
-            r3d_shader_set_vec2(generate.downsampling, uResolution, (
-                (Vector2) { (float)R3D.state.resolution.width, (float)R3D.state.resolution.height }
-            ))
+            r3d_shader_set_vec2(generate.downsampling, uResolution, (Vector2) {
+                (float)R3D.state.resolution.width, (float)R3D.state.resolution.height
+            });
             r3d_shader_set_int(generate.downsampling, uMipLevel, 0);
 
             // Set brightness threshold prefilter data
@@ -2010,9 +2010,7 @@ void r3d_pass_post_bloom(void)
                 r3d_primitive_bind_and_draw_screen();
 
                 // Set current mip resolution as srcResolution for next iteration
-                r3d_shader_set_vec2(generate.downsampling, uResolution, (
-                    (Vector2) { mip->fW, mip->fH }
-                ))
+                r3d_shader_set_vec2(generate.downsampling, uResolution, (Vector2) { mip->fW, mip->fH });
 
                 // Set current mip as texture input for next iteration
                 glBindTexture(GL_TEXTURE_2D, mip->id);
@@ -2144,9 +2142,9 @@ void r3d_pass_post_adjustment(void)
             r3d_shader_set_float(screen.adjustment, uBrightness, R3D.env.brightness);
             r3d_shader_set_float(screen.adjustment, uContrast, R3D.env.contrast);
             r3d_shader_set_float(screen.adjustment, uSaturation, R3D.env.saturation);
-            r3d_shader_set_vec2(screen.adjustment, uResolution, (
-                (Vector2) { (float)R3D.state.resolution.width, (float)R3D.state.resolution.height }
-            ));
+            r3d_shader_set_vec2(screen.adjustment, uResolution, (Vector2) {
+                (float)R3D.state.resolution.width, (float)R3D.state.resolution.height
+            });
 
             r3d_primitive_bind_and_draw_screen();
         }
@@ -2166,10 +2164,9 @@ void r3d_pass_post_fxaa(void)
         {
             r3d_shader_bind_sampler2D(screen.fxaa, uTexture, R3D.framebuffer.pingPong.source);
 
-            r3d_shader_set_vec2(screen.fxaa, uTexelSize, ((Vector2) {
-                R3D.state.resolution.texelX,
-                R3D.state.resolution.texelY
-            }));
+            r3d_shader_set_vec2(screen.fxaa, uTexelSize, (Vector2) {
+                R3D.state.resolution.texelX, R3D.state.resolution.texelY
+            });
 
             r3d_primitive_bind_and_draw_screen();
         }
