@@ -1284,6 +1284,7 @@ void r3d_shader_load_screen_adjustment(void)
     r3d_shader_get_location(screen.adjustment, uBrightness);
     r3d_shader_get_location(screen.adjustment, uContrast);
     r3d_shader_get_location(screen.adjustment, uSaturation);
+    r3d_shader_get_location(screen.adjustment, uResolution);
 
     r3d_shader_enable(screen.adjustment);
     r3d_shader_set_sampler2D_slot(screen.adjustment, uTexColor, 0);

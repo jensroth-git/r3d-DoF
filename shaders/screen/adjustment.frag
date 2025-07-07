@@ -29,6 +29,7 @@ uniform sampler2D uTexColor;
 uniform float uBrightness;
 uniform float uContrast;
 uniform float uSaturation;
+uniform vec2 uResolution;
 
 /* === Fragments === */
 
@@ -45,20 +46,29 @@ vec3 LinearToSRGB(vec3 color)
 	return max(vec3(1.055) * pow(color, vec3(0.416666667)) - vec3(0.055), vec3(0.0));
 }
 
+float MagicNoise(vec2 uv)
+{
+	return fract(52.9829189 * fract(dot(uv, vec2(0.06711056, 0.00583715))));
+}
+
 /* === Main program === */
 
 void main()
 {
     // Sampling scene color texture
     vec3 result = texture(uTexColor, vTexCoord).rgb;
-
+    
     // Color adjustment
-	result = mix(vec3(0.0), result, uBrightness);
-	result = mix(vec3(0.5), result, uContrast);
-	result = mix(vec3(dot(vec3(1.0), result) * 0.33333), result, uSaturation);
-
-	// Linear to sRGB conversion
-	result = LinearToSRGB(result);
+    result = mix(vec3(0.0), result, uBrightness);
+    result = mix(vec3(0.5), result, uContrast);
+    result = mix(vec3(dot(vec3(1.0), result) * 0.33333), result, uSaturation);
+    
+    // Dithering for debanding
+    const float ditherStrength = 255.0; // lower is stronger
+    result += vec3((1.0 / ditherStrength) * MagicNoise(vTexCoord * uResolution) - (0.5 / ditherStrength));
+    
+    // Linear to sRGB conversion
+    result = LinearToSRGB(result);
 
     // Final color output
     FragColor = vec4(result, 1.0);
