@@ -297,6 +297,7 @@ extern struct R3D_State {
 
 /* === Helper functions === */
 
+int r3d_texture_get_best_internal_format(int internalFormat);
 bool r3d_texture_is_default(unsigned int id);
 void r3d_calculate_bloom_prefilter_data();
 

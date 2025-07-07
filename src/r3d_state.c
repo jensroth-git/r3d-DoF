@@ -109,7 +109,11 @@ static const char* r3d_get_internal_format_name(GLenum format)
     }
 }
 
-static GLenum r3d_get_best_internal_format(GLenum requestedFormat)
+
+/* === Helper functions === */
+
+// Returns the best format in case of incompatibility
+int r3d_texture_get_best_internal_format(int internalFormat)
 {
     // Macro to simplify the definition of supports
     #define SUPPORT(fmt) { GL_##fmt, &R3D.support.tex##fmt, #fmt }
@@ -348,9 +352,6 @@ static GLenum r3d_get_best_internal_format(GLenum requestedFormat)
     #undef SUPPORT
     #undef END_ALTERNATIVES
 }
-
-
-/* === Helper functions === */
 
 bool r3d_texture_is_default(unsigned int id)
 {
@@ -616,7 +617,7 @@ void r3d_framebuffer_load_gbuffer(int width, int height)
     // Generate emission buffer
     glGenTextures(1, &gBuffer->emission);
     glBindTexture(GL_TEXTURE_2D, gBuffer->emission);
-    glTexImage2D(GL_TEXTURE_2D, 0, r3d_get_best_internal_format(hdrFormat), width, height, 0, GL_RGB, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, r3d_texture_get_best_internal_format(hdrFormat), width, height, 0, GL_RGB, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -725,7 +726,7 @@ void r3d_framebuffer_load_deferred(int width, int height)
     glGenTextures(2, textures);
     for (int i = 0; i < 2; i++) {
         glBindTexture(GL_TEXTURE_2D, textures[i]);
-        glTexImage2D(GL_TEXTURE_2D, 0, r3d_get_best_internal_format(GL_RGB16F), width, height, 0, GL_RGB, GL_FLOAT, NULL);
+        glTexImage2D(GL_TEXTURE_2D, 0, r3d_texture_get_best_internal_format(GL_RGB16F), width, height, 0, GL_RGB, GL_FLOAT, NULL);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -808,7 +809,7 @@ void r3d_framebuffer_load_mipchain_bloom(int width, int height)
 
         glGenTextures(1, &mip->id);
         glBindTexture(GL_TEXTURE_2D, mip->id);
-        glTexImage2D(GL_TEXTURE_2D, 0, r3d_get_best_internal_format(hdrFormat), iMipW, iMipH, 0, GL_RGB, GL_FLOAT, NULL);
+        glTexImage2D(GL_TEXTURE_2D, 0, r3d_texture_get_best_internal_format(hdrFormat), iMipW, iMipH, 0, GL_RGB, GL_FLOAT, NULL);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -850,7 +851,7 @@ void r3d_framebuffer_load_pingpong(int width, int height)
     glGenTextures(2, textures);
     for (int i = 0; i < 2; i++) {
         glBindTexture(GL_TEXTURE_2D, textures[i]);
-        glTexImage2D(GL_TEXTURE_2D, 0, r3d_get_best_internal_format(hdrFormat), width, height, 0, GL_RGB, GL_FLOAT, NULL);
+        glTexImage2D(GL_TEXTURE_2D, 0, r3d_texture_get_best_internal_format(hdrFormat), width, height, 0, GL_RGB, GL_FLOAT, NULL);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
