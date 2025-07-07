@@ -1,4 +1,4 @@
-- Adding intensity factor or something else for the skybox
+- Adding intensity factor or something else for the skybox (must also be applied to IBL)
 - Adding texcoord scale/offset to R3D_Material (?)
 - Adding instanced animation (?) (same frame for all instances...)
 - Adding light affect occlusion parameter (SSAO/MaterialORM)
