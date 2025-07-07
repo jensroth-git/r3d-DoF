@@ -405,6 +405,7 @@ typedef struct {
     r3d_shader_uniform_float_t uBrightness;
     r3d_shader_uniform_float_t uContrast;
     r3d_shader_uniform_float_t uSaturation;
+    r3d_shader_uniform_vec2_t uResolution;
 } r3d_shader_screen_adjustment_t;
 
 typedef struct {
