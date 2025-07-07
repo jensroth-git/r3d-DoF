@@ -57,19 +57,19 @@ void main()
 {
     // Sampling scene color texture
     vec3 result = texture(uTexColor, vTexCoord).rgb;
+    
+    // Color adjustment
+    result = mix(vec3(0.0), result, uBrightness);
+    result = mix(vec3(0.5), result, uContrast);
+    result = mix(vec3(dot(vec3(1.0), result) * 0.33333), result, uSaturation);
+    
+    // Dithering for debanding
+    const float ditherStrength = 255.0; // lower is stronger
+    result += vec3((1.0 / ditherStrength) * MagicNoise(vTexCoord * uResolution) - (0.5 / ditherStrength));
+    
+    // Linear to sRGB conversion
+    result = LinearToSRGB(result);
 
-	// Color adjustment
-	result = mix(vec3(0.0), result, uBrightness);
-	result = mix(vec3(0.5), result, uContrast);
-	result = mix(vec3(dot(vec3(1.0), result) * 0.33333), result, uSaturation);
-
-	// Dithering for debanding
-	const float ditherStrength = 255.0; // lower is stronger
-	result += vec3((1.0 / ditherStrength) * MagicNoise(vTexCoord * uResolution) - (0.5 / ditherStrength));
-
-	// Linear to sRGB conversion
-	result = LinearToSRGB(result);
-	
     // Final color output
     FragColor = vec4(result, 1.0);
 }
