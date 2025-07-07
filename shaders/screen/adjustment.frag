@@ -58,7 +58,7 @@ void main()
     // Sampling scene color texture
     vec3 result = texture(uTexColor, vTexCoord).rgb;
 
-    // Color adjustment
+	// Color adjustment
 	result = mix(vec3(0.0), result, uBrightness);
 	result = mix(vec3(0.5), result, uContrast);
 	result = mix(vec3(dot(vec3(1.0), result) * 0.33333), result, uSaturation);

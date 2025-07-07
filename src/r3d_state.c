@@ -82,7 +82,7 @@ static void r3d_texture_create_hdr(int width, int height)
 {
     if (R3D.support.TEX_R11G11B10F) {
         glTexImage2D(GL_TEXTURE_2D, 0, GL_R11F_G11F_B10F, width, height, 0, GL_RGB, GL_FLOAT, NULL);
-}
+    }
     else if (R3D.support.TEX_RGB16F) {
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, NULL);
     }
