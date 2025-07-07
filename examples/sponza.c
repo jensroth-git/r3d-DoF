@@ -76,11 +76,11 @@ void Update(float delta)
 
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         R3D_Tonemap tonemap = R3D_GetTonemapMode();
-        R3D_SetTonemapMode((tonemap + 5 - 1) % 5);
+        R3D_SetTonemapMode((tonemap + R3D_TONEMAP_COUNT - 1) % R3D_TONEMAP_COUNT);
     }
     if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
         R3D_Tonemap tonemap = R3D_GetTonemapMode();
-        R3D_SetTonemapMode((tonemap + 1) % 5);
+        R3D_SetTonemapMode((tonemap + 1) % R3D_TONEMAP_COUNT);
     }
 }
 
@@ -123,6 +123,8 @@ void Draw(void)
         DrawText(txt, GetScreenWidth() - MeasureText(txt, 20) - 10, 10, 20, LIME);
 
     } break;
+    default:
+        break;
     }    
         
     DrawFPS(10, 10);
