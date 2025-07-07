@@ -1424,15 +1424,15 @@ void r3d_shader_load_screen_ambient(void)
         SCREEN_VERT, AMBIENT_FRAG
     );
 
+    r3d_shader_get_location(screen.ambient, uTexAlbedo);
     r3d_shader_get_location(screen.ambient, uTexSSAO);
     r3d_shader_get_location(screen.ambient, uTexORM);
-    r3d_shader_get_location(screen.ambient, uColor);
+    r3d_shader_get_location(screen.ambient, uColAmbient);
 
     r3d_shader_enable(screen.ambient);
-
-    r3d_shader_set_sampler2D_slot(screen.ambient, uTexSSAO, 0);
-    r3d_shader_set_sampler2D_slot(screen.ambient, uTexORM, 1);
-
+    r3d_shader_set_sampler2D_slot(screen.ambient, uTexAlbedo, 0);
+    r3d_shader_set_sampler2D_slot(screen.ambient, uTexSSAO, 1);
+    r3d_shader_set_sampler2D_slot(screen.ambient, uTexORM, 2);
     r3d_shader_disable();
 }
 

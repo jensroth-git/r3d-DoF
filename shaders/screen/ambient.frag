@@ -168,10 +168,10 @@ noperspective in vec2 vTexCoord;
 
 /* === Uniforms === */
 
+uniform sampler2D uTexAlbedo;
 uniform sampler2D uTexSSAO;
 uniform sampler2D uTexORM;
-
-uniform vec4 uColor;
+uniform vec3 uColAmbient;
 
 /* === Fragments === */
 
@@ -198,35 +198,38 @@ float SchlickFresnel(float u)
 
 void main()
 {
-    // ORM texture: R = Occlusion, G = Roughness, B = Metallic
+    /* --- Material properties --- */
+
+    vec3 albedo = texture(uTexAlbedo, vTexCoord).rgb;
     vec3 orm = texture(uTexORM, vTexCoord).rgb;
+
     float occlusion = orm.r;
     float roughness = orm.g;
     float metalness = orm.b;
 
-    // Apply SSAO
-    occlusion *= texture(uTexSSAO, vTexCoord).r;
+    /* --- Ambient occlusion (SSAO) --- */
 
-    // Albedo (assume contained in uColor.rgb)
-    vec3 albedo = uColor.rgb;
+    float ssao = texture(uTexSSAO, vTexCoord).r;
+    occlusion *= ssao;
 
-    // Specular color at normal incidence (F0)
-    vec3 F0 = ComputeF0(metalness, 1.0, albedo);
+    /* --- PBR surface reflectance model --- */
 
-    // Ambient irradiance (assumed uniform from uColor)
-    vec3 ambientLight = uColor.rgb;
+    vec3 F0 = ComputeF0(metalness, 1.0, albedo);  // Specular reflectance at normal incidence
 
-    // Fresnel factor approximation (at grazing = max reflection)
-    const float NdotV = 1.0; // view facing normal, for ambient assume facing camera
-    vec3 kS = F0 + (1.0 - F0) * SchlickFresnel(NdotV);
+    const float NdotV = 1.0;  // For ambient lighting, assume normal facing the view direction
 
-    // Energy conservation: reduce diffuse when metalness increases
-    vec3 kD = (1.0 - kS) * (1.0 - metalness);
+    vec3 kS = F0 + (1.0 - F0) * SchlickFresnel(NdotV);           // Specular reflection coefficient
+    vec3 kD = (1.0 - kS) * (1.0 - metalness);                    // Diffuse coefficient (non-metallic part)
 
-    // Final ambient color with occlusion
-    vec3 ambient = (kD * albedo + kS) * ambientLight * occlusion;
+    /* --- Ambient lighting (diffuse + specular) --- */
 
-    FragDiffuse = vec4(ambient, uColor.a);
+    vec3 ambient = uColAmbient;                                 // Ambient light tint (scene-level)
+    ambient *= (kD * albedo + kS);                              // Apply material response
+    ambient *= occlusion;                                       // Apply ambient occlusion
+
+    /* --- Output --- */
+
+    FragDiffuse = vec4(ambient, 1.0);
 }
 
 #endif

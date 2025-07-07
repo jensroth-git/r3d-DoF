@@ -1342,30 +1342,21 @@ void r3d_pass_deferred_ambient(void)
 
             r3d_shader_enable(screen.ambient);
             {
+                r3d_shader_bind_sampler2D(screen.ambient, uTexAlbedo, R3D.framebuffer.gBuffer.albedo);
                 r3d_shader_bind_sampler2D(screen.ambient, uTexORM, R3D.framebuffer.gBuffer.orm);
 
                 if (R3D.env.ssaoEnabled) {
-                    r3d_shader_bind_sampler2D(
-                        screen.ambient, uTexSSAO,
-                        R3D.framebuffer.pingPongSSAO.target
-                    );
+                    r3d_shader_bind_sampler2D(screen.ambient, uTexSSAO, R3D.framebuffer.pingPongSSAO.target);
                 }
                 else {
-                    r3d_shader_bind_sampler2D(
-                        screen.ambient, uTexSSAO,
-                        R3D.texture.white
-                    );
+                    r3d_shader_bind_sampler2D(screen.ambient, uTexSSAO, R3D.texture.white);
                 }
 
-                r3d_shader_set_vec4(screen.ambient, uColor, ((Vector4) {
-                    R3D.env.ambientColor.x,
-                    R3D.env.ambientColor.y,
-                    R3D.env.ambientColor.z,
-                    0.0f
-                }));
+                r3d_shader_set_vec3(screen.ambient, uColAmbient, R3D.env.ambientColor);
 
                 r3d_primitive_bind_and_draw_screen();
 
+                r3d_shader_unbind_sampler2D(screen.ambient, uTexAlbedo);
                 r3d_shader_unbind_sampler2D(screen.ambient, uTexSSAO);
                 r3d_shader_unbind_sampler2D(screen.ambient, uTexORM);
             }
