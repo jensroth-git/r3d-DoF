@@ -55,7 +55,7 @@ static void r3d_prepare_cull_drawcalls(void);
 static void r3d_prepare_sort_drawcalls(void);
 static void r3d_prepare_anim_drawcalls(void);
 
-static void r3d_clear_gbuffer(bool enableFramebuffer, bool clearColor, bool clearDepth, bool clearStencil);
+static void r3d_clear_gbuffer(bool bindFramebuffer, bool clearColor, bool clearDepth, bool clearStencil);
 
 static void r3d_pass_shadow_maps(void);
 static void r3d_pass_gbuffer(void);
@@ -930,8 +930,8 @@ void r3d_prepare_anim_drawcalls(void)
 void r3d_pass_shadow_maps(void)
 {
     // Config context state
-    rlDisableColorBlend();
-    rlEnableDepthTest();
+    glEnable(GL_DEPTH_TEST);
+    glDisable(GL_BLEND);
 
     // Push new projection matrix
     rlMatrixMode(RL_PROJECTION);
@@ -955,9 +955,9 @@ void r3d_pass_shadow_maps(void)
         //       according to the shadow cast mode.
 
         // Start rendering to shadow map
-        rlEnableFramebuffer(light->data->shadow.map.id);
+        glBindFramebuffer(GL_FRAMEBUFFER, light->data->shadow.map.id);
         {
-            rlViewport(0, 0, light->data->shadow.map.resolution, light->data->shadow.map.resolution);
+            glViewport(0, 0, light->data->shadow.map.resolution, light->data->shadow.map.resolution);
 
             if (light->data->type == R3D_LIGHT_OMNI) {
                 // Set up projection matrix for omni-directional light
@@ -1099,12 +1099,12 @@ void r3d_pass_shadow_maps(void)
     rlLoadIdentity();
 }
 
-void r3d_clear_gbuffer(bool enableFramebuffer, bool clearColor, bool clearDepth, bool clearStencil)
+void r3d_clear_gbuffer(bool bindFramebuffer, bool clearColor, bool clearDepth, bool clearStencil)
 {
-    if (enableFramebuffer) {
-        rlEnableFramebuffer(R3D.framebuffer.gBuffer.id);
+    if (bindFramebuffer) {
+        glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.gBuffer.id);
     }
-    
+
     GLuint bitfield = 0;
 
     if (clearColor) {
@@ -1134,13 +1134,13 @@ void r3d_clear_gbuffer(bool enableFramebuffer, bool clearColor, bool clearDepth,
 
 void r3d_pass_gbuffer(void)
 {
-    rlEnableFramebuffer(R3D.framebuffer.gBuffer.id);
+    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.gBuffer.id);
     {
-        rlViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
-        rlEnableBackfaceCulling();
-        rlDisableColorBlend();
-        rlEnableDepthTest();
-        rlEnableDepthMask();
+        glViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
+        glEnable(GL_DEPTH_TEST);
+        glEnable(GL_CULL_FACE);
+        glDepthMask(GL_TRUE);
+        glDisable(GL_BLEND);
 
         /* --- Clear the gbuffer --- */
 
@@ -1188,11 +1188,11 @@ void r3d_pass_gbuffer(void)
 
 void r3d_pass_ssao(void)
 {
-    rlEnableFramebuffer(R3D.framebuffer.pingPongSSAO.id);
+    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.pingPongSSAO.id);
     {
-        rlViewport(0, 0, R3D.state.resolution.width / 2, R3D.state.resolution.height / 2);
-        rlDisableColorBlend();
-        rlDisableDepthTest();
+        glViewport(0, 0, R3D.state.resolution.width / 2, R3D.state.resolution.height / 2);
+        glDisable(GL_DEPTH_TEST);
+        glDisable(GL_BLEND);
 
         // Enable gbuffer stencil test (render on geometry)
         if (R3D.state.flags & R3D_FLAG_STENCIL_TEST) {
@@ -1267,12 +1267,12 @@ void r3d_pass_ssao(void)
 
 void r3d_pass_deferred_ambient(void)
 {
-    rlEnableFramebuffer(R3D.framebuffer.deferred.id);
+    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.deferred.id);
     {
-        rlViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
-        rlDisableColorBlend();
-        rlDisableDepthTest();
-        rlDisableDepthMask();
+        glViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
+        glDisable(GL_DEPTH_TEST);
+        glDepthMask(GL_FALSE);
+        glDisable(GL_BLEND);
 
         // Clear color targets only (diffuse/specular)
         glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
@@ -1289,8 +1289,6 @@ void r3d_pass_deferred_ambient(void)
 
         if (R3D.env.useSky)
         {
-            rlActiveDrawBuffers(2);
-
             // Compute skybox IBL
             r3d_shader_enable(screen.ambientIbl);
             {
@@ -1338,6 +1336,9 @@ void r3d_pass_deferred_ambient(void)
         // If no skybox is set, we simply render ambient tint on the meshes.
         else
         {
+            // Here we only enable the first attachment (diffuse)
+            // and disable the second one, which is the specular,
+            // as it should not be written to in this case
             rlActiveDrawBuffers(1);
 
             r3d_shader_enable(screen.ambient);
@@ -1361,29 +1362,34 @@ void r3d_pass_deferred_ambient(void)
                 r3d_shader_unbind_sampler2D(screen.ambient, uTexORM);
             }
             r3d_shader_disable();
+
+            // We now re-enable both attachments,
+            // diffuse and specular, for future writes
+            rlActiveDrawBuffers(2);
         }
     }
 }
 
 void r3d_pass_deferred_lights(void)
 {
-    rlEnableFramebuffer(R3D.framebuffer.deferred.id);
+    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.deferred.id);
     {
-        rlViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
-        rlDisableBackfaceCulling();
-        rlDisableDepthTest();
-        rlDisableDepthMask();
+        glViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
 
-        rlEnableColorBlend();
-        rlSetBlendMode(RL_BLEND_ADDITIVE);
+        // Here we disable depth testing and depth writing,
+        // and disable face culling for projecting the
+        // light volumes into the stencil buffer
+        glDisable(GL_DEPTH_TEST);
+        glDisable(GL_CULL_FACE);
+        glDepthMask(GL_FALSE);
+
+        // Setup additive blending to accumulate light contributions
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_ONE, GL_ONE);
+        glBlendEquation(GL_FUNC_ADD);
 
         // Attaches the stencil buffer for rendering volumes
         r3d_depth_stencil_attach();
-
-        // NOTE: The specular output might have been disabled during
-        //       the previous ambient pass if no skybox was present.
-        //       Re-enable it by activating draw buffer 2.
-        rlActiveDrawBuffers(2);
 
         /* --- Bind all textures --- */
 
@@ -1514,9 +1520,9 @@ void r3d_pass_deferred_lights(void)
 
 void r3d_pass_scene_background(void)
 {
-    rlEnableFramebuffer(R3D.framebuffer.pingPong.id);
+    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.pingPong.id);
     {
-        rlViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
+        glViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
 
         if (R3D.env.useSky)
         {
@@ -1532,10 +1538,10 @@ void r3d_pass_scene_background(void)
 
             // Disable backface culling to render the cube from the inside
             // And other pipeline states that are not necessary
-            rlDisableBackfaceCulling();
-            rlDisableColorBlend();
-            rlDisableDepthTest();
-            rlDisableDepthMask();
+            glDisable(GL_DEPTH_TEST);
+            glDisable(GL_CULL_FACE);
+            glDepthMask(GL_FALSE);
+            glDisable(GL_BLEND);
 
             // Render skybox
             r3d_shader_enable(raster.skybox);
@@ -1553,9 +1559,6 @@ void r3d_pass_scene_background(void)
                 r3d_shader_unbind_samplerCube(raster.skybox, uCubeSky);
             }
             r3d_shader_disable();
-
-            // Reset back face culling
-            rlEnableBackfaceCulling();
 
             // Reset projection matrix
             rlMatrixMode(RL_PROJECTION);
@@ -1579,11 +1582,12 @@ void r3d_pass_scene_background(void)
 
 void r3d_pass_scene_deferred(void)
 {
-    rlEnableFramebuffer(R3D.framebuffer.pingPong.id);
+    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.pingPong.id);
     {
-        rlViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
-        rlDisableColorBlend();
-        rlDisableDepthTest();
+        glViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
+        glDisable(GL_DEPTH_TEST);
+        glDepthMask(GL_FALSE);
+        glDisable(GL_BLEND);
 
         // Enable gbuffer stencil test (render on geometry)
         // This is necessary to maintain a correct background
@@ -1770,15 +1774,14 @@ static void r3d_pass_scene_forward_instanced_filter_and_send_lights(const r3d_dr
 
 void r3d_pass_scene_forward_depth_prepass(void)
 {
-    rlEnableFramebuffer(R3D.framebuffer.pingPong.id);
+    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.pingPong.id);
     {
-        rlViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
-        rlEnableBackfaceCulling();
+        glViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
 
         // Setup the depth pre-pass
-        rlColorMask(false, false, false, false);
-        rlEnableDepthTest();
-        rlEnableDepthMask();
+        glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+        glEnable(GL_DEPTH_TEST);
+        glDepthMask(GL_TRUE);
 
         // Reactivation of geometry drawing in the stencil buffer
         r3d_depth_stencil_attach();
@@ -1832,20 +1835,20 @@ void r3d_pass_scene_forward_depth_prepass(void)
 
 void r3d_pass_scene_forward(void)
 {
-    rlEnableFramebuffer(R3D.framebuffer.pingPong.id);
+    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.pingPong.id);
     {
-        rlViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
-        rlColorMask(true, true, true, true);
-        rlEnableBackfaceCulling();
-        rlEnableDepthTest();
+        glViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
+        glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+        glEnable(GL_DEPTH_TEST);
 
         if (R3D.state.flags & R3D_FLAG_DEPTH_PREPASS) {
             glDepthFunc(GL_EQUAL);
-            rlDisableDepthMask();
+            glDepthMask(GL_FALSE);
         }
         else {
+            r3d_depth_stencil_attach();
             r3d_stencil_enable_geometry_write();
-            rlEnableDepthMask();
+            glDepthMask(GL_TRUE);
         }
 
         // Setup projection matrix
@@ -1968,7 +1971,7 @@ void r3d_pass_post_bloom(void)
 {
     /* ---- Generate mip chain --- */
 
-    rlEnableFramebuffer(R3D.framebuffer.mipChainBloom.id);
+    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.mipChainBloom.id);
     {
         /* --- Bloom: Down Sampling --- */
 
@@ -2044,9 +2047,9 @@ void r3d_pass_post_bloom(void)
 
     /* --- Apply bloom to the scene --- */
 
-    rlEnableFramebuffer(R3D.framebuffer.pingPong.id);
+    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.pingPong.id);
     {
-        rlViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
+        glViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
 
         r3d_framebuffer_swap_pingpong(R3D.framebuffer.pingPong);
 
@@ -2066,9 +2069,9 @@ void r3d_pass_post_bloom(void)
 
 void r3d_pass_post_fog(void)
 {
-    rlEnableFramebuffer(R3D.framebuffer.pingPong.id);
+    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.pingPong.id);
     {
-        rlViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
+        glViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
 
         r3d_framebuffer_swap_pingpong(R3D.framebuffer.pingPong);
 
@@ -2095,13 +2098,14 @@ void r3d_pass_post_output(void)
 {
     R3D_Tonemap tonemap = R3D.env.tonemapMode;
 
+    // Checks if the output shader with the required tonemap exists
     if (R3D.shader.screen.output[tonemap].id == 0) {
         r3d_shader_load_screen_output(tonemap);
     }
 
-    rlEnableFramebuffer(R3D.framebuffer.pingPong.id);
+    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.pingPong.id);
     {
-        rlViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
+        glViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
 
         r3d_framebuffer_swap_pingpong(R3D.framebuffer.pingPong);
 
@@ -2126,9 +2130,9 @@ void r3d_pass_post_output(void)
 
 void r3d_pass_post_fxaa(void)
 {
-    rlEnableFramebuffer(R3D.framebuffer.pingPong.id);
+    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.pingPong.id);
     {
-        rlViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
+        glViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
 
         r3d_framebuffer_swap_pingpong(R3D.framebuffer.pingPong);
 
@@ -2200,16 +2204,31 @@ void r3d_reset_raylib_state(void)
 {
     rlDisableFramebuffer();
 
-    rlViewport(0, 0, GetRenderWidth(), GetRenderHeight());
+    glViewport(0, 0, GetRenderWidth(), GetRenderHeight());
 
     glDisable(GL_STENCIL_TEST);
-    rlEnableBackfaceCulling();
-    rlEnableColorBlend();
-    rlDisableDepthTest();
-    rlEnableDepthMask();
+    glDisable(GL_DEPTH_TEST);
 
-    rlSetBlendMode(RL_BLEND_ALPHA);
+    glEnable(GL_CULL_FACE);
+    glEnable(GL_BLEND);
+
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glBlendEquation(GL_FUNC_ADD);
     glDepthFunc(GL_LEQUAL);
+    glDepthMask(GL_TRUE);
+
+    // Here we re-define the blend mode via rlgl to ensure its internal state
+    // matches what we've just set manually with OpenGL.
+
+    // It's not enough to change the blend mode only through rlgl, because if we
+    // previously used a different blend mode (not "alpha") but rlgl still thinks it's "alpha",
+    // then rlgl won't correctly apply the intended blend mode.
+
+    // We do this at the end because calling rlSetBlendMode can trigger a draw call for
+    // any content accumulated by rlgl, and we want that to be rendered into the main
+    // framebuffer, not into one of R3D's internal framebuffers that will be discarded afterward.
+
+    // TODO: Ideally, we would retrieve rlgl’s current blend mode state and restore it exactly.
+
+    rlSetBlendMode(RL_BLEND_ALPHA);
 }
