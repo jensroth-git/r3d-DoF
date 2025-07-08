@@ -2209,5 +2209,7 @@ void r3d_reset_raylib_state(void)
     rlEnableDepthMask();
 
     rlSetBlendMode(RL_BLEND_ALPHA);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glBlendEquation(GL_FUNC_ADD);
     glDepthFunc(GL_LEQUAL);
 }
