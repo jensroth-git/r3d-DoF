@@ -46,9 +46,9 @@ const char* Init(void)
         .fovy = 60,
     };
 
-    R3D_Light light = R3D_CreateLight(R3D_LIGHT_SPOT);
+    R3D_Light light = R3D_CreateLight(R3D_LIGHT_OMNI);
     {
-        R3D_LightLookAt(light, (Vector3) { 0, 10, 10 }, (Vector3) { 0 });
+        R3D_SetLightPosition(light, (Vector3) { 0, 10, 10 });
         R3D_SetLightActive(light, true);
     }
 
