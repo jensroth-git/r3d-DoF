@@ -261,34 +261,35 @@ R3D_DisableLightShadow(light, false);   // Disables the light; `false` keeps the
 - **Material System**: R3D uses its own `R3D_Material` system that provides a unified approach to handling textures, rendering modes, and material parameters. The material system integrates blend modes, face culling, shadow casting, and billboard settings directly into the material structure.
 
 ```c
-R3D_Material material = R3D_LoadMaterialDefault();  // Creates a default R3D material
+R3D_Material material = R3D_LoadMaterialDefault();  // Creates a default R3D material, default material config below
 
 // Sets the material's albedo with a texture and color tint
-material.albedo.texture = myTexture;
+material.albedo.texture = R3D_GetWhiteTexture();
 material.albedo.color = WHITE;
 
 // Configure ORM (Occlusion-Roughness-Metalness) properties
-material.orm.texture = myORMTexture;  // Optional: combined ORM texture
-material.orm.roughness = 1.0f;       // Surface roughness (0.0 = mirror, 1.0 = rough)
-material.orm.metalness = 0.0f;       // Metallic property (0.0 = dielectric, 1.0 = metallic)
-material.orm.occlusion = 1.0f;       // Ambient occlusion (1.0 = no occlusion)
+material.orm.texture = R3D_GetWhiteTexture();   // Optional: combined ORM texture
+material.orm.roughness = 1.0f;                  // Surface roughness (0.0 = mirror, 1.0 = rough)
+material.orm.metalness = 0.0f;                  // Metallic property (0.0 = dielectric, 1.0 = metallic)
+material.orm.occlusion = 1.0f;                  // Ambient occlusion (1.0 = no occlusion)
 
 // Set up emission properties
-material.emission.texture = myEmissionTexture;  // Optional: emission texture
-material.emission.color = RED;                 // Emission color
-material.emission.energy = 3.0f;           // Emission intensity
+material.emission.texture = R3D_GetWhiteTexture();  // Optional: emission texture
+material.emission.color = WHITE;                    // Emission color
+material.emission.energy = 0.0f;                    // Emission energy multiplier
 
 // Configure normal mapping
-material.normal.texture = myNormalTexture;
+material.normal.texture = R3D_GetNormalTexture();   // Optional: normal texture
+material.normal.scale = 1.0f;                       // Normal scale
 
 // Set rendering modes directly in the material
-material.blendMode = R3D_BLEND_ALPHA;          // Transparency blending
-material.cullMode = R3D_CULL_BACK;             // Face culling
-material.shadowCastMode = R3D_SHADOW_CAST_ON;  // Shadow casting
-material.billboardMode = R3D_BILLBOARD_NONE;   // Billboard behavior
+material.blendMode = R3D_BLEND_OPAQUE;                  // Transparency blending
+material.cullMode = R3D_CULL_BACK;                      // Face culling
+material.shadowCastMode = R3D_SHADOW_CAST_FRONT_FACES;  // Shadow casting
+material.billboardMode = R3D_BILLBOARD_DISABLED;        // Billboard behavior
 
 // Alpha cutoff for transparency testing
-material.alphaCutoff = 0.5f;
+material.alphaCutoff = 0.01f;
 ```
 
 - **Post-processing**: Post-processing effects like fog, bloom, tonemapping or color correction can be added at the end of the rendering pipeline using R3D's built-in shaders.
