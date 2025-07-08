@@ -2687,7 +2687,7 @@ bool process_assimp_materials(const struct aiScene* scene, R3D_Material** materi
         float transmission = 0.0f;
         (void)aiGetMaterialFloat(aiMat, AI_MATKEY_TRANSMISSION_FACTOR, &transmission);
 
-        if (glTFTransparency || mat->albedo.color.a < 1.0f || transmission > 0.01f) {
+        if (glTFTransparency || mat->albedo.color.a < 255 || transmission > 0.01f) {
             mat->blendMode = R3D_BLEND_ALPHA;
             mat->cullMode = R3D_CULL_NONE;
         }
