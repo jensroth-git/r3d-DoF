@@ -2583,23 +2583,26 @@ bool process_assimp_materials(const struct aiScene* scene, R3D_Material** materi
 
         *mat = R3D_GetDefaultMaterial();
 
-        /* --- Calculate the albedo --- */
+        /* --- Load the albedo color --- */
 
-        struct aiColor4D diffuseColor = { 1.0f, 1.0f, 1.0f, 1.0f };
-        struct aiColor4D baseColor = { 1.0f, 1.0f, 1.0f, 1.0f };
-        float transparency = 0.0f;
-        float opacity = 1.0f;
+        struct aiColor4D color = { 1.0f, 1.0f, 1.0f, 1.0f };
+        if (aiGetMaterialColor(aiMat, AI_MATKEY_COLOR_DIFFUSE, &color) != AI_SUCCESS) {
+            (void)aiGetMaterialColor(aiMat, AI_MATKEY_BASE_COLOR, &color);
+        }
 
-        (void)aiGetMaterialColor(aiMat, AI_MATKEY_COLOR_DIFFUSE, &diffuseColor);
-        (void)aiGetMaterialColor(aiMat, AI_MATKEY_BASE_COLOR, &baseColor);
-        (void)aiGetMaterialFloat(aiMat, AI_MATKEY_TRANSPARENCYFACTOR, &transparency);
-        (void)aiGetMaterialFloat(aiMat, AI_MATKEY_OPACITY, &opacity);
+        mat->albedo.color = r3d_color_from_ai_color(&color);
 
-        mat->albedo.color.r = 255 * (diffuseColor.r * baseColor.r);
-        mat->albedo.color.g = 255 * (diffuseColor.g * baseColor.g);
-        mat->albedo.color.b = 255 * (diffuseColor.b * baseColor.b);
-        mat->albedo.color.a = 255 * (diffuseColor.a * baseColor.a);
-        mat->albedo.color.a *= opacity * (1.0f - transparency);
+        /* --- Load the opacity factor --- */
+
+        if (mat->albedo.color.a == 255) {
+            float opacity = 1.0f;
+            if (!aiGetMaterialFloat(aiMat, AI_MATKEY_OPACITY, &opacity) != AI_SUCCESS) {
+                if (aiGetMaterialFloat(aiMat, AI_MATKEY_TRANSPARENCYFACTOR, &opacity) == AI_SUCCESS) {
+                    opacity = 1.0f - opacity;
+                }
+            }
+            mat->albedo.color.a *= opacity;
+        }
 
         /* --- Load albedo texture --- */
 
