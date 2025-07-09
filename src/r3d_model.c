@@ -2601,7 +2601,7 @@ bool process_assimp_materials(const struct aiScene* scene, R3D_Material** materi
                     opacity = 1.0f - opacity;
                 }
             }
-            mat->albedo.color.a *= opacity;
+            mat->albedo.color.a = (unsigned char)(255 * opacity);
         }
 
         /* --- Load albedo texture --- */
