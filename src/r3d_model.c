@@ -1290,7 +1290,7 @@ R3D_Mesh R3D_GenMeshHeightmap(Image heightmap, Vector3 size, bool upload)
             // Vertex position
             const float posX = -halfSizeX + x * stepX;
             const float posZ = -halfSizeZ + z * stepZ;
-            const float posY = GET_HEIGHT_VALUE(x, z);
+            const float posY = GET_HEIGHT_VALUE(x, z) * size.y;     //  MGB changed to apply Y size to heightmap
 
             // Update Y bounds for AABB
             if (posY < minY) minY = posY;
@@ -1338,7 +1338,8 @@ R3D_Mesh R3D_GenMeshHeightmap(Image heightmap, Vector3 size, bool upload)
             // Color based on height (optional)
             const float heightRatio = (posY - minY) / (size.y > 0.0f ? size.y : 1.0f);
             const unsigned char colorIntensity = (unsigned char)(255.0f * heightRatio);
-            const Vector4 heightColor = {colorIntensity, colorIntensity, colorIntensity, 255};
+//            const Vector4 heightColor = {colorIntensity, colorIntensity, colorIntensity, 255};
+            const Vector4 heightColor = {1.0f,1.0f,1.0f,1.0f};  //  MGB changed value should be 0.0-1.0 
 
             mesh.vertices[vertexIndex] = (R3D_Vertex){
                 .position = {posX, posY, posZ},
