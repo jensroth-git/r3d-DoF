@@ -1,8 +1,12 @@
+- Sort opaque and transparent objects in the forward geometry array, and apply SSAO only to the opaque forward geometry
 - Adding intensity factor or something else for the skybox (must also be applied to IBL)
 - Adding texcoord scale/offset to R3D_Material (?)
 - Adding instanced animation (?) (same frame for all instances...)
 - Adding light affect occlusion parameter (SSAO/MaterialORM)
 - Use Sample2DArray for shadow maps
+
+- Implement a custom screen-space shader pass
+- Implement custom material shaders (should handle both deferred and forward rendering?)
 
 - Apply the alpha scissor test directly in the depth shaders (this will work for both forward rendering and shadow maps).  
 - Create an internal inclusion system for shaders to reduce GLSL code duplication.
