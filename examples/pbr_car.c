@@ -31,6 +31,7 @@ const char* Init(void)
     R3D_SetBloomMode(R3D_BLOOM_MIX);
     R3D_SetTonemapMode(R3D_TONEMAP_ACES);
 
+    R3D_SetModelImportScale(0.01f);
 	model = R3D_LoadModel(RESOURCES_PATH "pbr/car.glb");
     ground = R3D_GenMeshPlane(100.0f, 100.0f, 1, 1, true);
 

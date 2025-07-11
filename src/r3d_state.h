@@ -281,6 +281,7 @@ extern struct R3D_State {
         // Loading param
         struct {
             TextureFilter textureFilter;
+            float unitScaleFactor;
         } loading;
 
         // Miscellaneous flags

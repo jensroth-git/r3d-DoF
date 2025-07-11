@@ -25,6 +25,7 @@ const char* Init(void)
 
     R3D_SetAmbientColor(GRAY);
 
+    R3D_SetModelImportScale(0.01f);
     sponza = R3D_LoadModel(RESOURCES_PATH "sponza.glb");
     skybox = R3D_LoadSkybox(RESOURCES_PATH "sky/skybox3.png", CUBEMAP_LAYOUT_AUTO_DETECT);
 
