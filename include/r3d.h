@@ -1429,7 +1429,7 @@ R3DAPI void R3D_SetModelImportScale(float value);
  *
  * @return The percentage value used to scaled loaded models.
  */
-R3DAPI void R3D_GetModelImportScale(void);
+R3DAPI float R3D_GetModelImportScale(void);
 
 
 

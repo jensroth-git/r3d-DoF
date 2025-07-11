@@ -3481,7 +3481,7 @@ void R3D_SetModelImportScale(float value)
     R3D.state.loading.unitScaleFactor = value;
 }
 
-void R3D_GetModelImportScale(void)
+float R3D_GetModelImportScale(void)
 {
     return R3D.state.loading.unitScaleFactor;
 }
