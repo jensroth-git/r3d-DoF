@@ -139,6 +139,7 @@ void R3D_Init(int resWidth, int resHeight, unsigned int flags)
 
     // Init default loading parameters
     R3D.state.loading.textureFilter = TEXTURE_FILTER_TRILINEAR;
+    R3D.state.loading.unitScaleFactor = 1.0f;
 
     // Load primitive shapes
     glGenVertexArrays(1, &R3D.primitive.dummyVAO);

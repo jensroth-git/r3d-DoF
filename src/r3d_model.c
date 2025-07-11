@@ -3145,9 +3145,9 @@ R3D_Model R3D_LoadModel(const char* filePath)
 
     /* --- Configure Assimp properties --- */
 
-    // Set the global scale from 'cm' to 'm'
+    // Set the global unit scaling factor
     struct aiPropertyStore* props = aiCreatePropertyStore();
-    aiSetImportPropertyFloat(props, AI_CONFIG_GLOBAL_SCALE_FACTOR_KEY, 0.01f);
+    aiSetImportPropertyFloat(props, AI_CONFIG_GLOBAL_SCALE_FACTOR_KEY, R3D.state.loading.unitScaleFactor);
 
     /* --- Import scene using Assimp --- */
 
@@ -3475,4 +3475,14 @@ void R3D_ListModelAnimations(R3D_ModelAnimation* animations, int animCount)
         TraceLog(LOG_INFO, "  [%d] '%s' - %d frames, %d bones", 
                  i, animations[i].name, animations[i].frameCount, animations[i].boneCount);
     }
+}
+
+void R3D_SetModelImportScale(float value)
+{
+    R3D.state.loading.unitScaleFactor = value;
+}
+
+float R3D_GetModelImportScale(void)
+{
+    return R3D.state.loading.unitScaleFactor;
 }

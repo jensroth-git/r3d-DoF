@@ -26,6 +26,7 @@ const char* Init(void)
 	R3D_SetTonemapExposure(0.75f);
 	R3D_SetTonemapWhite(1.25f);
 
+	R3D_SetModelImportScale(0.01f);
 	model = R3D_LoadModel(RESOURCES_PATH "pbr/musket.glb");
 	{
 		Matrix transform = MatrixRotateY(PI / 2);
