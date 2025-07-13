@@ -1418,7 +1418,7 @@ R3DAPI void R3D_ListModelAnimations(R3D_ModelAnimation* animations, int animCoun
  * The functions sets the scaling factor to be used when loading models. This value
  * is only applied to models loaded after this value is set.
  *
- * @value Scaling factor to be used (i.e. 0.01 for meters to centimeters).
+ * @param value Scaling factor to be used (i.e. 0.01 for meters to centimeters).
  */
 R3DAPI void R3D_SetModelImportScale(float value);
 
