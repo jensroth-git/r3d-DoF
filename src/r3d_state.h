@@ -280,8 +280,8 @@ extern struct R3D_State {
 
         // Loading param
         struct {
-            TextureFilter textureFilter;
-            float unitScaleFactor;
+            struct aiPropertyStore* aiProps;   //< Assimp import properties (scale, etc.)
+            TextureFilter textureFilter;       //< Texture filter used by R3D during model loading
         } loading;
 
         // Miscellaneous flags

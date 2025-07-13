@@ -3143,21 +3143,13 @@ R3D_Model R3D_LoadModel(const char* filePath)
 {
     R3D_Model model = { 0 };
 
-    /* --- Configure Assimp properties --- */
-
-    // Set the global unit scaling factor
-    struct aiPropertyStore* props = aiCreatePropertyStore();
-    aiSetImportPropertyFloat(props, AI_CONFIG_GLOBAL_SCALE_FACTOR_KEY, R3D.state.loading.unitScaleFactor);
-
     /* --- Import scene using Assimp --- */
 
-    const struct aiScene* scene = aiImportFileExWithProperties(filePath, R3D_ASSIMP_FLAGS, NULL, props);
+    const struct aiScene* scene = aiImportFileExWithProperties(filePath, R3D_ASSIMP_FLAGS, NULL, R3D.state.loading.aiProps);
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
         TraceLog(LOG_ERROR, "R3D: Assimp error; %s", aiGetErrorString());
         return model;
     }
-
-    aiReleasePropertyStore(props);
 
     /* --- Process materials --- */
 
@@ -3219,12 +3211,6 @@ R3D_Model R3D_LoadModelFromMemory(const char* fileType, const void* data, unsign
 {
     R3D_Model model = { 0 };
 
-    /* --- Configure Assimp properties --- */
-
-    // Set the global scale from 'cm' to 'm'
-    struct aiPropertyStore* props = aiCreatePropertyStore();
-    aiSetImportPropertyFloat(props, AI_CONFIG_GLOBAL_SCALE_FACTOR_KEY, 0.01f);
-
     /* --- Import scene using Assimp --- */
 
     if (fileType != NULL && fileType[0] == '.') {
@@ -3233,14 +3219,12 @@ R3D_Model R3D_LoadModelFromMemory(const char* fileType, const void* data, unsign
     }
 
     const struct aiScene* scene = aiImportFileFromMemoryWithProperties(
-        data, size, R3D_ASSIMP_FLAGS, fileType, props);
+        data, size, R3D_ASSIMP_FLAGS, fileType, R3D.state.loading.aiProps);
 
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
         TraceLog(LOG_ERROR, "R3D: Assimp error; %s", aiGetErrorString());
         return model;
     }
-
-    aiReleasePropertyStore(props);
 
     /* --- Process materials --- */
 
@@ -3359,21 +3343,13 @@ R3D_ModelAnimation* R3D_LoadModelAnimations(const char* fileName, int* animCount
 {
     *animCount = 0;
 
-    /* --- Configure Assimp properties --- */
-
-    struct aiPropertyStore* props = aiCreatePropertyStore();
-    aiSetImportPropertyFloat(props, AI_CONFIG_GLOBAL_SCALE_FACTOR_KEY, 0.01f);
-
     /* --- Import scene using Assimp --- */
 
-    const struct aiScene* scene = aiImportFileExWithProperties(fileName, R3D_ASSIMP_FLAGS, NULL, props);
+    const struct aiScene* scene = aiImportFileExWithProperties(fileName, R3D_ASSIMP_FLAGS, NULL, R3D.state.loading.aiProps);
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
         TraceLog(LOG_ERROR, "R3D: Assimp error loading animations: %s", aiGetErrorString());
-        aiReleasePropertyStore(props);
         return NULL;
     }
-
-    aiReleasePropertyStore(props);
 
     /* --- Check if there are animations --- */
 
@@ -3479,10 +3455,5 @@ void R3D_ListModelAnimations(R3D_ModelAnimation* animations, int animCount)
 
 void R3D_SetModelImportScale(float value)
 {
-    R3D.state.loading.unitScaleFactor = value;
-}
-
-float R3D_GetModelImportScale(void)
-{
-    return R3D.state.loading.unitScaleFactor;
+    aiSetImportPropertyFloat(R3D.state.loading.aiProps, AI_CONFIG_GLOBAL_SCALE_FACTOR_KEY, value);
 }

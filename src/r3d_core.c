@@ -25,6 +25,7 @@
 #include <rlgl.h>
 #include <glad.h>
 
+#include <assimp/cimport.h>
 #include <float.h>
 
 #include "./r3d_state.h"
@@ -138,8 +139,8 @@ void R3D_Init(int resWidth, int resHeight, unsigned int flags)
     };
 
     // Init default loading parameters
+    R3D.state.loading.aiProps = aiCreatePropertyStore();
     R3D.state.loading.textureFilter = TEXTURE_FILTER_TRILINEAR;
-    R3D.state.loading.unitScaleFactor = 1.0f;
 
     // Load primitive shapes
     glGenVertexArrays(1, &R3D.primitive.dummyVAO);
@@ -167,6 +168,8 @@ void R3D_Init(int resWidth, int resHeight, unsigned int flags)
 
 void R3D_Close(void)
 {
+    aiReleasePropertyStore(R3D.state.loading.aiProps);
+
     r3d_framebuffers_unload();
     r3d_textures_unload();
     r3d_shaders_unload();

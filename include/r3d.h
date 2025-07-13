@@ -1422,15 +1422,6 @@ R3DAPI void R3D_ListModelAnimations(R3D_ModelAnimation* animations, int animCoun
  */
 R3DAPI void R3D_SetModelImportScale(float value);
 
-/**
- * @brief Gets the scaling factor applied to models on loading.
- *
- * This function retrieves the scaling factor applied to models when loaded.
- *
- * @return The percentage value used to scaled loaded models.
- */
-R3DAPI float R3D_GetModelImportScale(void);
-
 
 
 // --------------------------------------------
