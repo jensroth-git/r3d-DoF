@@ -883,6 +883,17 @@ void r3d_prepare_cull_drawcalls(void)
 
 void r3d_prepare_sort_drawcalls(void)
 {
+    if (R3D.state.flags & R3D_FLAG_FORCE_FORWARD) {
+        // Here all transparent or opaque objects are contained in the forward array
+        if (R3D.state.flags & R3D_FLAG_TRANSPARENT_SORTING) {
+            r3d_drawcall_sort_mixed_forward(
+                (r3d_drawcall_t*)R3D.container.aDrawForward.data,
+                R3D.container.aDrawForward.count
+            );
+        }
+        return;
+    }
+
     // Sort front-to-back for deferred rendering
     if (R3D.state.flags & R3D_FLAG_OPAQUE_SORTING) {
         r3d_drawcall_sort_front_to_back(
@@ -892,7 +903,6 @@ void r3d_prepare_sort_drawcalls(void)
     }
 
     // Sort back-to-front for forward rendering
-    // TODO: If the forward rendering is forced there can be opaque objects here!
     if (R3D.state.flags & R3D_FLAG_TRANSPARENT_SORTING) {
         r3d_drawcall_sort_back_to_front(
             (r3d_drawcall_t*)R3D.container.aDrawForward.data,
