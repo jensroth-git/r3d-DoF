@@ -2,6 +2,9 @@
 
 ## **v0.4**
 
+- [ ] **Load Animations From Memory**  
+  Currently, only models can be loaded from memory, animations still need to be loaded from an external file. This should be improved with `R3D_LoadModelAnimationsFromMemory`.
+
 * [ ] **Better SSAO Support**
   Refactor `R3D_End` so that in *forced forward* mode, SSAO can also be applied to opaque objects stored in the forward draw calls array.
 
@@ -34,6 +37,9 @@
 * [ ] **Improve Shadow Map Management**
   Instead of using one shadow map per light, implement an internal batching system with a 2D texture array and `Sample2DArray` in shaders.
   *Note: This would remove per-light independent shadow map resolutions.*
+
+- [ ] **Rework Scene Management for Directional Lights**  
+  Currently, shadow projection for directional lights relies on scene bounds defined by `R3D_SetSceneBounds(bounds)`. This function only exists for that purpose, which makes the system unclear and inflexible. It would be better to design a more natural way to handle shadow projection for directional lights.
 
 * [ ] **Implement Cascaded Shadow Maps (CSM)**
   Add CSM support for directional lights.
