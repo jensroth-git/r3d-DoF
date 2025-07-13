@@ -1,7 +1,5 @@
 # R3D Roadmap
 
----
-
 ## **v0.4**
 
 * [ ] **Better SSAO Support**
@@ -20,8 +18,6 @@
   Currently, occlusion (from ORM or SSAO) only affects ambient light (simulated or IBL). Add a factor to control how much direct lighting is influenced too. While this is less physically accurate, it allows better artistic control.
   *Note: Consider splitting this into two separate factors: one per material and another for SSAO globally.*
 
----
-
 ## **v0.5**
 
 * [ ] **Create Shader Include System**
@@ -32,8 +28,6 @@
 
 * [ ] **Add Support for Custom Material Shaders**
   Allow custom shaders per material. This will likely require a different approach for deferred vs. forward rendering. Deferred mode will probably offer fewer possibilities than forward mode for custom material shaders.
-
----
 
 ## **v0.6**
 
@@ -49,14 +43,10 @@
 
 *Note: v0.6 features are still incomplete.*
 
----
-
 ## **v0.7**
 
 * [ ] **Support for OpenGL ES**
   Likely add support for OpenGL ES.
-
----
 
 ## **Ideas (Not Planned Yet)**
 
