@@ -137,6 +137,7 @@ Here is a basic example:
 
 ```c
 #include <r3d.h>
+#include <raymath.h>
 
 int main()
 {
@@ -151,7 +152,7 @@ int main()
     R3D_Mesh mesh = R3D_GenMeshSphere(1.0f, 16, 32, true);
 
     // Get a material with default values
-    R3D_Material = R3D_GetDefaultMaterial();
+    R3D_Material material = R3D_GetDefaultMaterial();
 
     // Create a directional light
     // NOTE: The direction will be normalized
@@ -178,7 +179,7 @@ int main()
     }
 
     // Close R3D renderer and raylib
-    R3D_UnloadMesh(mesh);
+    R3D_UnloadMesh(&mesh);
     R3D_Close();
     CloseWindow();
 
