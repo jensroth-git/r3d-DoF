@@ -31,6 +31,8 @@ const char* Init(void)
     R3D_SetAmbientColor((Color) { 7, 7, 7, 255 });
 
     plane = R3D_GenMeshPlane(32, 32, 1, 1, true);
+
+    R3D_SetModelImportScale(0.01f);
     dancer = R3D_LoadModel(RESOURCES_PATH "dancer.glb");
 
     material = R3D_GetDefaultMaterial();
