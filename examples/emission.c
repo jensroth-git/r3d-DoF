@@ -45,6 +45,8 @@ const char* Init(void)
     R3D_SetBloomIntensity(0.2f);
     R3D_SetBloomThreshold(0.6f);
 
+    R3D_SetModelImportScale(0.01f);
+
     model = R3D_LoadModel(RESOURCES_PATH "emission.glb");
 
     plane = R3D_GenMeshPlane(1000, 1000, 1, 1, true);
