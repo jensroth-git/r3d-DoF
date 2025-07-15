@@ -2622,7 +2622,7 @@ R3DAPI float R3D_GetSaturation(void);
 /**
  * @brief Loads a skybox from a texture file.
  *
- * This function loads a skybox from a texture file using a specified cubemap layout.
+ * This function loads a skybox cubemap from a texture file using a specified cubemap layout.
  * The layout defines how the six faces of the cubemap are arranged within the texture.
  *
  * @param fileName The path to the texture file.
@@ -2632,16 +2632,40 @@ R3DAPI float R3D_GetSaturation(void);
 R3DAPI R3D_Skybox R3D_LoadSkybox(const char* fileName, CubemapLayout layout);
 
 /**
- * @brief Loads a skybox from a high dynamic range (HDR) image.
+ * @brief Loads a skybox from an image in memory.
  *
- * This function loads a skybox from an HDR image and converts it into a cubemap.
- * The size parameter determines the resolution of the generated cubemap.
+ * This function loads a skybox cubemap from an image already loaded in memory,
+ * using a specified cubemap layout to map the six faces.
  *
- * @param fileName The path to the HDR image file.
- * @param size The resolution of the cubemap (e.g., 512, 1024).
+ * @param image The source image in memory.
+ * @param layout The cubemap layout format.
  * @return The loaded skybox object.
  */
-R3DAPI R3D_Skybox R3D_LoadSkyboxHDR(const char* fileName, int size);
+R3DAPI R3D_Skybox R3D_LoadSkyboxFromMemory(Image image, CubemapLayout layout);
+
+/**
+ * @brief Loads a skybox from a panorama texture file.
+ *
+ * This function loads a skybox from a panorama (equirectangular) texture file,
+ * and converts it into a cubemap with the specified resolution.
+ *
+ * @param fileName The path to the panorama texture file.
+ * @param size The resolution of the generated cubemap (e.g., 512, 1024).
+ * @return The loaded skybox object.
+ */
+R3DAPI R3D_Skybox R3D_LoadSkyboxPanorama(const char* fileName, int size);
+
+/**
+ * @brief Loads a skybox from a panorama image in memory.
+ *
+ * This function loads a skybox from a panorama (equirectangular) image already loaded in memory,
+ * and converts it into a cubemap with the specified resolution.
+ *
+ * @param image The panorama image in memory.
+ * @param size The resolution of the generated cubemap (e.g., 512, 1024).
+ * @return The loaded skybox object.
+ */
+R3DAPI R3D_Skybox R3D_LoadSkyboxPanoramaFromMemory(Image image, int size);
 
 /**
  * @brief Unloads a skybox and frees its resources.

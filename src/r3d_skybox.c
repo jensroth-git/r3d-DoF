@@ -29,14 +29,150 @@
 #include <rlgl.h>
 #include <glad.h>
 
-
 /* === Internal functions === */
 
-static TextureCubemap
-r3d_skybox_load_from_panorama_hdr(const char* fileName, int size)
+static TextureCubemap r3d_skybox_load_cubemap_from_layout(const Image* image, CubemapLayout layout)
 {
-    // Load the HDR panorama texture
-    Texture2D panorama = LoadTexture(fileName);
+    TextureCubemap cubemap = { 0 };
+
+    /* --- Try to automatically guess layout type --- */
+
+    if (layout == CUBEMAP_LAYOUT_AUTO_DETECT) {
+        // Check image width/height to determine the type of cubemap provided
+        if (image->width > image->height) {
+            if (image->width / 6 == image->height) {
+                layout = CUBEMAP_LAYOUT_LINE_HORIZONTAL;
+                cubemap.width = image->width / 6;
+            }
+            else if (image->width / 4 == image->height / 3) {
+                layout = CUBEMAP_LAYOUT_CROSS_FOUR_BY_THREE;
+                cubemap.width = image->width / 4;
+            }
+        }
+        else if (image->height > image->width) {
+            if (image->height / 6 == image->width) {
+                layout = CUBEMAP_LAYOUT_LINE_VERTICAL;
+                cubemap.width = image->height / 6;
+            }
+            else if (image->width / 3 == image->height/4) {
+                layout = CUBEMAP_LAYOUT_CROSS_THREE_BY_FOUR;
+                cubemap.width = image->width / 3;
+            }
+        }
+    }
+    else {
+        if (layout == CUBEMAP_LAYOUT_LINE_VERTICAL) cubemap.width = image->height / 6;
+        if (layout == CUBEMAP_LAYOUT_LINE_HORIZONTAL) cubemap.width = image->width / 6;
+        if (layout == CUBEMAP_LAYOUT_CROSS_THREE_BY_FOUR) cubemap.width = image->width / 3;
+        if (layout == CUBEMAP_LAYOUT_CROSS_FOUR_BY_THREE) cubemap.width = image->width / 4;
+    }
+
+    /* --- Checks if the layout could be detected --- */
+
+    if (layout == CUBEMAP_LAYOUT_AUTO_DETECT) {
+        TraceLog(LOG_WARNING, "R3D: Failed to detect cubemap image layout");
+        return cubemap;
+    }
+
+    cubemap.height = cubemap.width;
+
+    /* --- Layout provided or already auto-detected --- */
+
+    int size = cubemap.width;
+
+    bool facesAllocatedHere = false;    //< Indicates whether we are even allocated the faces...
+    Image faces = { 0 };                //< Vertical column image
+
+    if (layout == CUBEMAP_LAYOUT_LINE_VERTICAL) {
+        faces = *image; // Image data already follows expected convention
+    }
+    //else if (layout == CUBEMAP_LAYOUT_PANORAMA) {
+    //    // REVIEW: CUBEMAP_LAYOUT_PANORAMA does not yet exist in raylib...
+    //    //         We currently manage it in a separate function...
+    //}
+    else
+    {
+        Rectangle srcRecs[6] = { 0 };
+
+        for (int i = 0; i < 6; i++) {
+            srcRecs[i] = (Rectangle){ 0, 0, (float)size, (float)size };
+        }
+
+        if (layout == CUBEMAP_LAYOUT_LINE_HORIZONTAL) {
+            for (int i = 0; i < 6; i++) {
+                srcRecs[i].x = (float)i * size;
+            }
+        }
+        else if (layout == CUBEMAP_LAYOUT_CROSS_THREE_BY_FOUR) {
+            srcRecs[0].x = (float)size; srcRecs[0].y = (float)size;
+            srcRecs[1].x = (float)size; srcRecs[1].y = 3.0f * size;
+            srcRecs[2].x = (float)size; srcRecs[2].y = 0;
+            srcRecs[3].x = (float)size; srcRecs[3].y = 2.0f * size;
+            srcRecs[4].x = 0;           srcRecs[4].y = (float)size;
+            srcRecs[5].x = 2.0f * size; srcRecs[5].y = (float)size;
+        }
+        else if (layout == CUBEMAP_LAYOUT_CROSS_FOUR_BY_THREE) {
+            srcRecs[0].x = 2.0f * size; srcRecs[0].y = (float)size;
+            srcRecs[1].x = 0;           srcRecs[1].y = (float)size;
+            srcRecs[2].x = (float)size; srcRecs[2].y = 0;
+            srcRecs[3].x = (float)size; srcRecs[3].y = 2.0f * size;
+            srcRecs[4].x = (float)size; srcRecs[4].y = (float)size;
+            srcRecs[5].x = 3.0f * size; srcRecs[5].y = (float)size;
+        }
+
+        /* --- Convert image data to 6 faces in a vertical column, that's the optimum layout for loading --- */
+
+        faces.width = size;
+        faces.height = 6 * size;
+        faces.format = image->format;
+        faces.mipmaps = 1;
+
+        int bytesPerPixel = GetPixelDataSize(1, 1, image->format);
+        faces.data = RL_CALLOC(size * size * 6 * bytesPerPixel, 1);
+        facesAllocatedHere = true;
+
+        // NOTE: Image formatting does not work with compressed textures
+
+        for (int i = 0; i < 6; i++) {
+            Rectangle dstRec = (Rectangle){ 0, (float)i * size, (float)size, (float)size };
+            ImageDraw(&faces, *image, srcRecs[i], dstRec, WHITE);
+        }
+    }
+
+    // NOTE: Cubemap data is expected to be provided as 6 images in a single data array,
+    // one after the other (that's a vertical image), following convention: +X, -X, +Y, -Y, +Z, -Z
+
+    cubemap.id = rlLoadTextureCubemap(faces.data, size, faces.format, faces.mipmaps);
+    if (cubemap.id == 0) {
+        TraceLog(LOG_WARNING, "R3D: Failed to load cubemap image");
+        goto cleanup;
+    }
+    cubemap.format = faces.format;
+    cubemap.mipmaps = faces.mipmaps;
+
+    // Generate mipmaps and set texture parameters
+    glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap.id);
+    glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+
+cleanup:
+    if (facesAllocatedHere) {
+        UnloadImage(faces);
+    }
+
+    return cubemap;
+}
+
+static TextureCubemap r3d_skybox_load_cubemap_from_panorama(Image image, int size)
+{
+    // Temporarily loads the panorama
+    Texture2D panorama = LoadTextureFromImage(image);
+    SetTextureFilter(panorama, TEXTURE_FILTER_BILINEAR);
 
     // Choose the best HDR format available
     GLenum format = r3d_texture_get_best_internal_format(GL_RGB16F);
@@ -51,54 +187,54 @@ r3d_skybox_load_from_panorama_hdr(const char* fileName, int size)
             size, size, 0, GL_RGB, GL_FLOAT, NULL
         );
     }
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-    // Create the temporary depth renderbuffer
-    unsigned int rbo = rlLoadTextureDepth(size, size, true);
-
-    // Create and configure framebuffer
+    // Create and configure the working framebuffer
     unsigned int fbo = rlLoadFramebuffer();
-    rlFramebufferAttach(fbo, cubemapId, RL_ATTACHMENT_COLOR_CHANNEL0, RL_ATTACHMENT_CUBEMAP_POSITIVE_X, 0);
+    unsigned int rbo = rlLoadTextureDepth(size, size, true);
     rlFramebufferAttach(fbo, rbo, RL_ATTACHMENT_DEPTH, RL_ATTACHMENT_RENDERBUFFER, 0);
 
-    // Enable shader for converting HDR to cubemap
+    // Enable and configure the shader for converting panorama to cubemap
     r3d_shader_enable(generate.cubemapFromEquirectangular);
-
-    // Define and send projection matrix to shader
-    Matrix matProj = MatrixPerspective(90.0 * DEG2RAD, 1.0, rlGetCullDistanceNear(), rlGetCullDistanceFar());
-    r3d_shader_set_mat4(generate.cubemapFromEquirectangular, uMatProj, matProj);
+    r3d_shader_set_mat4(generate.cubemapFromEquirectangular, uMatProj, MatrixPerspective(90.0 * DEG2RAD, 1.0, 0.1, 10.0));
+    r3d_shader_bind_sampler2D(generate.cubemapFromEquirectangular, uTexEquirectangular, panorama.id);
 
     // Set viewport to framebuffer dimensions
-    rlViewport(0, 0, size, size);
-    rlDisableBackfaceCulling();
+    glViewport(0, 0, size, size);
+    glDisable(GL_CULL_FACE);
 
-    // Bind panorama texture for drawing
-    r3d_shader_bind_sampler2D(generate.cubemapFromEquirectangular, uTexEquirectangular, panorama.id);
+    // Bind the working framebuffer
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
     // Loop through and render each cubemap face
     for (int i = 0; i < 6; i++) {
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, cubemapId, 0);
+        glClear(GL_DEPTH_BUFFER_BIT);
         r3d_shader_set_mat4(generate.cubemapFromEquirectangular, uMatView, R3D.misc.matCubeViews[i]);
-        rlFramebufferAttach(fbo, cubemapId, RL_ATTACHMENT_COLOR_CHANNEL0, RL_ATTACHMENT_CUBEMAP_POSITIVE_X + i, 0);
-        rlEnableFramebuffer(fbo);
-
-        rlClearScreenBuffers();
         r3d_primitive_bind_and_draw_cube();
     }
 
-    // Clean up: unbind texture and framebuffer
+    // Unbind texture and disable the shader
     r3d_shader_unbind_sampler2D(generate.cubemapFromEquirectangular, uTexEquirectangular);
-    rlDisableShader();
-    rlDisableTexture();
-    rlDisableFramebuffer();
-    rlUnloadFramebuffer(fbo);
+    r3d_shader_disable();
+
+    // Cleanup the working framebuffer
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glDeleteRenderbuffers(1, &rbo);
+    glDeleteFramebuffers(1, &fbo);
 
     // Reset viewport and re-enable culling
-    rlViewport(0, 0, rlGetFramebufferWidth(), rlGetFramebufferHeight());
-    rlEnableBackfaceCulling();
+    glViewport(0, 0, rlGetFramebufferWidth(), rlGetFramebufferHeight());
+    glEnable(GL_CULL_FACE);
+
+    // Generate mipmaps and set texture parameters
+    glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapId);
+    glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
 
     // Return cubemap texture
     TextureCubemap cubemap = {
@@ -108,6 +244,9 @@ r3d_skybox_load_from_panorama_hdr(const char* fileName, int size)
         .mipmaps = 1,
         .format = panorama.format
     };
+
+    // Download the temporary panorama
+    UnloadTexture(panorama);
 
     return cubemap;
 }
@@ -137,45 +276,43 @@ static TextureCubemap r3d_skybox_generate_irradiance(TextureCubemap sky)
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-    // Create the temporary depth renderbuffer
-    unsigned int rbo = rlLoadTextureDepth(size, size, true);
-
-    // Create and configure framebuffer
+    // Create and configure the working framebuffer
     unsigned int fbo = rlLoadFramebuffer();
-    rlFramebufferAttach(fbo, irradianceId, RL_ATTACHMENT_COLOR_CHANNEL0, RL_ATTACHMENT_CUBEMAP_POSITIVE_X, 0);
+    unsigned int rbo = rlLoadTextureDepth(size, size, true);
     rlFramebufferAttach(fbo, rbo, RL_ATTACHMENT_DEPTH, RL_ATTACHMENT_RENDERBUFFER, 0);
 
-    // Set viewport to framebuffer dimensions
-    rlViewport(0, 0, size, size);
-    rlDisableBackfaceCulling();
-
-    // Enable shader for irradiance convolution
+    // Enable and configure irradiance convolution shader
     r3d_shader_enable(generate.irradianceConvolution);
-    r3d_shader_set_mat4(generate.irradianceConvolution, uMatProj,
-        MatrixPerspective(90.0 * DEG2RAD, 1.0, 0.1, 10.0)
-    );
+    r3d_shader_set_mat4(generate.irradianceConvolution, uMatProj, MatrixPerspective(90.0 * DEG2RAD, 1.0, 0.1, 10.0));
     r3d_shader_bind_samplerCube(generate.irradianceConvolution, uCubemap, sky.id);
+
+    // Set viewport to framebuffer dimensions
+    glViewport(0, 0, size, size);
+    glDisable(GL_CULL_FACE);
+
+    // Bind the working framebuffer
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
     // Render irradiance to cubemap faces
     for (int i = 0; i < 6; i++) {
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, irradianceId, 0);
+        glClear(GL_DEPTH_BUFFER_BIT);
         r3d_shader_set_mat4(generate.irradianceConvolution, uMatView, R3D.misc.matCubeViews[i]);
-        rlFramebufferAttach(fbo, irradianceId, RL_ATTACHMENT_COLOR_CHANNEL0, RL_ATTACHMENT_CUBEMAP_POSITIVE_X + i, 0);
-        rlEnableFramebuffer(fbo);
-        rlClearScreenBuffers();
         r3d_primitive_bind_and_draw_cube();
     }
 
-    // Disable shader
+    // Unbind texture and disable the shader
     r3d_shader_unbind_samplerCube(generate.irradianceConvolution, uCubemap);
     r3d_shader_disable();
 
-    // Clean up
-    rlDisableFramebuffer();
-    rlUnloadFramebuffer(fbo);
+    // Cleanup the working framebuffer
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glDeleteRenderbuffers(1, &rbo);
+    glDeleteFramebuffers(1, &fbo);
 
-    // Reset viewport to default dimensions
-    rlViewport(0, 0, rlGetFramebufferWidth(), rlGetFramebufferHeight());
-    rlEnableBackfaceCulling();
+    // Reset viewport and re-enable culling
+    glViewport(0, 0, rlGetFramebufferWidth(), rlGetFramebufferHeight());
+    glEnable(GL_CULL_FACE);
 
     // Return irradiance cubemap
     TextureCubemap irradiance = {
@@ -216,11 +353,14 @@ static TextureCubemap r3d_skybox_generate_prefilter(TextureCubemap sky)
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-    // Create depth renderbuffer and framebuffer
+    // Generate the working depth renderbuffer
+    // It will be allocated for each mipmap
     unsigned int rbo = 0;
     glGenRenderbuffers(1, &rbo);
+
+    // Create a working framebuffer
+    // It will be configured for each mipmap
     unsigned int fbo = rlLoadFramebuffer();
-    rlFramebufferAttach(fbo, prefilterId, RL_ATTACHMENT_COLOR_CHANNEL0, RL_ATTACHMENT_CUBEMAP_POSITIVE_X, 0);
 
     // Enable shader for prefiltering
     r3d_shader_enable(generate.prefilter);
@@ -228,18 +368,19 @@ static TextureCubemap r3d_skybox_generate_prefilter(TextureCubemap sky)
     r3d_shader_bind_samplerCube(generate.prefilter, uCubemap, sky.id);
 
     // Configure framebuffer and rendering parameters
-    rlEnableFramebuffer(fbo);
-    rlDisableBackfaceCulling();
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glDisable(GL_CULL_FACE);
 
     // Process each mipmap level
-    for (int mip = 0; mip < MAX_MIP_LEVELS; mip++) {
+    for (int mip = 0; mip < MAX_MIP_LEVELS; mip++)
+    {
         int mipWidth = (int)(PREFILTER_SIZE * powf(0.5, (float)mip));
         int mipHeight = (int)(PREFILTER_SIZE * powf(0.5, (float)mip));
 
         glBindRenderbuffer(GL_RENDERBUFFER, rbo);
         glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, mipWidth, mipHeight);
 
-        rlViewport(0, 0, mipWidth, mipHeight);
+        glViewport(0, 0, mipWidth, mipHeight);
         float roughness = (float)mip / (float)(MAX_MIP_LEVELS - 1);
         r3d_shader_set_float(generate.prefilter, uRoughness, roughness);
 
@@ -247,22 +388,23 @@ static TextureCubemap r3d_skybox_generate_prefilter(TextureCubemap sky)
         for (int i = 0; i < 6; i++) {
             r3d_shader_set_mat4(generate.prefilter, uMatView, R3D.misc.matCubeViews[i]);
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, prefilterId, mip);
-            rlClearScreenBuffers();
+            glClear(GL_DEPTH_BUFFER_BIT);
             r3d_primitive_bind_and_draw_cube();
         }
     }
 
-    // Disable shader
+    // Unbind texture and disable the shader
     r3d_shader_unbind_samplerCube(generate.prefilter, uCubemap);
     r3d_shader_disable();
 
-    // Clean up
-    rlDisableFramebuffer();
-    rlUnloadFramebuffer(fbo);
+    // Cleanup the working framebuffer
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glDeleteRenderbuffers(1, &rbo);
+    glDeleteFramebuffers(1, &fbo);
     
-    // Reset viewport to default dimensions
-    rlViewport(0, 0, rlGetFramebufferWidth(), rlGetFramebufferHeight());
-    rlDisableBackfaceCulling();
+    // Reset viewport and re-enable culling
+    glViewport(0, 0, rlGetFramebufferWidth(), rlGetFramebufferHeight());
+    glEnable(GL_CULL_FACE);
 
     // Return prefiltered cubemap
     TextureCubemap prefilter = {
@@ -281,24 +423,34 @@ static TextureCubemap r3d_skybox_generate_prefilter(TextureCubemap sky)
 
 R3D_Skybox R3D_LoadSkybox(const char* fileName, CubemapLayout layout)
 {
+    Image image = LoadImage(fileName);
+    R3D_Skybox skybox = R3D_LoadSkyboxFromMemory(image, layout);
+    UnloadImage(image);
+    return skybox;
+}
+
+R3D_Skybox R3D_LoadSkyboxFromMemory(Image image, CubemapLayout layout)
+{
     R3D_Skybox sky = { 0 };
-
-    // Load the cubemap texture from the image file
-    Image img = LoadImage(fileName);
-    sky.cubemap = LoadTextureCubemap(img, layout);
-    UnloadImage(img);
-
-    // Generate maps
+    sky.cubemap = r3d_skybox_load_cubemap_from_layout(&image, layout);
     sky.irradiance = r3d_skybox_generate_irradiance(sky.cubemap);
     sky.prefilter = r3d_skybox_generate_prefilter(sky.cubemap);
-
     return sky;
 }
 
-R3D_Skybox R3D_LoadSkyboxHDR(const char* fileName, int size)
+R3D_Skybox R3D_LoadSkyboxPanorama(const char* fileName, int size)
+{
+    Image image = LoadImage(fileName);
+    R3D_Skybox skybox = R3D_LoadSkyboxPanoramaFromMemory(image, size);
+    UnloadImage(image);
+    return skybox;
+}
+
+
+R3D_Skybox R3D_LoadSkyboxPanoramaFromMemory(Image image, int size)
 {
     R3D_Skybox sky = { 0 };
-    sky.cubemap = r3d_skybox_load_from_panorama_hdr(fileName, size);
+    sky.cubemap = r3d_skybox_load_cubemap_from_panorama(image, size);
     sky.irradiance = r3d_skybox_generate_irradiance(sky.cubemap);
     sky.prefilter = r3d_skybox_generate_prefilter(sky.cubemap);
     return sky;
