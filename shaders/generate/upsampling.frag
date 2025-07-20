@@ -1,20 +1,18 @@
-
-
-#version 330 core
-
 // This shader performs upsampling on a texture,
 // as taken from Call Of Duty method, presented at ACM Siggraph 2014.
 
+#version 330 core
+
 /* === Varyings === */
 
-in vec2 vTexCoord;
+noperspective in vec2 vTexCoord;
 
 /* === Uniforms === */
 
 uniform sampler2D uTexture;
 uniform vec2 uFilterRadius;
 
-layout (location = 0) out vec3 FragUpSample;
+layout (location = 0) out vec3 FragColor;
 
 /* === Main Function === */
 
@@ -46,8 +44,8 @@ void main()
     //  1   | 1 2 1 |
     // -- * | 2 4 2 |
     // 16   | 1 2 1 |
-    FragUpSample = e*4.0;
-    FragUpSample += (b+d+f+h)*2.0;
-    FragUpSample += (a+c+g+iT);
-    FragUpSample *= 1.0 / 16.0;
+    FragColor = e*4.0;
+    FragColor += (b+d+f+h)*2.0;
+    FragColor += (a+c+g+iT);
+    FragColor *= 1.0 / 16.0;
 }

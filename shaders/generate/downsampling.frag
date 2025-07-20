@@ -1,26 +1,24 @@
-
-
-#version 330 core
-
 // This shader performs downsampling on a texture,
 // as taken from Call Of Duty method, presented at ACM Siggraph 2014.
 // This particular method was customly designed to eliminate
 // "pulsating artifacts and temporal stability issues".
 
+#version 330 core
+
 /* === Varyings === */
 
-in vec2 vTexCoord;
+noperspective in vec2 vTexCoord;
 
 /* === Uniforms === */
 
 uniform sampler2D uTexture;
-uniform vec2 uResolution;
-uniform int uMipLevel;           //< Which mip we are writing to, used for Karis average
+uniform vec2 uTexelSize;        //< Reciprocal of the resolution of the source being sampled
 uniform vec4 uPrefilter;
+uniform int uMipLevel;          //< Which mip we are writing to, used for Karis average
 
 /* === Fragments === */
 
-layout (location = 0) out vec3 FragDownSample;
+layout (location = 0) out vec3 FragColor;
 
 /* === Helper Functions === */
 
@@ -63,9 +61,8 @@ void main()
 {
     // NOTE: This is the readable version of this shader. It will be optimized!
 
-    vec2 srcTexelSize = 1.0 / uResolution;
-    float x = srcTexelSize.x;
-    float y = srcTexelSize.y;
+    float x = uTexelSize.x;
+    float y = uTexelSize.y;
 
     // Take 13 samples around current texel:
     // a - b - c
@@ -122,15 +119,15 @@ void main()
         groups[2] *= KarisAverage(groups[2]);
         groups[3] *= KarisAverage(groups[3]);
         groups[4] *= KarisAverage(groups[4]);
-        FragDownSample = groups[0]+groups[1]+groups[2]+groups[3]+groups[4];
-        FragDownSample = max(FragDownSample, 0.0001);
-        FragDownSample = Prefilter(FragDownSample);
+        FragColor = groups[0]+groups[1]+groups[2]+groups[3]+groups[4];
+        FragColor = max(FragColor, 0.0001);
+        FragColor = Prefilter(FragColor);
     }
     else
     {
-        FragDownSample = e*0.125;                // ok
-        FragDownSample += (a+c+g+i)*0.03125;     // ok
-        FragDownSample += (b+d+f+h)*0.0625;      // ok
-        FragDownSample += (j+k+l+m)*0.125;       // ok
+        FragColor = e*0.125;                // ok
+        FragColor += (a+c+g+i)*0.03125;     // ok
+        FragColor += (b+d+f+h)*0.0625;      // ok
+        FragColor += (j+k+l+m)*0.125;       // ok
     }
 }

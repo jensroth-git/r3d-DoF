@@ -52,7 +52,7 @@ typedef struct {
 typedef struct {
     unsigned int id;
     r3d_shader_uniform_sampler2D_t uTexture;
-    r3d_shader_uniform_vec2_t uResolution;
+    r3d_shader_uniform_vec2_t uTexelSize;
     r3d_shader_uniform_int_t uMipLevel;
     r3d_shader_uniform_vec4_t uPrefilter;
 } r3d_shader_generate_downsampling_t;

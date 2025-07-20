@@ -112,9 +112,9 @@ extern struct R3D_State {
         struct r3d_fb_mipchain_bloom {
             unsigned int id;
             struct r3d_mip_bloom {
-                unsigned int id;            //< RGB[16|16|16] (or R11G11B10 in low precision) (or fallbacks)
-                int iW, iH;
-                float fW, fH;
+                unsigned int id;    //< RGB[16|16|16] (or R11G11B10 in low precision) (or fallbacks)
+                uint32_t w, h;      //< Dimensions
+                float tx, ty;       //< Texel size
             } *mipChain;
             int mipCount;
         } mipChainBloom;

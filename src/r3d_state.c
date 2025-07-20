@@ -672,7 +672,7 @@ void r3d_framebuffer_load_pingpong_ssao(int width, int height)
 {
     struct r3d_fb_pingpong_ssao* ssao = &R3D.framebuffer.pingPongSSAO;
 
-    width /= 2, height /= 2;
+    width /= 2, height /= 2; // Half resolution
 
     ssao->id = rlLoadFramebuffer();
     if (ssao->id == 0) {
@@ -753,6 +753,8 @@ void r3d_framebuffer_load_mipchain_bloom(int width, int height)
 {
     struct r3d_fb_mipchain_bloom* bloom = &R3D.framebuffer.mipChainBloom;
 
+    width /= 2, height /= 2; // Half resolution
+
     glGenFramebuffers(1, &bloom->id);
     if (bloom->id == 0) {
         TraceLog(LOG_FATAL, "R3D: Failed to create the bloom mipchain framebuffer");
@@ -787,34 +789,26 @@ void r3d_framebuffer_load_mipchain_bloom(int width, int height)
     bloom->mipCount = mipChainLength;
 
     // Dynamic value copy
-    int iMipW = width;
-    int iMipH = height;
-    float fMipW = (float)iMipW;
-    float fMipH = (float)iMipH;
+    uint32_t wMip = (uint32_t)width;
+    uint32_t hMip = (uint32_t)height;
 
     // Create the mip chain
-    for (GLuint i = 0; i < mipChainLength; i++) {
-
+    for (GLuint i = 0; i < mipChainLength; i++, wMip /= 2, hMip /= 2)
+    {
         struct r3d_mip_bloom* mip = &bloom->mipChain[i];
-    
-        iMipW /= 2;
-        iMipH /= 2;
-        fMipW *= 0.5f;
-        fMipH *= 0.5f;
 
-        mip->iW = iMipW;
-        mip->iH = iMipH;
-        mip->fW = fMipW;
-        mip->fH = fMipH;
+        mip->w = wMip;
+        mip->h = hMip;
+        mip->tx = 1.0f / (float)wMip;
+        mip->ty = 1.0f / (float)hMip;
 
         glGenTextures(1, &mip->id);
         glBindTexture(GL_TEXTURE_2D, mip->id);
-        glTexImage2D(GL_TEXTURE_2D, 0, r3d_texture_get_best_internal_format(hdrFormat), iMipW, iMipH, 0, GL_RGB, GL_FLOAT, NULL);
+        glTexImage2D(GL_TEXTURE_2D, 0, r3d_texture_get_best_internal_format(hdrFormat), wMip, hMip, 0, GL_RGB, GL_FLOAT, NULL);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
     }
 
     // Attach first mip to the framebuffer
@@ -964,7 +958,7 @@ void r3d_shader_load_generate_downsampling(void)
     );
 
     r3d_shader_get_location(generate.downsampling, uTexture);
-    r3d_shader_get_location(generate.downsampling, uResolution);
+    r3d_shader_get_location(generate.downsampling, uTexelSize);
     r3d_shader_get_location(generate.downsampling, uMipLevel);
     r3d_shader_get_location(generate.downsampling, uPrefilter);
 
