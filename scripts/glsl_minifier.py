@@ -33,6 +33,11 @@ glsl_keywords = {
     'instance', 'nonuniform', 'subroutine', 'invariant', 'precise', 'shared',
     'lowp', 'mediump', 'highp', 'flat', 'smooth', 'noperspective',
     
+    # Layout specifiers
+    'std140', 'std430', 'packed', 'shared', 'column_major', 'row_major',
+    'offset', 'align', 'set', 'push_constant', 'input_attachment_index',
+    'constant_id', 'local_size_x', 'local_size_y', 'local_size_z',
+    
     # Programming keywords
     'for', 'while', 'if', 'else', 'return', 'main', 
     'true', 'false', 'break', 'continue', 'discard', 'do',
@@ -82,6 +87,7 @@ def variable_renamer(input_string):
       - Do not modify definitions (#define)
       - Do not modify struct members
       - Do not modify function names
+      - Do not modify uniform block names and their struct names
     """
     # Extract function declarations to preserve them
     function_pattern = r'\b(void|bool|int|float|vec\d|mat\d|[a-zA-Z_]\w*)\s+([a-zA-Z_]\w*)\s*\('
@@ -102,6 +108,44 @@ def variable_renamer(input_string):
         for member in re.finditer(member_pattern, struct_body):
             struct_members.add(member.group(1))
     
+    # Extract uniform blocks and their instance names to preserve them
+    uniform_block_names = set()
+    uniform_block_members = set()
+    
+    # Pattern for uniform blocks: layout(...) uniform BlockName { ... } instanceName;
+    uniform_pattern = r'layout\s*\([^)]+\)\s*uniform\s+(\w+)\s*\{([^}]+)\}\s*(\w+)\s*;'
+    uniform_matches = re.finditer(uniform_pattern, input_string, re.DOTALL)
+    
+    for match in uniform_matches:
+        block_name = match.group(1)  # nom du block (ex: UniformBlock0)
+        block_body = match.group(2)  # contenu du block
+        instance_name = match.group(3)  # nom de l'instance (ex: uFrustumCurr)
+        
+        uniform_block_names.add(block_name)
+        uniform_block_names.add(instance_name)
+        
+        # Extract member names from uniform block
+        member_pattern = r'(?:[\w\[\]]+\s+)(\w+)(?:\s*[;,])'
+        for member in re.finditer(member_pattern, block_body):
+            uniform_block_members.add(member.group(1))
+    
+    # Alternative pattern for simple uniform blocks without layout
+    simple_uniform_pattern = r'uniform\s+(\w+)\s*\{([^}]+)\}\s*(\w+)\s*;'
+    simple_uniform_matches = re.finditer(simple_uniform_pattern, input_string, re.DOTALL)
+    
+    for match in simple_uniform_matches:
+        block_name = match.group(1)
+        block_body = match.group(2)
+        instance_name = match.group(3)
+        
+        uniform_block_names.add(block_name)
+        uniform_block_names.add(instance_name)
+        
+        # Extract member names from uniform block
+        member_pattern = r'(?:[\w\[\]]+\s+)(\w+)(?:\s*[;,])'
+        for member in re.finditer(member_pattern, block_body):
+            uniform_block_members.add(member.group(1))
+    
     # Retrieve all potential variable names using an improved regex (to capture variable-length identifiers)
     potential_vars = set(re.findall(r'(?<![\.#])\b([a-zA-Z_]\w*)\b(?!\s*\()', input_string))
     
@@ -116,6 +160,9 @@ def variable_renamer(input_string):
             continue
         # Exclude struct members and struct names
         if var in struct_members or var in struct_names:
+            continue
+        # Exclude uniform block names and members
+        if var in uniform_block_names or var in uniform_block_members:
             continue
         # Exclude function names
         if var in function_names:
