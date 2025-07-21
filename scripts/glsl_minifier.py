@@ -73,6 +73,7 @@ glsl_keywords = {
     'gl_WorkGroupSize', 'gl_NumWorkGroups', 'gl_InvocationID', 'gl_PrimitiveID',
     'gl_TessCoord', 'gl_FragCoord', 'gl_FrontFacing', 'gl_SampleID', 'gl_SamplePosition',
     'gl_FragDepth', 'gl_FragStencilRef', 'gl_TexCoord', 'gl_VertexID', 'gl_InstanceID',
+    'gl_BaseInstance',
 
     # Tessellation and compute shaders
     'tessellation', 'subpass', 'workgroup',
