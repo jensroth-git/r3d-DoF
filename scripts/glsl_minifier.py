@@ -22,32 +22,35 @@ glsl_keywords = {
     'core',
 
     # Data types
-    'void', 'bool', 'uint', 'int', 'float', 
+    'void', 'bool', 'uint', 'int', 'float',
     'ivec2', 'uvec2', 'vec2', 'ivec3', 'uvec3', 'vec3', 'ivec4', 'uvec4', 'vec4',
-    'mat2', 'mat3', 'mat4', 'struct', 'double', 'dvec2', 'dvec3', 'dvec4', 
+    'mat2', 'mat3', 'mat4', 'struct', 'double', 'dvec2', 'dvec3', 'dvec4',
     'dmat2', 'dmat3', 'dmat4',
 
-    # Attributes and uniforms
-    'uniform', 'attribute', 'varying', 'const', 'in', 'out', 'inout', 'layout', 
-    'binding', 'location', 'centroid', 'sample', 'pixel', 'patch', 'vertex', 
+    # SSBO & image qualifiers
+    'buffer', 'readonly', 'writeonly',
+
+    # Attributes and qualifiers
+    'uniform', 'attribute', 'varying', 'const', 'in', 'out', 'inout', 'layout',
+    'binding', 'location', 'centroid', 'sample', 'pixel', 'patch', 'vertex',
     'instance', 'nonuniform', 'subroutine', 'invariant', 'precise', 'shared',
     'lowp', 'mediump', 'highp', 'flat', 'smooth', 'noperspective',
-    
+
     # Layout specifiers
-    'std140', 'std430', 'packed', 'shared', 'column_major', 'row_major',
+    'std140', 'std430', 'packed', 'column_major', 'row_major',
     'offset', 'align', 'set', 'push_constant', 'input_attachment_index',
     'constant_id', 'local_size_x', 'local_size_y', 'local_size_z',
-    
+
     # Programming keywords
-    'for', 'while', 'if', 'else', 'return', 'main', 
+    'for', 'while', 'if', 'else', 'return', 'main',
     'true', 'false', 'break', 'continue', 'discard', 'do',
     'switch', 'case', 'default', # NOTE: switch case are not supported yet
 
     # Mathematical functions
-    'sin', 'cos', 'tan', 'min', 'max', 'mix', 'smoothstep', 'step', 'length', 
-    'distance', 'dot', 'cross', 'normalize', 'reflect', 'refract', 'clamp', 
-    'fract', 'ceil', 'floor', 'abs', 'sign', 'pow', 'exp', 'log', 'exp2', 
-    'log2', 'sqrt', 'inversesqrt', 'matrixCompMult', 'transpose', 'inverse', 
+    'sin', 'cos', 'tan', 'min', 'max', 'mix', 'smoothstep', 'step', 'length',
+    'distance', 'dot', 'cross', 'normalize', 'reflect', 'refract', 'clamp',
+    'fract', 'ceil', 'floor', 'abs', 'sign', 'pow', 'exp', 'log', 'exp2',
+    'log2', 'sqrt', 'inversesqrt', 'matrixCompMult', 'transpose', 'inverse',
     'determinant', 'mod', 'modf', 'isnan', 'isinf', 'ldexp',
 
     # Texture operators and functions
@@ -57,18 +60,18 @@ glsl_keywords = {
     'dFdx', 'dFdy', 'fwidth',
 
     # Image data types
-    'image2D', 'image3D', 'imageCube', 'image2DArray', 'image3DArray', 'imageCubeArray', 
-    'image1D', 'image1DArray', 'image2DRect', 'image2DMS', 'image3DRect', 'image2DArrayMS', 
-    'image3DArrayMS', 'image2DShadow', 'imageCubeShadow', 'image2DArrayShadow', 
+    'image2D', 'image3D', 'imageCube', 'image2DArray', 'image3DArray', 'imageCubeArray',
+    'image1D', 'image1DArray', 'image2DRect', 'image2DMS', 'image3DRect', 'image2DArrayMS',
+    'image3DArrayMS', 'image2DShadow', 'imageCubeShadow', 'image2DArrayShadow',
     'imageCubeArrayShadow',
 
     # Primitives and geometry
     'primitive', 'point', 'line', 'triangle', 'line_strip', 'triangle_strip', 'triangle_fan',
-    
+
     # Global variables and coordinates
-    'gl_Position', 'gl_GlobalInvocationID', 'gl_LocalInvocationID', 'gl_WorkGroupID', 
-    'gl_WorkGroupSize', 'gl_NumWorkGroups', 'gl_InvocationID', 'gl_PrimitiveID', 
-    'gl_TessCoord', 'gl_FragCoord', 'gl_FrontFacing', 'gl_SampleID', 'gl_SamplePosition', 
+    'gl_Position', 'gl_GlobalInvocationID', 'gl_LocalInvocationID', 'gl_WorkGroupID',
+    'gl_WorkGroupSize', 'gl_NumWorkGroups', 'gl_InvocationID', 'gl_PrimitiveID',
+    'gl_TessCoord', 'gl_FragCoord', 'gl_FrontFacing', 'gl_SampleID', 'gl_SamplePosition',
     'gl_FragDepth', 'gl_FragStencilRef', 'gl_TexCoord', 'gl_VertexID', 'gl_InstanceID',
 
     # Tessellation and compute shaders
