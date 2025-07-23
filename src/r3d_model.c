@@ -2296,7 +2296,7 @@ static Image r3d_load_assimp_image(
             );
             return image;
         }
-        image = LoadImage(TextFormat("%s%s", basePath, texPath.data));
+        image = LoadImage(TextFormat("%s/%s", basePath, texPath.data));
         *isAllocated = true;
     }
 
