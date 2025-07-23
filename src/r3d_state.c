@@ -1608,6 +1608,7 @@ void r3d_texture_load_blue_noise(void)
 {
     Image image = LoadImageFromMemory(".png", (unsigned char*)BLUE_NOISE_128_PNG, BLUE_NOISE_128_PNG_SIZE);
     R3D.texture.blueNoise = rlLoadTexture(image.data, image.width, image.height, image.format, 1);
+    UnloadImage(image);
 }
 
 void r3d_texture_load_ssao_noise(void)
