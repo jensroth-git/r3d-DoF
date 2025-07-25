@@ -108,7 +108,7 @@ void R3D_Init(int resWidth, int resHeight, unsigned int flags)
     R3D.env.ssaoEnabled = false;
     R3D.env.ssaoRadius = 0.5f;
     R3D.env.ssaoBias = 0.025f;
-    R3D.env.ssaoIterations = 10;
+    R3D.env.ssaoIterations = 1;
     R3D.env.bloomMode = R3D_BLOOM_DISABLED;
     R3D.env.bloomIntensity = 0.05f;
     R3D.env.bloomFilterRadius = 0;
@@ -1261,12 +1261,23 @@ void r3d_pass_ssao(void)
         // Blur SSAO
         r3d_shader_enable(generate.gaussianBlurDualPass);
         {
-            for (int i = 0, horizontal = true; i < R3D.env.ssaoIterations; i++, horizontal = !horizontal) {
+            for (int i = 0; i < R3D.env.ssaoIterations; i++)
+            {
+                // Horizontal pass
                 r3d_framebuffer_swap_pingpong(R3D.framebuffer.pingPongSSAO);
                 r3d_shader_set_vec2(generate.gaussianBlurDualPass, uTexelDir,
-                    (horizontal)
-                        ? (Vector2) { R3D.state.resolution.texelX, 0 }
-                        : (Vector2) { 0, R3D.state.resolution.texelY }
+                    (Vector2) { R3D.state.resolution.texelX, 0 }
+                );
+                r3d_shader_bind_sampler2D(
+                    generate.gaussianBlurDualPass, uTexture,
+                    R3D.framebuffer.pingPongSSAO.source
+                );
+                r3d_primitive_bind_and_draw_screen();
+
+                // Vertical pass
+                r3d_framebuffer_swap_pingpong(R3D.framebuffer.pingPongSSAO);
+                r3d_shader_set_vec2(generate.gaussianBlurDualPass, uTexelDir,
+                    (Vector2) { 0, R3D.state.resolution.texelY }
                 );
                 r3d_shader_bind_sampler2D(
                     generate.gaussianBlurDualPass, uTexture,
