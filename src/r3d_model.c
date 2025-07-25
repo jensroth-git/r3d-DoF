@@ -1963,8 +1963,12 @@ static inline Matrix r3d_matrix_from_ai_matrix(const struct aiMatrix4x4* aiMat)
 
 /* === Assimp Mesh Processing === */
 
-static bool r3d_process_assimp_mesh(R3D_Model* model, int meshIndex, const struct aiMesh* aiMesh, const struct aiScene* scene, bool upload, Matrix vertexTransform)
+static bool r3d_process_assimp_mesh(R3D_Model* model, Matrix modelMatrix, int meshIndex, const struct aiMesh* aiMesh, const struct aiScene* scene, bool upload)
 {
+    /* --- Pre compute the normal matrix --- */
+
+    Matrix normalMatrix = MatrixTranspose(MatrixInvert(modelMatrix));
+
     /* --- Cleanup macro in case we failed to process mesh --- */
 
     #define CLEANUP(mesh) do {                      \
@@ -2038,7 +2042,8 @@ static bool r3d_process_assimp_mesh(R3D_Model* model, int meshIndex, const struc
 
         // Position
         vertex->position = r3d_vec3_from_ai_vec3(&aiMesh->mVertices[i]);
-        vertex->position = Vector3Transform(vertex->position, vertexTransform);
+        vertex->position = Vector3Transform(vertex->position, modelMatrix);
+
         // Bounds update
         if (vertex->position.x < minBounds.x) minBounds.x = vertex->position.x;
         if (vertex->position.y < minBounds.y) minBounds.y = vertex->position.y;
@@ -2056,11 +2061,8 @@ static bool r3d_process_assimp_mesh(R3D_Model* model, int meshIndex, const struc
 
         // Normals
         if (aiMesh->mNormals) {
-            Matrix normalMatrix = MatrixInvert(vertexTransform);
-            normalMatrix = MatrixTranspose(normalMatrix);
             vertex->normal = r3d_vec3_from_ai_vec3(&aiMesh->mNormals[i]);
-            vertex->normal = Vector3Transform(vertex->normal, normalMatrix);
-            vertex->normal = Vector3Normalize(vertex->normal);
+            vertex->normal = Vector3Normalize(Vector3Transform(vertex->normal, normalMatrix));
         } else {
             vertex->normal = (Vector3) { 0.0f, 0.0f, 1.0f };
         }
@@ -3148,24 +3150,27 @@ bool r3d_recursively_process_assimp_meshes(const struct aiScene *scene, R3D_Mode
     Matrix relativeTransform = r3d_matrix_from_ai_matrix(&node->mTransformation);
     Matrix finalTransform = MatrixMultiply(relativeTransform, parentFinalTransform);
 
-    for(unsigned int i = 0 ; i < node->mNumMeshes ; i++)
+    for (unsigned int i = 0; i < node->mNumMeshes; i++)
     {
         Matrix meshTransform = finalTransform;
-        if(scene->mMeshes[node->mMeshes[i]]->mNumBones != 0)
-        {
+
+        // Meshes with bones are already in reference space (bind pose)
+        // and their transformations are handled by the skinning system.
+        // Using the node’s transformation would cause a double transformation.
+        if (scene->mMeshes[node->mMeshes[i]]->mNumBones != 0) {
             meshTransform = MatrixIdentity();
         }
-        if(!r3d_process_assimp_mesh(model, node->mMeshes[i], scene->mMeshes[node->mMeshes[i]], scene, true, meshTransform))
-        {
+
+        if (!r3d_process_assimp_mesh(model, meshTransform, node->mMeshes[i], scene->mMeshes[node->mMeshes[i]], scene, true)) {
             TraceLog(LOG_ERROR, "R3D: Unable to load mesh [%d]; The model will be invalid", node->mMeshes[i]);
             return false;
         }
     }
 
-    for(unsigned int i = 0 ; i < node->mNumChildren ; i++)
-    {
-        if(!r3d_recursively_process_assimp_meshes(scene, model, node->mChildren[i], finalTransform))
+    for (unsigned int i = 0; i < node->mNumChildren; i++) {
+        if(!r3d_recursively_process_assimp_meshes(scene, model, node->mChildren[i], finalTransform)) {
             return false;
+        }
     }
 
     return true;
@@ -3213,19 +3218,15 @@ R3D_Model R3D_LoadModel(const char* filePath)
 
     /* --- Process all meshes --- */
 
-    if(!r3d_recursively_process_assimp_meshes(scene, &model, scene->mRootNode, MatrixIdentity()))
-    {
+    if (!r3d_recursively_process_assimp_meshes(scene, &model, scene->mRootNode, MatrixIdentity())) {
         R3D_UnloadModel(&model, true);
         aiReleaseImport(scene);
         return model;
     }
-    
-    for(int i = 0 ; i < model.meshCount ; i++)
-    {
-        if(model.meshes[i].vertexCount == 0 && model.meshes[i].indexCount == 0)
-        {
-            if(!r3d_process_assimp_mesh(&model, i, scene->mMeshes[i], scene, true, MatrixIdentity()))
-            {
+
+    for (int i = 0; i < model.meshCount; i++) {
+        if (model.meshes[i].vertexCount == 0 && model.meshes[i].indexCount == 0) {
+            if (!r3d_process_assimp_mesh(&model, MatrixIdentity(), i, scene->mMeshes[i], scene, true)) {
                 TraceLog(LOG_ERROR, "R3D: Unable to load mesh [%d]; The model will be invalid", i);
                 return model;
             }
@@ -3289,19 +3290,15 @@ R3D_Model R3D_LoadModelFromMemory(const char* fileType, const void* data, unsign
 
     /* --- Process all meshes --- */
 
-    if(!r3d_recursively_process_assimp_meshes(scene, &model, scene->mRootNode, MatrixIdentity()))
-    {
+    if (!r3d_recursively_process_assimp_meshes(scene, &model, scene->mRootNode, MatrixIdentity())) {
         R3D_UnloadModel(&model, true);
         aiReleaseImport(scene);
         return model;
     }
 
-    for(int i = 0 ; i < model.meshCount ; i++)
-    {
-        if(model.meshes[i].vertexCount == 0 && model.meshes[i].indexCount == 0)
-        {
-            if(!r3d_process_assimp_mesh(&model, i, scene->mMeshes[i], scene, true, MatrixIdentity()))
-            {
+    for (int i = 0; i < model.meshCount; i++) {
+        if (model.meshes[i].vertexCount == 0 && model.meshes[i].indexCount == 0) {
+            if (!r3d_process_assimp_mesh(&model, MatrixIdentity(), i, scene->mMeshes[i], scene, true)) {
                 TraceLog(LOG_ERROR, "R3D: Unable to load mesh [%d]; The model will be invalid", i);
                 return model;
             }
