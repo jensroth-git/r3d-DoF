@@ -1381,6 +1381,22 @@ R3DAPI void R3D_UpdateModelBoundingBox(R3D_Model* model, bool updateMeshBounding
 R3DAPI R3D_ModelAnimation* R3D_LoadModelAnimations(const char* fileName, int* animCount, int targetFrameRate);
 
 /**
+ * @brief Loads model animations from memory data in a supported format (e.g., GLTF, IQM).
+ *
+ * This function parses animation data from the given memory buffer and returns an array
+ * of R3D_ModelAnimation structs. The caller is responsible for freeing the returned data
+ * using R3D_UnloadModelAnimations().
+ *
+ * @param fileType File format hint (e.g., "gltf", "iqm", ".gltf"). The leading dot is optional.
+ * @param data Pointer to the model data in memory.
+ * @param size Size of the data buffer in bytes.
+ * @param animCount Pointer to an integer that will receive the number of animations loaded.
+ * @param targetFrameRate Desired frame rate (FPS) to sample the animation at. For example, 30 or 60.
+ * @return Pointer to a dynamically allocated array of R3D_ModelAnimation. NULL on failure.
+ */
+R3DAPI R3D_ModelAnimation* R3D_LoadModelAnimationsFromMemory(const char* fileType, const void* data, unsigned int size, int* animCount, int targetFrameRate);
+
+/**
  * @brief Frees memory allocated for model animations.
  *
  * This should be called after you're done using animations loaded via R3D_LoadModelAnimations().

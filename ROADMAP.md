@@ -2,7 +2,7 @@
 
 ## **v0.4**
 
-- [ ] **Load Animations From Memory**  
+- [x] **Load Animations From Memory**  
   Currently, only models can be loaded from memory, animations still need to be loaded from an external file. This should be improved with `R3D_LoadModelAnimationsFromMemory`.
 
 * [ ] **Better SSAO Support**

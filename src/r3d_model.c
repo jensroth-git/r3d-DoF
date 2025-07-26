@@ -2237,6 +2237,37 @@ static bool r3d_process_assimp_mesh(R3D_Model* model, Matrix modelMatrix, int me
 #undef CLEANUP
 }
 
+static bool r3d_process_assimp_meshes(const struct aiScene *scene, R3D_Model *model, struct aiNode *node, Matrix parentFinalTransform)
+{
+    Matrix relativeTransform = r3d_matrix_from_ai_matrix(&node->mTransformation);
+    Matrix finalTransform = MatrixMultiply(relativeTransform, parentFinalTransform);
+
+    for (unsigned int i = 0; i < node->mNumMeshes; i++)
+    {
+        Matrix meshTransform = finalTransform;
+
+        // Meshes with bones are already in reference space (bind pose)
+        // and their transformations are handled by the skinning system.
+        // Using the node’s transformation would cause a double transformation.
+        if (scene->mMeshes[node->mMeshes[i]]->mNumBones != 0) {
+            meshTransform = MatrixIdentity();
+        }
+
+        if (!r3d_process_assimp_mesh(model, meshTransform, node->mMeshes[i], scene->mMeshes[node->mMeshes[i]], scene, true)) {
+            TraceLog(LOG_ERROR, "R3D: Unable to load mesh [%d]; The model will be invalid", node->mMeshes[i]);
+            return false;
+        }
+    }
+
+    for (unsigned int i = 0; i < node->mNumChildren; i++) {
+        if(!r3d_process_assimp_meshes(scene, model, node->mChildren[i], finalTransform)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 /* === Assimp Material Processing === */
 
 static Image r3d_load_assimp_image(
@@ -3134,7 +3165,7 @@ bool r3d_process_animation(R3D_ModelAnimation* animation, const struct aiScene* 
     return true;
 }
 
-/* === Public Model Functions === */
+/* === Assimp Scene Processing === */
 
 #define R3D_ASSIMP_FLAGS                \
     aiProcess_Triangulate           |   \
@@ -3145,36 +3176,142 @@ bool r3d_process_animation(R3D_ModelAnimation* animation, const struct aiScene* 
     aiProcess_SortByPType           |   \
     aiProcess_GlobalScale
 
-bool r3d_recursively_process_assimp_meshes(const struct aiScene *scene, R3D_Model *model, struct aiNode *node, Matrix parentFinalTransform)
+
+static const struct aiScene* r3d_load_scene_from_file(const char* filePath)
 {
-    Matrix relativeTransform = r3d_matrix_from_ai_matrix(&node->mTransformation);
-    Matrix finalTransform = MatrixMultiply(relativeTransform, parentFinalTransform);
+    const struct aiScene* scene = aiImportFileExWithProperties(filePath, R3D_ASSIMP_FLAGS, NULL, R3D.state.loading.aiProps);
+    if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
+        TraceLog(LOG_ERROR, "R3D: Assimp error; %s", aiGetErrorString());
+        return NULL;
+    }
+    return scene;
+}
 
-    for (unsigned int i = 0; i < node->mNumMeshes; i++)
-    {
-        Matrix meshTransform = finalTransform;
+static const struct aiScene* r3d_load_scene_from_memory(const char* fileType, const void* data, unsigned int size)
+{
+    if (fileType != NULL && fileType[0] == '.') {
+        // pHint takes the format without the point, unlike raylib
+        fileType++;
+    }
 
-        // Meshes with bones are already in reference space (bind pose)
-        // and their transformations are handled by the skinning system.
-        // Using the node’s transformation would cause a double transformation.
-        if (scene->mMeshes[node->mMeshes[i]]->mNumBones != 0) {
-            meshTransform = MatrixIdentity();
-        }
+    const struct aiScene* scene = aiImportFileFromMemoryWithProperties(
+        data, size, R3D_ASSIMP_FLAGS, fileType, R3D.state.loading.aiProps);
 
-        if (!r3d_process_assimp_mesh(model, meshTransform, node->mMeshes[i], scene->mMeshes[node->mMeshes[i]], scene, true)) {
-            TraceLog(LOG_ERROR, "R3D: Unable to load mesh [%d]; The model will be invalid", node->mMeshes[i]);
-            return false;
+    if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
+        TraceLog(LOG_ERROR, "R3D: Assimp error; %s", aiGetErrorString());
+        return NULL;
+    }
+    return scene;
+}
+
+static bool r3d_process_model_from_scene(R3D_Model* model, const struct aiScene* scene, const char* filePath)
+{
+    /* --- Process materials --- */
+
+    if (!process_assimp_materials(scene, &model->materials, &model->materialCount, filePath)) {
+        TraceLog(LOG_ERROR, "R3D: Unable to load materials; The model will be invalid");
+        return false;
+    }
+
+    /* --- Initialize model and allocate meshes --- */
+
+    model->meshCount = scene->mNumMeshes;
+
+    model->meshes = RL_CALLOC(model->meshCount, sizeof(R3D_Mesh));
+    if (model->meshes == NULL) {
+        TraceLog(LOG_ERROR, "R3D: Unable to allocate memory for meshes; The model will be invalid");
+        return false;
+    }
+
+    model->meshMaterials = RL_CALLOC(model->meshCount, sizeof(int));
+    if (model->meshMaterials == NULL) {
+        TraceLog(LOG_ERROR, "R3D: Unable to allocate memory for mesh materials array; The model will be invalid");
+        RL_FREE(model->meshes);
+        return false;
+    }
+
+    /* --- Process all meshes --- */
+
+    if (!r3d_process_assimp_meshes(scene, model, scene->mRootNode, MatrixIdentity())) {
+        return false;
+    }
+
+    for (int i = 0; i < model->meshCount; i++) {
+        if (model->meshes[i].vertexCount == 0 && model->meshes[i].indexCount == 0) {
+            if (!r3d_process_assimp_mesh(model, MatrixIdentity(), i, scene->mMeshes[i], scene, true)) {
+                TraceLog(LOG_ERROR, "R3D: Unable to load mesh [%d]; The model will be invalid", i);
+                return false;
+            }
         }
     }
 
-    for (unsigned int i = 0; i < node->mNumChildren; i++) {
-        if(!r3d_recursively_process_assimp_meshes(scene, model, node->mChildren[i], finalTransform)) {
-            return false;
-        }
+    /* --- Process bones and bind poses --- */
+
+    if (!r3d_process_bones_and_offsets(model, scene)) {
+        TraceLog(LOG_WARNING, "R3D: Failed to process bones, model will not be animated");
     }
+
+    /* --- Calculate model bounding box --- */
+
+    R3D_UpdateModelBoundingBox(model, false);
 
     return true;
 }
+
+static R3D_ModelAnimation* r3d_process_animations_from_scene(const struct aiScene* scene, int* animCount, int targetFrameRate, const char* sourceName)
+{
+    *animCount = 0;
+
+    /* --- Check if there are animations --- */
+
+    if (scene->mNumAnimations == 0) {
+        TraceLog(LOG_INFO, "R3D: No animations found in '%s'", sourceName ? sourceName : "memory");
+        return NULL;
+    }
+
+    TraceLog(LOG_INFO, "R3D: Found %d animations in '%s'", scene->mNumAnimations, sourceName ? sourceName : "memory");
+
+    /* --- Allocate animations array --- */
+
+    R3D_ModelAnimation* animations = RL_CALLOC(scene->mNumAnimations, sizeof(R3D_ModelAnimation));
+    if (!animations) {
+        TraceLog(LOG_ERROR, "R3D: Unable to allocate memory for animations");
+        return NULL;
+    }
+
+    /* --- Process each animation --- */
+
+    int successCount = 0;
+    for (unsigned int i = 0; i < scene->mNumAnimations; i++) {
+        const struct aiAnimation* aiAnim = scene->mAnimations[i];
+        if (r3d_process_animation(&animations[successCount], scene, aiAnim, targetFrameRate)) {
+            successCount++;
+        } else {
+            TraceLog(LOG_ERROR, "R3D: Failed to process animation %d", i);
+        }
+    }
+
+    /* --- Handle results --- */
+
+    if (successCount == 0) {
+        TraceLog(LOG_ERROR, "R3D: No animations were successfully loaded");
+        RL_FREE(animations);
+        return NULL;
+    }
+
+    if (successCount < (int)scene->mNumAnimations) {
+        TraceLog(LOG_WARNING, "R3D: Only %d out of %d animations were successfully loaded", successCount, scene->mNumAnimations);
+        R3D_ModelAnimation* resizedAnims = RL_REALLOC(animations, successCount * sizeof(R3D_ModelAnimation));
+        if (resizedAnims) animations = resizedAnims;
+    }
+
+    *animCount = successCount;
+    TraceLog(LOG_INFO, "R3D: Successfully loaded %d animations", successCount);
+
+    return animations;
+}
+
+/* === Public Model Functions === */
 
 R3D_Model R3D_LoadModel(const char* filePath)
 {
@@ -3182,66 +3319,18 @@ R3D_Model R3D_LoadModel(const char* filePath)
 
     /* --- Import scene using Assimp --- */
 
-    const struct aiScene* scene = aiImportFileExWithProperties(filePath, R3D_ASSIMP_FLAGS, NULL, R3D.state.loading.aiProps);
-    if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
-        TraceLog(LOG_ERROR, "R3D: Assimp error; %s", aiGetErrorString());
+    const struct aiScene* scene = r3d_load_scene_from_file(filePath);
+    if (!scene) {
         return model;
     }
 
-    /* --- Process materials --- */
+    /* --- Process model from scene --- */
 
-    if (!process_assimp_materials(scene, &model.materials, &model.materialCount, filePath)) {
-        TraceLog(LOG_ERROR, "R3D: Unable to load materials; The model will be invalid");
-        return model;
-    }
-
-    /* --- Initialize model and allocate meshes --- */
-
-    model.meshCount = scene->mNumMeshes;
-
-    model.meshes = RL_CALLOC(model.meshCount, sizeof(R3D_Mesh));
-    if (model.meshes == NULL) {
-        TraceLog(LOG_ERROR, "R3D: Unable to allocate memory for meshes; The model will be invalid");
+    if (!r3d_process_model_from_scene(&model, scene, filePath)) {
         R3D_UnloadModel(&model, true);
         aiReleaseImport(scene);
-        return model;
+        return (R3D_Model){ 0 };
     }
-
-    model.meshMaterials = RL_CALLOC(model.meshCount, sizeof(int));
-    if (model.meshMaterials == NULL) {
-        TraceLog(LOG_ERROR, "R3D: Unable to allocate memory for mesh materials array; The model will be invalid");
-        R3D_UnloadModel(&model, true);
-        aiReleaseImport(scene);
-        RL_FREE(model.meshes);
-        return model;
-    }
-
-    /* --- Process all meshes --- */
-
-    if (!r3d_recursively_process_assimp_meshes(scene, &model, scene->mRootNode, MatrixIdentity())) {
-        R3D_UnloadModel(&model, true);
-        aiReleaseImport(scene);
-        return model;
-    }
-
-    for (int i = 0; i < model.meshCount; i++) {
-        if (model.meshes[i].vertexCount == 0 && model.meshes[i].indexCount == 0) {
-            if (!r3d_process_assimp_mesh(&model, MatrixIdentity(), i, scene->mMeshes[i], scene, true)) {
-                TraceLog(LOG_ERROR, "R3D: Unable to load mesh [%d]; The model will be invalid", i);
-                return model;
-            }
-        }
-    }
-
-    /* --- Process bones and bind poses --- */
-
-    if (!r3d_process_bones_and_offsets(&model, scene)) {
-        TraceLog(LOG_WARNING, "R3D: Failed to process bones, model will not be animated");
-    }
-
-    /* --- Calculate model bounding box --- */
-
-    R3D_UpdateModelBoundingBox(&model, false);
 
     /* --- Clean up and return the model --- */
 
@@ -3256,64 +3345,18 @@ R3D_Model R3D_LoadModelFromMemory(const char* fileType, const void* data, unsign
 
     /* --- Import scene using Assimp --- */
 
-    if (fileType != NULL && fileType[0] == '.') {
-        // pHint takes the format without the point, unlike raylib
-        fileType++;
-    }
-
-    const struct aiScene* scene = aiImportFileFromMemoryWithProperties(
-        data, size, R3D_ASSIMP_FLAGS, fileType, R3D.state.loading.aiProps);
-
-    if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
-        TraceLog(LOG_ERROR, "R3D: Assimp error; %s", aiGetErrorString());
+    const struct aiScene* scene = r3d_load_scene_from_memory(fileType, data, size);
+    if (!scene) {
         return model;
     }
 
-    /* --- Process materials --- */
+    /* --- Process model from scene --- */
 
-    if (!process_assimp_materials(scene, &model.materials, &model.materialCount, NULL)) {
-        TraceLog(LOG_ERROR, "R3D: Unable to load materials; The model will be invalid");
-        return model;
-    }
-
-    /* --- Initialize model and allocate meshes --- */
-
-    model.meshCount = scene->mNumMeshes;
-    model.meshes = RL_MALLOC(model.meshCount * sizeof(R3D_Mesh));
-
-    if (model.meshes == NULL) {
-        TraceLog(LOG_ERROR, "R3D: Unable to allocate memory for meshes; The model will be invalid");
+    if (!r3d_process_model_from_scene(&model, scene, NULL)) {
         R3D_UnloadModel(&model, true);
         aiReleaseImport(scene);
-        return model;
+        return (R3D_Model){ 0 };
     }
-
-    /* --- Process all meshes --- */
-
-    if (!r3d_recursively_process_assimp_meshes(scene, &model, scene->mRootNode, MatrixIdentity())) {
-        R3D_UnloadModel(&model, true);
-        aiReleaseImport(scene);
-        return model;
-    }
-
-    for (int i = 0; i < model.meshCount; i++) {
-        if (model.meshes[i].vertexCount == 0 && model.meshes[i].indexCount == 0) {
-            if (!r3d_process_assimp_mesh(&model, MatrixIdentity(), i, scene->mMeshes[i], scene, true)) {
-                TraceLog(LOG_ERROR, "R3D: Unable to load mesh [%d]; The model will be invalid", i);
-                return model;
-            }
-        }
-    }
-
-    /* --- Process bones and bind poses --- */
-
-    if (!r3d_process_bones_and_offsets(&model, scene)) {
-        TraceLog(LOG_WARNING, "R3D: Failed to process bones, model will not be animated");
-    }
-
-    /* --- Calculate model bounding box --- */
-
-    R3D_UpdateModelBoundingBox(&model, false);
 
     /* --- Clean up and return the model --- */
 
@@ -3390,66 +3433,42 @@ void R3D_UpdateModelBoundingBox(R3D_Model* model, bool updateMeshBoundingBoxes)
 
 R3D_ModelAnimation* R3D_LoadModelAnimations(const char* fileName, int* animCount, int targetFrameRate)
 {
-    *animCount = 0;
-
     /* --- Import scene using Assimp --- */
 
-    const struct aiScene* scene = aiImportFileExWithProperties(fileName, R3D_ASSIMP_FLAGS, NULL, R3D.state.loading.aiProps);
-    if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
-        TraceLog(LOG_ERROR, "R3D: Assimp error loading animations: %s", aiGetErrorString());
+    const struct aiScene* scene = r3d_load_scene_from_file(fileName);
+    if (!scene) {
+        *animCount = 0;
         return NULL;
     }
 
-    /* --- Check if there are animations --- */
+    /* --- Process animations from scene --- */
 
-    if (scene->mNumAnimations == 0) {
-        TraceLog(LOG_INFO, "R3D: No animations found in model '%s'", fileName);
-        aiReleaseImport(scene);
-        return NULL;
-    }
-
-    TraceLog(LOG_INFO, "R3D: Found %d animations in model '%s'", scene->mNumAnimations, fileName);
-
-    /* --- Allocate animations array --- */
-
-    R3D_ModelAnimation* animations = RL_CALLOC(scene->mNumAnimations, sizeof(R3D_ModelAnimation));
-    if (!animations) {
-        TraceLog(LOG_ERROR, "R3D: Unable to allocate memory for animations");
-        aiReleaseImport(scene);
-        return NULL;
-    }
-
-    /* --- Process each animation --- */
-
-    int successCount = 0;
-    for (unsigned int i = 0; i < scene->mNumAnimations; i++) {
-        const struct aiAnimation* aiAnim = scene->mAnimations[i];
-        if (r3d_process_animation(&animations[successCount], scene, aiAnim, targetFrameRate)) {
-            successCount++;
-        } else {
-            TraceLog(LOG_ERROR, "R3D: Failed to process animation %d", i);
-        }
-    }
+    R3D_ModelAnimation* animations = r3d_process_animations_from_scene(scene, animCount, targetFrameRate, fileName);
 
     /* --- Clean up and return --- */
 
     aiReleaseImport(scene);
 
-    if (successCount == 0) {
-        TraceLog(LOG_ERROR, "R3D: No animations were successfully loaded");
-        RL_FREE(animations);
+    return animations;
+}
+
+R3D_ModelAnimation* R3D_LoadModelAnimationsFromMemory(const char* fileType, const void* data, unsigned int size, int* animCount, int targetFrameRate)
+{
+    /* --- Import scene using Assimp --- */
+
+    const struct aiScene* scene = r3d_load_scene_from_memory(fileType, data, size);
+    if (!scene) {
+        *animCount = 0;
         return NULL;
     }
 
-    if (successCount < (int)scene->mNumAnimations) {
-        TraceLog(LOG_WARNING, "R3D: Only %d out of %d animations were successfully loaded", successCount, scene->mNumAnimations);
-        R3D_ModelAnimation* resizedAnims = RL_REALLOC(animations, successCount * sizeof(R3D_ModelAnimation));
-        if (resizedAnims) animations = resizedAnims;
-    }
+    /* --- Process animations from scene --- */
 
-    *animCount = successCount;
-    TraceLog(LOG_INFO, "R3D: Successfully loaded %d animations", successCount);
+    R3D_ModelAnimation* animations = r3d_process_animations_from_scene(scene, animCount, targetFrameRate, NULL);
 
+    /* --- Clean up and return --- */
+
+    aiReleaseImport(scene);
     return animations;
 }
 
