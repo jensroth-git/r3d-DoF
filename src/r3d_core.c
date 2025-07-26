@@ -105,6 +105,8 @@ void R3D_Init(int resWidth, int resHeight, unsigned int flags)
     R3D.env.ambientColor = (Vector3) { 0.2f, 0.2f, 0.2f };
     R3D.env.quatSky = QuaternionIdentity();
     R3D.env.useSky = false;
+    R3D.env.iblDiffuse = 1.0f;
+    R3D.env.iblSpecular = 1.0f;
     R3D.env.ssaoEnabled = false;
     R3D.env.ssaoRadius = 0.5f;
     R3D.env.ssaoBias = 0.025f;
@@ -1343,6 +1345,8 @@ void r3d_pass_deferred_ambient(void)
                 r3d_shader_set_mat4(screen.ambientIbl, uMatInvProj, R3D.state.transform.invProj);
                 r3d_shader_set_mat4(screen.ambientIbl, uMatInvView, R3D.state.transform.invView);
                 r3d_shader_set_vec4(screen.ambientIbl, uQuatSkybox, R3D.env.quatSky);
+                r3d_shader_set_float(screen.ambientIbl, uIblDiffuse, R3D.env.iblDiffuse);
+                r3d_shader_set_float(screen.ambientIbl, uIblSpecular, R3D.env.iblSpecular);
 
                 r3d_primitive_bind_and_draw_screen();
 
@@ -1899,6 +1903,8 @@ void r3d_pass_scene_forward(void)
 
                     r3d_shader_set_vec4(raster.forwardInst, uQuatSkybox, R3D.env.quatSky);
                     r3d_shader_set_int(raster.forwardInst, uHasSkybox, true);
+                    r3d_shader_set_float(raster.forwardInst, uIblDiffuse, R3D.env.iblDiffuse);
+                    r3d_shader_set_float(raster.forwardInst, uIblSpecular, R3D.env.iblSpecular);
                 }
                 else {
                     r3d_shader_set_vec3(raster.forwardInst, uAmbientColor, R3D.env.ambientColor);
@@ -1942,6 +1948,8 @@ void r3d_pass_scene_forward(void)
 
                     r3d_shader_set_vec4(raster.forward, uQuatSkybox, R3D.env.quatSky);
                     r3d_shader_set_int(raster.forward, uHasSkybox, true);
+                    r3d_shader_set_float(raster.forward, uIblDiffuse, R3D.env.iblDiffuse);
+                    r3d_shader_set_float(raster.forward, uIblSpecular, R3D.env.iblSpecular);
                 }
                 else {
                     r3d_shader_set_vec3(raster.forward, uAmbientColor, R3D.env.ambientColor);

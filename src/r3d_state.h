@@ -201,6 +201,8 @@ extern struct R3D_State {
         Quaternion quatSky;         // Rotation of the skybox (raster / light passes)
         R3D_Skybox sky;             // Skybox textures (raster / light passes)
         bool useSky;                // Flag to indicate if skybox is enabled (light pass)
+        float iblDiffuse;           // Intensity of diffuse light from IBL (light pass)
+        float iblSpecular;          // Intensity of specular light from IBL (light pass)
 
         bool ssaoEnabled;           // (pre-light pass)
         float ssaoRadius;           // (pre-light pass)

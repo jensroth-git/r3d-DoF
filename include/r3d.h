@@ -2190,6 +2190,46 @@ R3DAPI void R3D_SetSkyboxRotation(float pitch, float yaw, float roll);
  */
 R3DAPI Vector3 R3D_GetSkyboxRotation(void);
 
+/**
+ * @brief Sets the intensity of diffuse light contribution for image based lighting.
+ *
+ * This function controls the intensity of the diffuse portion of image based
+ * lighting from the current skybox.
+ *
+ * @param value The intensity of diffuse light for image based lighting.
+ */
+R3DAPI void R3D_SetSkyboxDiffuseIntensity(float value);
+
+/**
+ * @brief Gets the current diffuse lighting intensity used for image based lighting.
+ *
+ * This function returns the current value used to scale diffuse light applied
+ * by the current skybox with image based lighting.
+ *
+ * @return The current intensity of diffuse light for image based lighting.
+ */
+R3DAPI float R3D_GetSkyboxDiffuseIntensity(void);
+
+/**
+ * @brief Sets the intensity of specular light contribution for image based lighting.
+ *
+ * This function controls the intensity of the specular portion of image based
+ * lighting from the current skybox.
+ *
+ * @param value The intensity of specular light for image based lighting.
+ */
+R3DAPI void R3D_SetSkyboxSpecularIntensity(float value);
+
+/**
+ * @brief Gets the current specular lighting intensity used for image based lighting.
+ *
+ * This function returns the current value used to scale specular light applied
+ * by the current skybox with image based lighting.
+ *
+ * @return The current intensity of specular light for image based lighting.
+ */
+R3DAPI float R3D_GetSkyboxSpecularIntensity(void);
+
 
 
 // --------------------------------------------

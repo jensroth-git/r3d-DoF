@@ -41,6 +41,8 @@ uniform samplerCube uCubeIrradiance;
 uniform samplerCube uCubePrefilter;
 uniform sampler2D uTexBrdfLut;
 uniform vec4 uQuatSkybox;
+uniform float uIblDiffuse;
+uniform float uIblSpecular;
 
 uniform vec3 uViewPosition;
 uniform mat4 uMatInvProj;
@@ -146,7 +148,7 @@ void main()
 
     vec3 Nr = RotateWithQuat(N, uQuatSkybox);
     FragDiffuse = kD * texture(uCubeIrradiance, Nr).rgb;
-    FragDiffuse *= occlusion;
+    FragDiffuse *= occlusion * uIblDiffuse;
 
     /* Skybox reflection - IBL specular */
 
@@ -157,7 +159,7 @@ void main()
 
     vec2 brdf = texture(uTexBrdfLut, vec2(cNdotV, roughness)).rg;
     vec3 specularReflection = prefilteredColor * (F0 * brdf.x + brdf.y); // LUT handles fresnel
-    FragSpecular = specularReflection;
+    FragSpecular = specularReflection * uIblSpecular;
 }
 
 #else

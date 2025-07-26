@@ -1135,6 +1135,8 @@ void r3d_shader_load_raster_forward(void)
     r3d_shader_get_location(raster.forward, uTexBrdfLut);
     r3d_shader_get_location(raster.forward, uQuatSkybox);
     r3d_shader_get_location(raster.forward, uHasSkybox);
+    r3d_shader_get_location(raster.forward, uIblDiffuse);
+    r3d_shader_get_location(raster.forward, uIblSpecular);
     r3d_shader_get_location(raster.forward, uAlphaCutoff);
     r3d_shader_get_location(raster.forward, uViewPosition);
 
@@ -1211,6 +1213,8 @@ void r3d_shader_load_raster_forward_inst(void)
     r3d_shader_get_location(raster.forwardInst, uTexBrdfLut);
     r3d_shader_get_location(raster.forwardInst, uQuatSkybox);
     r3d_shader_get_location(raster.forwardInst, uHasSkybox);
+    r3d_shader_get_location(raster.forwardInst, uIblDiffuse);
+    r3d_shader_get_location(raster.forwardInst, uIblSpecular);
     r3d_shader_get_location(raster.forwardInst, uAlphaCutoff);
     r3d_shader_get_location(raster.forwardInst, uViewPosition);
 
@@ -1400,6 +1404,8 @@ void r3d_shader_load_screen_ambient_ibl(void)
     r3d_shader_get_location(screen.ambientIbl, uCubePrefilter);
     r3d_shader_get_location(screen.ambientIbl, uTexBrdfLut);
     r3d_shader_get_location(screen.ambientIbl, uQuatSkybox);
+    r3d_shader_get_location(screen.ambientIbl, uIblDiffuse);
+    r3d_shader_get_location(screen.ambientIbl, uIblSpecular);
     r3d_shader_get_location(screen.ambientIbl, uViewPosition);
     r3d_shader_get_location(screen.ambientIbl, uMatInvProj);
     r3d_shader_get_location(screen.ambientIbl, uMatInvView);

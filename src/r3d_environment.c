@@ -57,6 +57,26 @@ Vector3 R3D_GetSkyboxRotation(void)
 	return QuaternionToEuler(R3D.env.quatSky);
 }
 
+void R3D_SetSkyboxDiffuseIntensity(float value)
+{
+	R3D.env.iblDiffuse = value;
+}
+
+float R3D_GetSkyboxDiffuseIntensity(void)
+{
+	return R3D.env.iblDiffuse;
+}
+
+void R3D_SetSkyboxSpecularIntensity(float value)
+{
+	R3D.env.iblSpecular = value;
+}
+
+float R3D_GetSkyboxSpecularIntensity(void)
+{
+	return R3D.env.iblSpecular;
+}
+
 void R3D_SetSSAO(bool enabled)
 {
 	R3D.env.ssaoEnabled = enabled;
