@@ -316,7 +316,7 @@ typedef unsigned int R3D_Light;
  * @brief Structure representing a skybox and its related textures for lighting.
  *
  * This structure contains textures used for rendering a skybox, as well as
- * precomputed lighting textures used for image-based lighting (IBL).
+ * precomputed lighting textures and data used for image-based lighting (IBL).
  */
 typedef struct R3D_Skybox {
     TextureCubemap cubemap;  ///< The skybox cubemap texture for the background and reflections.
@@ -2191,44 +2191,30 @@ R3DAPI void R3D_SetSkyboxRotation(float pitch, float yaw, float roll);
 R3DAPI Vector3 R3D_GetSkyboxRotation(void);
 
 /**
- * @brief Sets the intensity of diffuse light contribution for image based lighting.
+ * @brief Sets the intensity scaling values used for the environment's skybox.
  *
- * This function controls the intensity of the diffuse portion of image based
- * lighting from the current skybox.
+ * This function controls the intensity of both the rendered skybox as well as
+ * the light that is generated from the skybox.
  *
- * @param value The intensity of diffuse light for image based lighting.
+ * @param background The intensity of the skybox rendered as the background.
+ *                   A value of 0.0 will disable rendering the skybox but
+ *                   allow any generated lighting to still be applied.
+ * @param ambient The intensity of ambient light produced by the skybox.
+ * @param reflection The intensity of reflections of the skybox in reflective materials.
  */
-R3DAPI void R3D_SetSkyboxDiffuseIntensity(float value);
+R3DAPI void R3D_SetSkyboxIntensity(float background, float ambient, float reflection);
 
 /**
- * @brief Gets the current diffuse lighting intensity used for image based lighting.
+ * @brief Gets the intensity scaling values used for the environment's skybox.
  *
- * This function returns the current value used to scale diffuse light applied
- * by the current skybox with image based lighting.
+ * This function returns the intensity values for the rendered skybox as well
+ * the light that is generated from the skybox.
  *
- * @return The current intensity of diffuse light for image based lighting.
+ * @param background Pointer to store the intensity value for the rendered skybox.
+ * @param ambient Pointer to store the intensity value for ambient light produced by the skybox.
+ * @param reflection Pointer to store the intensity value for reflections from the skybox.
  */
-R3DAPI float R3D_GetSkyboxDiffuseIntensity(void);
-
-/**
- * @brief Sets the intensity of specular light contribution for image based lighting.
- *
- * This function controls the intensity of the specular portion of image based
- * lighting from the current skybox.
- *
- * @param value The intensity of specular light for image based lighting.
- */
-R3DAPI void R3D_SetSkyboxSpecularIntensity(float value);
-
-/**
- * @brief Gets the current specular lighting intensity used for image based lighting.
- *
- * This function returns the current value used to scale specular light applied
- * by the current skybox with image based lighting.
- *
- * @return The current intensity of specular light for image based lighting.
- */
-R3DAPI float R3D_GetSkyboxSpecularIntensity(void);
+R3DAPI void R3D_GetSkyboxIntensity(float* background, float* ambient, float* reflection);
 
 
 

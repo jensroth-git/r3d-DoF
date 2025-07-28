@@ -133,6 +133,7 @@ typedef struct {
     r3d_shader_uniform_mat4_t uMatProj;
     r3d_shader_uniform_mat4_t uMatView;
     r3d_shader_uniform_vec4_t uRotation;
+    r3d_shader_uniform_float_t uSkyIntensity;
     r3d_shader_uniform_samplerCube_t uCubeSky;
 } r3d_shader_raster_skybox_t;
 
@@ -237,8 +238,8 @@ typedef struct {
     r3d_shader_uniform_sampler2D_t uTexBrdfLut;
     r3d_shader_uniform_vec4_t uQuatSkybox;
     r3d_shader_uniform_int_t uHasSkybox;
-    r3d_shader_uniform_float_t uIblDiffuse;
-    r3d_shader_uniform_float_t uIblSpecular;
+    r3d_shader_uniform_float_t uSkyboxAmbientIntensity;
+    r3d_shader_uniform_float_t uSkyboxReflectIntensity;
     r3d_shader_uniform_float_t uAlphaCutoff;
     r3d_shader_uniform_vec3_t uViewPosition;
 } r3d_shader_raster_forward_t;
@@ -291,8 +292,8 @@ typedef struct {
     r3d_shader_uniform_sampler2D_t uTexBrdfLut;
     r3d_shader_uniform_vec4_t uQuatSkybox;
     r3d_shader_uniform_int_t uHasSkybox;
-    r3d_shader_uniform_float_t uIblDiffuse;
-    r3d_shader_uniform_float_t uIblSpecular;
+    r3d_shader_uniform_float_t uSkyboxAmbientIntensity;
+    r3d_shader_uniform_float_t uSkyboxReflectIntensity;
     r3d_shader_uniform_float_t uAlphaCutoff;
     r3d_shader_uniform_vec3_t uViewPosition;
 } r3d_shader_raster_forward_inst_t;
@@ -325,8 +326,8 @@ typedef struct {
     r3d_shader_uniform_samplerCube_t uCubePrefilter;
     r3d_shader_uniform_sampler2D_t uTexBrdfLut;
     r3d_shader_uniform_vec4_t uQuatSkybox;
-    r3d_shader_uniform_float_t uIblDiffuse;
-    r3d_shader_uniform_float_t uIblSpecular;
+    r3d_shader_uniform_float_t uSkyboxAmbientIntensity;
+    r3d_shader_uniform_float_t uSkyboxReflectIntensity;
     r3d_shader_uniform_vec3_t uViewPosition;
     r3d_shader_uniform_mat4_t uMatInvProj;
     r3d_shader_uniform_mat4_t uMatInvView;

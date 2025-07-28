@@ -105,8 +105,9 @@ void R3D_Init(int resWidth, int resHeight, unsigned int flags)
     R3D.env.ambientColor = (Vector3) { 0.2f, 0.2f, 0.2f };
     R3D.env.quatSky = QuaternionIdentity();
     R3D.env.useSky = false;
-    R3D.env.iblDiffuse = 1.0f;
-    R3D.env.iblSpecular = 1.0f;
+    R3D.env.skyBackgroundIntensity = 1.0f;
+    R3D.env.skyAmbientIntensity = 1.0f;
+    R3D.env.skyReflectIntensity = 1.0f;
     R3D.env.ssaoEnabled = false;
     R3D.env.ssaoRadius = 0.5f;
     R3D.env.ssaoBias = 0.025f;
@@ -1345,8 +1346,8 @@ void r3d_pass_deferred_ambient(void)
                 r3d_shader_set_mat4(screen.ambientIbl, uMatInvProj, R3D.state.transform.invProj);
                 r3d_shader_set_mat4(screen.ambientIbl, uMatInvView, R3D.state.transform.invView);
                 r3d_shader_set_vec4(screen.ambientIbl, uQuatSkybox, R3D.env.quatSky);
-                r3d_shader_set_float(screen.ambientIbl, uIblDiffuse, R3D.env.iblDiffuse);
-                r3d_shader_set_float(screen.ambientIbl, uIblSpecular, R3D.env.iblSpecular);
+                r3d_shader_set_float(screen.ambientIbl, uSkyboxAmbientIntensity, R3D.env.skyAmbientIntensity);
+                r3d_shader_set_float(screen.ambientIbl, uSkyboxReflectIntensity, R3D.env.skyReflectIntensity);
 
                 r3d_primitive_bind_and_draw_screen();
 
@@ -1553,7 +1554,7 @@ void r3d_pass_scene_background(void)
     {
         glViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
 
-        if (R3D.env.useSky)
+        if (R3D.env.useSky && R3D.env.skyBackgroundIntensity > 0.0f)
         {
             // Setup projection matrix
             rlMatrixMode(RL_PROJECTION);
@@ -1580,6 +1581,7 @@ void r3d_pass_scene_background(void)
 
                 r3d_shader_bind_samplerCube(raster.skybox, uCubeSky, R3D.env.sky.cubemap.id);
                 r3d_shader_set_vec4(raster.skybox, uRotation, R3D.env.quatSky);
+                r3d_shader_set_float(raster.skybox, uSkyIntensity, R3D.env.skyBackgroundIntensity);
                 r3d_shader_set_mat4(raster.skybox, uMatView, matView);
                 r3d_shader_set_mat4(raster.skybox, uMatProj, matProj);
 
@@ -1903,8 +1905,8 @@ void r3d_pass_scene_forward(void)
 
                     r3d_shader_set_vec4(raster.forwardInst, uQuatSkybox, R3D.env.quatSky);
                     r3d_shader_set_int(raster.forwardInst, uHasSkybox, true);
-                    r3d_shader_set_float(raster.forwardInst, uIblDiffuse, R3D.env.iblDiffuse);
-                    r3d_shader_set_float(raster.forwardInst, uIblSpecular, R3D.env.iblSpecular);
+                    r3d_shader_set_float(raster.forwardInst, uSkyboxAmbientIntensity, R3D.env.skyAmbientIntensity);
+                    r3d_shader_set_float(raster.forwardInst, uSkyboxReflectIntensity, R3D.env.skyReflectIntensity);
                 }
                 else {
                     r3d_shader_set_vec3(raster.forwardInst, uAmbientColor, R3D.env.ambientColor);
@@ -1948,8 +1950,8 @@ void r3d_pass_scene_forward(void)
 
                     r3d_shader_set_vec4(raster.forward, uQuatSkybox, R3D.env.quatSky);
                     r3d_shader_set_int(raster.forward, uHasSkybox, true);
-                    r3d_shader_set_float(raster.forward, uIblDiffuse, R3D.env.iblDiffuse);
-                    r3d_shader_set_float(raster.forward, uIblSpecular, R3D.env.iblSpecular);
+                    r3d_shader_set_float(raster.forward, uSkyboxAmbientIntensity, R3D.env.skyAmbientIntensity);
+                    r3d_shader_set_float(raster.forward, uSkyboxReflectIntensity, R3D.env.skyReflectIntensity);
                 }
                 else {
                     r3d_shader_set_vec3(raster.forward, uAmbientColor, R3D.env.ambientColor);

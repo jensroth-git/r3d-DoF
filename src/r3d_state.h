@@ -195,40 +195,41 @@ extern struct R3D_State {
     // Environment data
     struct {
 
-        Vector3 backgroundColor;    // Used as default albedo color when skybox is disabled (raster pass)
-        Vector3 ambientColor;       // Used as default ambient light when skybox is disabled (light pass)
-
-        Quaternion quatSky;         // Rotation of the skybox (raster / light passes)
-        R3D_Skybox sky;             // Skybox textures (raster / light passes)
-        bool useSky;                // Flag to indicate if skybox is enabled (light pass)
-        float iblDiffuse;           // Intensity of diffuse light from IBL (light pass)
-        float iblSpecular;          // Intensity of specular light from IBL (light pass)
-
-        bool ssaoEnabled;           // (pre-light pass)
-        float ssaoRadius;           // (pre-light pass)
-        float ssaoBias;             // (pre-light pass)
-        int ssaoIterations;         // (pre-light pass)
-
-        R3D_Bloom bloomMode;        // (post pass)
-        float bloomIntensity;       // (post pass)
-        int bloomFilterRadius;      // (gen pass)
-        float bloomThreshold;       // (gen pass)
-        float bloomSoftThreshold;   // (gen pass)
-        Vector4 bloomPrefilter;     // (gen pass)
-
-        R3D_Fog fogMode;            // (post pass)
-        Vector3 fogColor;           // (post pass)
-        float fogStart;             // (post pass)
-        float fogEnd;               // (post pass)
-        float fogDensity;           // (post pass)
-
-        R3D_Tonemap tonemapMode;    // (post pass)
-        float tonemapExposure;      // (post pass)
-        float tonemapWhite;         // (post pass)
-
-        float brightness;           // (post pass)
-        float contrast;             // (post pass)
-        float saturation;           // (post pass)
+        Vector3 backgroundColor;        // Used as default albedo color when skybox is disabled (raster pass)
+        Vector3 ambientColor;           // Used as default ambient light when skybox is disabled (light pass)
+                                        
+        Quaternion quatSky;             // Rotation of the skybox (raster / light passes)
+        R3D_Skybox sky;                 // Skybox textures (raster / light passes)
+        bool useSky;                    // Flag to indicate if skybox is enabled (light pass)
+        float skyBackgroundIntensity;   // Intensity of the visible background from the skybox (raster / light passes) 
+        float skyAmbientIntensity;      // Intensity of the ambient light from the skybox (light pass)
+        float skyReflectIntensity;      // Intensity of reflections from the skybox (light pass)
+                                        
+        bool ssaoEnabled;               // (pre-light pass)
+        float ssaoRadius;               // (pre-light pass)
+        float ssaoBias;                 // (pre-light pass)
+        int ssaoIterations;             // (pre-light pass)
+                                        
+        R3D_Bloom bloomMode;            // (post pass)
+        float bloomIntensity;           // (post pass)
+        int bloomFilterRadius;          // (gen pass)
+        float bloomThreshold;           // (gen pass)
+        float bloomSoftThreshold;       // (gen pass)
+        Vector4 bloomPrefilter;         // (gen pass)
+                                        
+        R3D_Fog fogMode;                // (post pass)
+        Vector3 fogColor;               // (post pass)
+        float fogStart;                 // (post pass)
+        float fogEnd;                   // (post pass)
+        float fogDensity;               // (post pass)
+                                        
+        R3D_Tonemap tonemapMode;        // (post pass)
+        float tonemapExposure;          // (post pass)
+        float tonemapWhite;             // (post pass)
+                                        
+        float brightness;               // (post pass)
+        float contrast;                 // (post pass)
+        float saturation;               // (post pass)
 
     } env;
 
