@@ -57,6 +57,20 @@ Vector3 R3D_GetSkyboxRotation(void)
 	return QuaternionToEuler(R3D.env.quatSky);
 }
 
+void R3D_SetSkyboxIntensity(float background, float ambient, float reflection)
+{
+	R3D.env.skyBackgroundIntensity = background;
+	R3D.env.skyAmbientIntensity = ambient;
+	R3D.env.skyReflectIntensity = reflection;
+}
+
+void R3D_GetSkyboxIntensity(float* background, float* ambient, float* reflection)
+{
+	if (background)	*background = R3D.env.skyBackgroundIntensity;
+	if (ambient) *ambient = R3D.env.skyAmbientIntensity;
+	if (reflection) *reflection = R3D.env.skyReflectIntensity;
+}
+
 void R3D_SetSSAO(bool enabled)
 {
 	R3D.env.ssaoEnabled = enabled;

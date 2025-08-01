@@ -86,6 +86,8 @@ uniform samplerCube uCubePrefilter;
 uniform sampler2D uTexBrdfLut;
 uniform vec4 uQuatSkybox;
 uniform bool uHasSkybox;
+uniform float uSkyboxAmbientIntensity;
+uniform float uSkyboxReflectIntensity;
 
 uniform Light uLights[NUM_LIGHTS];
 
@@ -447,7 +449,7 @@ void main()
 
         vec3 Nr = RotateWithQuat(N, uQuatSkybox);
 
-        ambient = kD * texture(uCubeIrradiance, Nr).rgb;
+        ambient = kD * (texture(uCubeIrradiance, Nr).rgb * uSkyboxAmbientIntensity);
     }
     else
     {
@@ -481,7 +483,7 @@ void main()
         vec2 brdf = texture(uTexBrdfLut, vec2(cNdotV, roughness)).rg;
         vec3 specularReflection = prefilteredColor * (F * brdf.x + brdf.y);
 
-        specular += specularReflection;
+        specular += specularReflection * uSkyboxReflectIntensity;
     }
 
     /* Compute the final diffuse color, including ambient and diffuse lighting contributions */

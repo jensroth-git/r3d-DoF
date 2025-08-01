@@ -2206,6 +2206,32 @@ R3DAPI void R3D_SetSkyboxRotation(float pitch, float yaw, float roll);
  */
 R3DAPI Vector3 R3D_GetSkyboxRotation(void);
 
+/**
+ * @brief Sets the intensity scaling values used for the environment's skybox.
+ *
+ * This function controls the intensity of both the rendered skybox as well as
+ * the light that is generated from the skybox.
+ *
+ * @param background The intensity of the skybox rendered as the background.
+ *                   A value of 0.0 will disable rendering the skybox but
+ *                   allow any generated lighting to still be applied.
+ * @param ambient The intensity of ambient light produced by the skybox.
+ * @param reflection The intensity of reflections of the skybox in reflective materials.
+ */
+R3DAPI void R3D_SetSkyboxIntensity(float background, float ambient, float reflection);
+
+/**
+ * @brief Gets the intensity scaling values used for the environment's skybox.
+ *
+ * This function returns the intensity values for the rendered skybox as well
+ * the light that is generated from the skybox.
+ *
+ * @param background Pointer to store the intensity value for the rendered skybox.
+ * @param ambient Pointer to store the intensity value for ambient light produced by the skybox.
+ * @param reflection Pointer to store the intensity value for reflections from the skybox.
+ */
+R3DAPI void R3D_GetSkyboxIntensity(float* background, float* ambient, float* reflection);
+
 
 
 // --------------------------------------------

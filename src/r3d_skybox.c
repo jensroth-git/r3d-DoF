@@ -431,11 +431,11 @@ R3D_Skybox R3D_LoadSkybox(const char* fileName, CubemapLayout layout)
 
 R3D_Skybox R3D_LoadSkyboxFromMemory(Image image, CubemapLayout layout)
 {
-    R3D_Skybox sky = { 0 };
-    sky.cubemap = r3d_skybox_load_cubemap_from_layout(&image, layout);
-    sky.irradiance = r3d_skybox_generate_irradiance(sky.cubemap);
-    sky.prefilter = r3d_skybox_generate_prefilter(sky.cubemap);
-    return sky;
+    R3D_Skybox skybox = { 0 };
+    skybox.cubemap = r3d_skybox_load_cubemap_from_layout(&image, layout);
+    skybox.irradiance = r3d_skybox_generate_irradiance(skybox.cubemap);
+    skybox.prefilter = r3d_skybox_generate_prefilter(skybox.cubemap);
+    return skybox;
 }
 
 R3D_Skybox R3D_LoadSkyboxPanorama(const char* fileName, int size)
@@ -446,14 +446,13 @@ R3D_Skybox R3D_LoadSkyboxPanorama(const char* fileName, int size)
     return skybox;
 }
 
-
 R3D_Skybox R3D_LoadSkyboxPanoramaFromMemory(Image image, int size)
 {
-    R3D_Skybox sky = { 0 };
-    sky.cubemap = r3d_skybox_load_cubemap_from_panorama(image, size);
-    sky.irradiance = r3d_skybox_generate_irradiance(sky.cubemap);
-    sky.prefilter = r3d_skybox_generate_prefilter(sky.cubemap);
-    return sky;
+    R3D_Skybox skybox = { 0 };
+    skybox.cubemap = r3d_skybox_load_cubemap_from_panorama(image, size);
+    skybox.irradiance = r3d_skybox_generate_irradiance(skybox.cubemap);
+    skybox.prefilter = r3d_skybox_generate_prefilter(skybox.cubemap);
+    return skybox;
 }
 
 void R3D_UnloadSkybox(R3D_Skybox sky)
