@@ -8,7 +8,7 @@
 * [ ] **Better SSAO Support**
   Refactor `R3D_End` so that in *forced forward* mode, SSAO can also be applied to opaque objects stored in the forward draw calls array.
 
-* [ ] **Add Skybox Intensity Factor**
+* [x] **Add Skybox Intensity Factor**
   Introduce a control factor for the skybox intensity. This factor should be applied both when rendering the skybox and when computing IBL for objects.
 
 * [ ] **Add Texture Coordinate Scale & Offset in `R3D_Material`**
