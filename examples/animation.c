@@ -8,12 +8,13 @@
 static R3D_Mesh plane = { 0 };
 static R3D_Model dancer = { 0 };
 static R3D_Material material = { 0 };
+static Matrix instances[2*2] = { 0 };
+
 static Camera3D camera = { 0 };
 
 static int animCount = 0;
 static R3D_ModelAnimation* anims = NULL;
 
-static Matrix instances[2*2] = { 0 };
 static R3D_Light lights[2] = { 0 };
 
 /* === Example === */
@@ -32,11 +33,14 @@ const char* Init(void)
     R3D_SetAmbientColor((Color) { 7, 7, 7, 255 });
 
     plane = R3D_GenMeshPlane(32, 32, 1, 1, true);
-
-    R3D_SetModelImportScale(0.01f);
     dancer = R3D_LoadModel(RESOURCES_PATH "dancer.glb");
-
     material = R3D_GetDefaultMaterial();
+
+    for (int z = 0; z < 2; z++) {
+        for (int x = 0; x < 2; x++) {
+            instances[z * 2 + x] = MatrixTranslate((float)x - 0.5f, 0, (float)z - 0.5f);
+        }
+    }
 
     Image checked = GenImageChecked(256, 256, 4, 4, (Color) { 20, 20, 20, 255 }, WHITE);
     material.albedo.texture = LoadTextureFromImage(checked);
@@ -46,12 +50,6 @@ const char* Init(void)
     material.orm.metalness = 0.5f;
 
     anims = R3D_LoadModelAnimations(RESOURCES_PATH "dancer.glb", &animCount, 60);
-
-    for (int z = 0; z < 2; z++) {
-        for (int x = 0; x < 2; x++) {
-            instances[z * 2 + x] = MatrixMultiply(MatrixScale(100,100,100), MatrixTranslate((float)x - 0.5f, 0, (float)z - 0.5f));
-        }
-    }
 
     camera = (Camera3D) {
         .position = (Vector3) { 0, 2.0f, 3.5f },
@@ -91,7 +89,7 @@ void Draw(void)
 
     R3D_Begin(camera);
         R3D_DrawMesh(&plane, &material, MatrixIdentity());
-        R3D_DrawModel(&dancer, (Vector3) { 0, 0, 1.5f }, 100.0f);
+        R3D_DrawModel(&dancer, (Vector3) { 0, 0, 1.5f }, 1.0f);
         R3D_DrawModelInstanced(&dancer, instances, 2*2);
     R3D_End();
 
