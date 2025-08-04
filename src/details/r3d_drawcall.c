@@ -76,7 +76,7 @@ bool r3d_drawcall_geometry_is_visible(const r3d_drawcall_t* call)
         }
         return r3d_frustum_is_obb_in(&R3D.state.frustum.shape, &call->geometry.model.mesh->aabb, &call->transform);
     }
-    
+
     if (call->geometryType == R3D_DRAWCALL_GEOMETRY_SPRITE) {
         return r3d_frustum_is_points_in(&R3D.state.frustum.shape, call->geometry.sprite.quad, 4);
     }
@@ -190,6 +190,28 @@ void r3d_drawcall_raster_depth_inst(const r3d_drawcall_t* call, bool shadow)
         r3d_shader_set_mat4(raster.depthInst, uMatInvView, R3D.state.transform.invView);
     }
 
+    // Setup geometry type related uniforms
+    switch (call->geometryType) {
+    case R3D_DRAWCALL_GEOMETRY_MODEL:
+        {
+            // Send bone matrices and animation related data
+            if (call->geometry.model.anim != NULL && call->geometry.model.boneOffsets != NULL) {
+                r3d_shader_set_mat4_v(raster.depthInst, uBoneMatrices[0], call->geometry.model.mesh->boneMatrices, call->geometry.model.anim->boneCount);
+                r3d_shader_set_int(raster.depthInst, uUseSkinning, true);
+            }
+            else {
+                r3d_shader_set_int(raster.depthInst, uUseSkinning, false);
+            }
+        }
+        break;
+    case R3D_DRAWCALL_GEOMETRY_SPRITE:
+        {
+            // Send bone matrices and animation related data
+            r3d_shader_set_int(raster.depthInst, uUseSkinning, false);
+        }
+        break;
+    }
+
     // Send alpha and bind albedo
     r3d_shader_set_float(raster.depthInst, uAlpha, ((float)call->material.albedo.color.a / 255));
     r3d_shader_bind_sampler2D_opt(raster.depthInst, uTexAlbedo, call->material.albedo.texture.id, white);
@@ -300,6 +322,28 @@ void r3d_drawcall_raster_depth_cube_inst(const r3d_drawcall_t* call, bool shadow
     r3d_shader_set_int(raster.depthCubeInst, uBillboardMode, call->material.billboardMode);
     if (call->material.billboardMode != R3D_BILLBOARD_DISABLED) {
         r3d_shader_set_mat4(raster.depthCubeInst, uMatInvView, R3D.state.transform.invView);
+    }
+
+    // Setup geometry type related uniforms
+    switch (call->geometryType) {
+    case R3D_DRAWCALL_GEOMETRY_MODEL:
+        {
+            // Send bone matrices and animation related data
+            if (call->geometry.model.anim != NULL && call->geometry.model.boneOffsets != NULL) {
+                r3d_shader_set_mat4_v(raster.depthCubeInst, uBoneMatrices[0], call->geometry.model.mesh->boneMatrices, call->geometry.model.anim->boneCount);
+                r3d_shader_set_int(raster.depthCubeInst, uUseSkinning, true);
+            }
+            else {
+                r3d_shader_set_int(raster.depthCubeInst, uUseSkinning, false);
+            }
+        }
+        break;
+    case R3D_DRAWCALL_GEOMETRY_SPRITE:
+        {
+            // Send bone matrices and animation related data
+            r3d_shader_set_int(raster.depthCubeInst, uUseSkinning, false);
+        }
+        break;
     }
 
     // Send alpha and bind albedo
@@ -429,6 +473,28 @@ void r3d_drawcall_raster_geometry_inst(const r3d_drawcall_t* call)
         r3d_shader_set_mat4(raster.geometryInst, uMatInvView, R3D.state.transform.invView);
     }
 
+    // Setup geometry type related uniforms
+    switch (call->geometryType) {
+    case R3D_DRAWCALL_GEOMETRY_MODEL:
+        {
+            // Send bone matrices and animation related data
+            if (call->geometry.model.anim != NULL && call->geometry.model.boneOffsets != NULL) {
+                r3d_shader_set_mat4_v(raster.geometryInst, uBoneMatrices[0], call->geometry.model.mesh->boneMatrices, call->geometry.model.anim->boneCount);
+                r3d_shader_set_int(raster.geometryInst, uUseSkinning, true);
+            }
+            else {
+                r3d_shader_set_int(raster.geometryInst, uUseSkinning, false);
+            }
+        }
+        break;
+    case R3D_DRAWCALL_GEOMETRY_SPRITE:
+        {
+            // Send bone matrices and animation related data
+            r3d_shader_set_int(raster.geometryInst, uUseSkinning, false);
+        }
+        break;
+    }
+
     // Bind active texture maps
     r3d_shader_bind_sampler2D_opt(raster.geometryInst, uTexAlbedo, call->material.albedo.texture.id, white);
     r3d_shader_bind_sampler2D_opt(raster.geometryInst, uTexNormal, call->material.normal.texture.id, normal);
@@ -556,6 +622,28 @@ void r3d_drawcall_raster_forward_inst(const r3d_drawcall_t* call)
     r3d_shader_set_int(raster.forwardInst, uBillboardMode, call->material.billboardMode);
     if (call->material.billboardMode != R3D_BILLBOARD_DISABLED) {
         r3d_shader_set_mat4(raster.forwardInst, uMatInvView, R3D.state.transform.invView);
+    }
+
+    // Setup geometry type related uniforms
+    switch (call->geometryType) {
+    case R3D_DRAWCALL_GEOMETRY_MODEL:
+        {
+            // Send bone matrices and animation related data
+            if (call->geometry.model.anim != NULL && call->geometry.model.boneOffsets != NULL) {
+                r3d_shader_set_mat4_v(raster.forwardInst, uBoneMatrices[0], call->geometry.model.mesh->boneMatrices, call->geometry.model.anim->boneCount);
+                r3d_shader_set_int(raster.forwardInst, uUseSkinning, true);
+            }
+            else {
+                r3d_shader_set_int(raster.forwardInst, uUseSkinning, false);
+            }
+        }
+        break;
+    case R3D_DRAWCALL_GEOMETRY_SPRITE:
+        {
+            // Send bone matrices and animation related data
+            r3d_shader_set_int(raster.forwardInst, uUseSkinning, false);
+        }
+        break;
     }
 
     // Bind active texture maps
@@ -691,8 +779,12 @@ void r3d_drawcall(const r3d_drawcall_t* call)
 {
     if (call->geometryType == R3D_DRAWCALL_GEOMETRY_MODEL) {
         r3d_drawcall_bind_geometry_mesh(call->geometry.model.mesh);
-        if (call->geometry.model.mesh->indices == NULL) glDrawArrays(GL_TRIANGLES, 0, call->geometry.model.mesh->vertexCount);
-        else glDrawElements(GL_TRIANGLES, call->geometry.model.mesh->indexCount, GL_UNSIGNED_INT, NULL);
+        if (call->geometry.model.mesh->indices == NULL) {
+            glDrawArrays(GL_TRIANGLES, 0, call->geometry.model.mesh->vertexCount);
+        }
+        else {
+            glDrawElements(GL_TRIANGLES, call->geometry.model.mesh->indexCount, GL_UNSIGNED_INT, NULL);
+        }
         r3d_drawcall_unbind_geometry_mesh();
     }
 

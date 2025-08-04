@@ -14,7 +14,7 @@
 * [x] **Add Texture Coordinate Scale & Offset in `R3D_Material`**
   Add texture coordinate `scale` and `offset` parameters to `R3D_Material` (currently only available for `R3D_Sprite`). This may also require reworking how sprite animations are handled.
 
-* [ ] **Add 3D Model Animation Support for Instanced Rendering**
+* [x] **Add 3D Model Animation Support for Instanced Rendering**
   Add support for animated 3D models in instanced rendering. Initially, all instances will share the same animation frame.
 
 * [ ] **Add ‘Light Affect’ Factor for Ambient Occlusion**

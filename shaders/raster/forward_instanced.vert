@@ -26,6 +26,10 @@
 #define BILLBOARD_FRONT 1
 #define BILLBOARD_Y_AXIS 2
 
+/* === Constants === */
+
+const int MAX_BONES = 128;
+
 /* === Attributes === */
 
 layout(location = 0) in vec3 aPosition;
@@ -33,6 +37,8 @@ layout(location = 1) in vec2 aTexCoord;
 layout(location = 2) in vec3 aNormal;
 layout(location = 3) in vec4 aColor;
 layout(location = 4) in vec4 aTangent;
+layout(location = 5) in ivec4 aBoneIDs;
+layout(location = 6) in vec4 aWeights;
 
 /* === Instance attributes === */
 
@@ -53,6 +59,9 @@ uniform vec4 uAlbedoColor;
 
 uniform vec2 uTexCoordOffset;
 uniform vec2 uTexCoordScale;
+
+uniform mat4 uBoneMatrices[MAX_BONES];
+uniform bool uUseSkinning;
 
 /* === Varyings === */
 
@@ -120,6 +129,24 @@ void BillboardY(inout mat4 model, inout mat3 normal)
 
 void main()
 {
+    // Apply skinning transformation if enabled
+    vec3 skinnedPosition = aPosition;
+    vec3 skinnedNormal = aNormal;
+    vec3 skinnedTangent = aTangent.xyz;
+
+    if (uUseSkinning)
+    {
+        mat4 skinMatrix = 
+              aWeights.x * uBoneMatrices[aBoneIDs.x] +
+              aWeights.y * uBoneMatrices[aBoneIDs.y] +
+              aWeights.z * uBoneMatrices[aBoneIDs.z] +
+              aWeights.w * uBoneMatrices[aBoneIDs.w];
+
+        skinnedPosition = vec3(skinMatrix * vec4(aPosition, 1.0));
+        skinnedNormal   = mat3(skinMatrix) * aNormal;
+        skinnedTangent  = mat3(skinMatrix) * aTangent.xyz;
+    }
+
     vTexCoord = uTexCoordOffset + aTexCoord * uTexCoordScale;
     vColor = aColor * iColor * uAlbedoColor;
 
@@ -130,19 +157,20 @@ void main()
     else if (uBillboardMode == BILLBOARD_Y_AXIS) BillboardY(matModel, matNormal);
     else matNormal = transpose(inverse(mat3(matModel)));
 
-    vPosition = vec3(matModel * vec4(aPosition, 1.0));
+    vec4 worldPosition = matModel * vec4(skinnedPosition, 1.0);
+    vPosition = worldPosition.xyz;
 
     // The TBN matrix is used to transform vectors from tangent space to world space
     // It is currently used to transform normals from a normal map to world space normals
-    vec3 T = normalize(vec3(matModel * vec4(aTangent.xyz, 0.0)));
-    vec3 N = normalize(matNormal * aNormal);
+    vec3 T = normalize(vec3(matModel * vec4(skinnedTangent, 0.0)));
+    vec3 N = normalize(matNormal * skinnedNormal);
     vec3 B = normalize(cross(N, T)) * aTangent.w;
     vTBN = mat3(T, B, N);
 
     for (int i = 0; i < NUM_LIGHTS; i++)
     {
-        vPosLightSpace[i] = uMatLightVP[i] * vec4(vPosition, 1.0);
+        vPosLightSpace[i] = uMatLightVP[i] * worldPosition;
     }
 
-    gl_Position = uMatVP * (matModel * vec4(aPosition, 1.0));
+    gl_Position = uMatVP * worldPosition;
 }

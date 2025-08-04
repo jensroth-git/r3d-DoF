@@ -22,6 +22,9 @@
 /* === Defines === */
 
 #define NUM_LIGHTS 8
+
+/* === Constants === */
+
 const int MAX_BONES = 128;
 
 /* === Attributes === */

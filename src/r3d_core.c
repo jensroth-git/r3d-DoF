@@ -555,6 +555,75 @@ void R3D_DrawModelPro(const R3D_Model* model, Matrix transform)
     }
 }
 
+void R3D_DrawModelInstanced(const R3D_Model* model, const Matrix* instanceTransforms, int instanceCount)
+{
+    R3D_DrawModelInstancedPro(model, NULL, MatrixIdentity(), instanceTransforms, 0, NULL, 0, instanceCount);
+}
+
+void R3D_DrawModelInstancedEx(const R3D_Model* model, const Matrix* instanceTransforms, const Color* instanceColors, int instanceCount)
+{
+    R3D_DrawModelInstancedPro(model, NULL, MatrixIdentity(), instanceTransforms, 0, instanceColors, 0, instanceCount);
+}
+
+void R3D_DrawModelInstancedPro(const R3D_Model* model,
+                               const BoundingBox* globalAabb, Matrix globalTransform,
+                               const Matrix* instanceTransforms, int transformsStride,
+                               const Color* instanceColors, int colorsStride,
+                               int instanceCount)
+{
+    if (model == NULL || instanceCount == 0 || instanceTransforms == NULL || model->meshCount == 0) {
+        return;
+    }
+
+    BoundingBox computedAabb;
+    if (globalAabb == NULL) {
+        computedAabb = (BoundingBox) {
+            { -FLT_MAX, -FLT_MAX, -FLT_MAX },
+            { +FLT_MAX, +FLT_MAX, +FLT_MAX }
+        };
+        globalAabb = &computedAabb;
+    }
+
+    bool forceForward = R3D.state.flags & R3D_FLAG_FORCE_FORWARD;
+    r3d_array_t* deferredArr = &R3D.container.aDrawDeferredInst;
+    r3d_array_t* forwardArr = &R3D.container.aDrawForwardInst;
+
+    r3d_array_reserve(deferredArr, deferredArr->count + model->meshCount);
+    r3d_array_reserve(forwardArr, forwardArr->count + model->meshCount);
+
+    for (int i = 0; i < model->meshCount; i++)
+    {
+        const R3D_Mesh* mesh = &model->meshes[i];
+        const R3D_Material* material = &model->materials[model->meshMaterials[i]];
+
+        r3d_drawcall_t drawCall = { 0 };
+
+        drawCall.transform = globalTransform;
+        drawCall.material = *material;
+        drawCall.geometry.model.mesh = mesh;
+        drawCall.geometryType = R3D_DRAWCALL_GEOMETRY_MODEL;
+        
+        drawCall.instanced.allAabb = *globalAabb;
+        drawCall.instanced.transforms = instanceTransforms;
+        drawCall.instanced.transStride = transformsStride;
+        drawCall.instanced.colStride = colorsStride;
+        drawCall.instanced.colors = instanceColors;
+        drawCall.instanced.count = instanceCount;
+
+        drawCall.geometry.model.anim = model->anim;
+        drawCall.geometry.model.frame = model->animFrame;
+        drawCall.geometry.model.boneOffsets = model->boneOffsets;
+
+        if (material->blendMode != R3D_BLEND_OPAQUE || forceForward) {
+            drawCall.renderMode = R3D_DRAWCALL_RENDER_FORWARD;
+            r3d_array_push_back(forwardArr, &drawCall);
+        } else {
+            drawCall.renderMode = R3D_DRAWCALL_RENDER_DEFERRED;
+            r3d_array_push_back(deferredArr, &drawCall);
+        }
+    }
+}
+
 void R3D_DrawSprite(const R3D_Sprite* sprite, Vector3 position)
 {
     R3D_DrawSpritePro(sprite, position, (Vector2) { 1.0f, 1.0f }, (Vector3) { 0, 1, 0 }, 0.0f);
@@ -916,12 +985,18 @@ void r3d_prepare_sort_drawcalls(void)
 
 void r3d_prepare_anim_drawcalls(void)
 {
-    const r3d_array_t* arrays[2] = {
+    // TODO: Measures should be implemented to avoid updating the matrices multiple times for the same mesh,
+    //       because currently the same mesh could appear multiple times in the same array,
+    //       or in different arrays. As a result, the set would be updated multiple times.
+
+    const r3d_array_t* arrays[4] = {
+        &R3D.container.aDrawDeferredInst,
+        &R3D.container.aDrawForwardInst,
         &R3D.container.aDrawDeferred,
         &R3D.container.aDrawForward,
     };
 
-    for (int i = 0; i < sizeof(arrays) / sizeof(*arrays); i++)
+    for (int i = 0; i < sizeof(arrays) / sizeof(uintptr_t); i++)
     {
         const r3d_drawcall_t* calls = arrays[i]->data;
         int count = (int)arrays[i]->count;

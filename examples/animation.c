@@ -13,6 +13,7 @@ static Camera3D camera = { 0 };
 static int animCount = 0;
 static R3D_ModelAnimation* anims = NULL;
 
+static Matrix instances[2*2] = { 0 };
 static R3D_Light lights[2] = { 0 };
 
 /* === Example === */
@@ -46,9 +47,15 @@ const char* Init(void)
 
     anims = R3D_LoadModelAnimations(RESOURCES_PATH "dancer.glb", &animCount, 60);
 
+    for (int z = 0; z < 2; z++) {
+        for (int x = 0; x < 2; x++) {
+            instances[z * 2 + x] = MatrixMultiply(MatrixScale(100,100,100), MatrixTranslate((float)x - 0.5f, 0, (float)z - 0.5f));
+        }
+    }
+
     camera = (Camera3D) {
-        .position = (Vector3) { 0, 2.0f, 2.0f },
-        .target = (Vector3) { 0, 1.0f, 0 },
+        .position = (Vector3) { 0, 2.0f, 3.5f },
+        .target = (Vector3) { 0, 1.0f, 1.5f },
         .up = (Vector3) { 0, 1, 0 },
         .fovy = 60,
     };
@@ -84,7 +91,8 @@ void Draw(void)
 
     R3D_Begin(camera);
         R3D_DrawMesh(&plane, &material, MatrixIdentity());
-        R3D_DrawModel(&dancer, (Vector3) { 0 }, 100.0f);
+        R3D_DrawModel(&dancer, (Vector3) { 0, 0, 1.5f }, 100.0f);
+        R3D_DrawModelInstanced(&dancer, instances, 2*2);
     R3D_End();
 
 	DrawCredits("Model made by zhuoyi0904");
