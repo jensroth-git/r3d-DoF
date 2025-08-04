@@ -256,6 +256,16 @@ typedef struct R3D_Material {
     R3D_ShadowCastMode shadowCastMode;    /**< Shadow casting mode for the object. */
     R3D_BillboardMode billboardMode;      /**< Billboard mode applied to the object. */
 
+    Vector2 uvOffset;                     /**< UV offset applied to the texture coordinates.
+                                           *  For models, this can be set manually.
+                                           *  For sprites, this value is overridden automatically.
+                                           */
+
+    Vector2 uvScale;                      /**< UV scale factor applied to the texture coordinates.
+                                           *  For models, this can be set manually.
+                                           *  For sprites, this value is overridden automatically.
+                                           */
+
     float alphaCutoff;          /**< Alpha threshold below which fragments are discarded. */
 
 } R3D_Material;

@@ -11,7 +11,7 @@
 * [x] **Add Skybox Intensity Factor**
   Introduce a control factor for the skybox intensity. This factor should be applied both when rendering the skybox and when computing IBL for objects.
 
-* [ ] **Add Texture Coordinate Scale & Offset in `R3D_Material`**
+* [x] **Add Texture Coordinate Scale & Offset in `R3D_Material`**
   Add texture coordinate `scale` and `offset` parameters to `R3D_Material` (currently only available for `R3D_Sprite`). This may also require reworking how sprite animations are handled.
 
 * [ ] **Add 3D Model Animation Support for Instanced Rendering**

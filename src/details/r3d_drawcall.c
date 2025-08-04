@@ -345,6 +345,10 @@ void r3d_drawcall_raster_geometry(const r3d_drawcall_t* call)
     r3d_shader_set_float(raster.geometry, uRoughness, call->material.orm.roughness);
     r3d_shader_set_float(raster.geometry, uMetalness, call->material.orm.metalness);
 
+    // Set texcoord offset/scale
+    r3d_shader_set_vec2(raster.geometry, uTexCoordOffset, call->material.uvOffset);
+    r3d_shader_set_vec2(raster.geometry, uTexCoordScale, call->material.uvScale);
+
     // Set color material maps
     r3d_shader_set_col3(raster.geometry, uAlbedoColor, call->material.albedo.color);
     r3d_shader_set_col3(raster.geometry, uEmissionColor, call->material.emission.color);
@@ -359,10 +363,6 @@ void r3d_drawcall_raster_geometry(const r3d_drawcall_t* call)
     switch (call->geometryType) {
     case R3D_DRAWCALL_GEOMETRY_MODEL:
         {
-            // Send texcoord offset/scale
-            r3d_shader_set_vec2(raster.geometry, uTexCoordOffset, ((Vector2) { 0, 0 }));
-            r3d_shader_set_vec2(raster.geometry, uTexCoordScale, ((Vector2) { 1, 1 }));
-
             // Send bone matrices and animation related data
             if (call->geometry.model.anim != NULL && call->geometry.model.boneOffsets != NULL) {
                 r3d_shader_set_mat4_v(raster.geometry, uBoneMatrices[0], call->geometry.model.mesh->boneMatrices, call->geometry.model.anim->boneCount);
@@ -375,10 +375,6 @@ void r3d_drawcall_raster_geometry(const r3d_drawcall_t* call)
         break;
     case R3D_DRAWCALL_GEOMETRY_SPRITE:
         {
-            // Send texcoord offset/scale
-            r3d_shader_set_vec2(raster.geometry, uTexCoordOffset, call->geometry.sprite.uvOffset);
-            r3d_shader_set_vec2(raster.geometry, uTexCoordScale, call->geometry.sprite.uvScale);
-
             // Send bone matrices and animation related data
             r3d_shader_set_int(raster.geometry, uUseSkinning, false);
         }
@@ -419,6 +415,10 @@ void r3d_drawcall_raster_geometry_inst(const r3d_drawcall_t* call)
     r3d_shader_set_float(raster.geometryInst, uRoughness, call->material.orm.roughness);
     r3d_shader_set_float(raster.geometryInst, uMetalness, call->material.orm.metalness);
 
+    // Set texcoord offset/scale
+    r3d_shader_set_vec2(raster.geometryInst, uTexCoordOffset, call->material.uvOffset);
+    r3d_shader_set_vec2(raster.geometryInst, uTexCoordScale, call->material.uvScale);
+
     // Set color material maps
     r3d_shader_set_col3(raster.geometryInst, uAlbedoColor, call->material.albedo.color);
     r3d_shader_set_col3(raster.geometryInst, uEmissionColor, call->material.emission.color);
@@ -434,16 +434,6 @@ void r3d_drawcall_raster_geometry_inst(const r3d_drawcall_t* call)
     r3d_shader_bind_sampler2D_opt(raster.geometryInst, uTexNormal, call->material.normal.texture.id, normal);
     r3d_shader_bind_sampler2D_opt(raster.geometryInst, uTexEmission, call->material.emission.texture.id, black);
     r3d_shader_bind_sampler2D_opt(raster.geometryInst, uTexORM, call->material.orm.texture.id, white);
-
-    // Setup sprite related uniforms
-    if (call->geometryType == R3D_DRAWCALL_GEOMETRY_SPRITE) {
-        r3d_shader_set_vec2(raster.geometryInst, uTexCoordOffset, call->geometry.sprite.uvOffset);
-        r3d_shader_set_vec2(raster.geometryInst, uTexCoordScale, call->geometry.sprite.uvScale);
-    }
-    else {
-        r3d_shader_set_vec2(raster.geometryInst, uTexCoordOffset, ((Vector2) { 0, 0 }));
-        r3d_shader_set_vec2(raster.geometryInst, uTexCoordScale, ((Vector2) { 1, 1 }));
-    }
 
     // Applying material parameters that are independent of shaders
     r3d_drawcall_apply_cull_mode(call->material.cullMode);
@@ -480,6 +470,10 @@ void r3d_drawcall_raster_forward(const r3d_drawcall_t* call)
     // Set misc material values
     r3d_shader_set_float(raster.forward, uAlphaCutoff, call->material.alphaCutoff);
 
+    // Set texcoord offset/scale
+    r3d_shader_set_vec2(raster.forward, uTexCoordOffset, call->material.uvOffset);
+    r3d_shader_set_vec2(raster.forward, uTexCoordScale, call->material.uvScale);
+
     // Set color material maps
     r3d_shader_set_col4(raster.forward, uAlbedoColor, call->material.albedo.color);
     r3d_shader_set_col3(raster.forward, uEmissionColor, call->material.emission.color);
@@ -494,10 +488,6 @@ void r3d_drawcall_raster_forward(const r3d_drawcall_t* call)
     switch (call->geometryType) {
     case R3D_DRAWCALL_GEOMETRY_MODEL:
         {
-            // Send texcoord offset/scale
-            r3d_shader_set_vec2(raster.forward, uTexCoordOffset, ((Vector2) { 0, 0 }));
-            r3d_shader_set_vec2(raster.forward, uTexCoordScale, ((Vector2) { 1, 1 }));
-
             // Send bone matrices and animation related data
             if (call->geometry.model.anim != NULL && call->geometry.model.boneOffsets != NULL) {
                 r3d_shader_set_mat4_v(raster.forward, uBoneMatrices[0], call->geometry.model.mesh->boneMatrices, call->geometry.model.anim->boneCount);
@@ -510,10 +500,6 @@ void r3d_drawcall_raster_forward(const r3d_drawcall_t* call)
         break;
     case R3D_DRAWCALL_GEOMETRY_SPRITE:
         {
-            // Send texcoord offset/scale
-            r3d_shader_set_vec2(raster.forward, uTexCoordOffset, call->geometry.sprite.uvOffset);
-            r3d_shader_set_vec2(raster.forward, uTexCoordScale, call->geometry.sprite.uvScale);
-
             // Send bone matrices and animation related data
             r3d_shader_set_int(raster.forward, uUseSkinning, false);
         }
@@ -558,6 +544,10 @@ void r3d_drawcall_raster_forward_inst(const r3d_drawcall_t* call)
     // Set misc material values
     r3d_shader_set_float(raster.forwardInst, uAlphaCutoff, call->material.alphaCutoff);
 
+    // Set texcoord offset/scale
+    r3d_shader_set_vec2(raster.forwardInst, uTexCoordOffset, call->material.uvOffset);
+    r3d_shader_set_vec2(raster.forwardInst, uTexCoordScale, call->material.uvScale);
+
     // Set color material maps
     r3d_shader_set_col4(raster.forwardInst, uAlbedoColor, call->material.albedo.color);
     r3d_shader_set_col3(raster.forwardInst, uEmissionColor, call->material.emission.color);
@@ -573,16 +563,6 @@ void r3d_drawcall_raster_forward_inst(const r3d_drawcall_t* call)
     r3d_shader_bind_sampler2D_opt(raster.forwardInst, uTexNormal, call->material.normal.texture.id, normal);
     r3d_shader_bind_sampler2D_opt(raster.forwardInst, uTexEmission, call->material.emission.texture.id, black);
     r3d_shader_bind_sampler2D_opt(raster.forwardInst, uTexORM, call->material.orm.texture.id, white);
-
-    // Setup sprite related uniforms
-    if (call->geometryType == R3D_DRAWCALL_GEOMETRY_SPRITE) {
-        r3d_shader_set_vec2(raster.forwardInst, uTexCoordOffset, call->geometry.sprite.uvOffset);
-        r3d_shader_set_vec2(raster.forwardInst, uTexCoordScale, call->geometry.sprite.uvScale);
-    }
-    else {
-        r3d_shader_set_vec2(raster.forwardInst, uTexCoordOffset, ((Vector2) { 0, 0 }));
-        r3d_shader_set_vec2(raster.forwardInst, uTexCoordScale, ((Vector2) { 1, 1 }));
-    }
 
     // Applying material parameters that are independent of shaders
     r3d_drawcall_apply_cull_mode(call->material.cullMode);

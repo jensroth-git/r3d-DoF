@@ -610,7 +610,7 @@ void R3D_DrawSpritePro(const R3D_Sprite* sprite, Vector3 position, Vector2 size,
     drawCall.renderMode = R3D_DRAWCALL_RENDER_DEFERRED;
 
     r3d_sprite_get_uv_scale_offset(
-        &drawCall.geometry.sprite.uvScale, &drawCall.geometry.sprite.uvOffset, sprite,
+        &drawCall.material.uvScale, &drawCall.material.uvOffset, sprite,
         (size.x > 0) ? 1.0f : -1.0f, (size.y > 0) ? 1.0f : -1.0f
     );
 
@@ -652,8 +652,8 @@ void R3D_DrawSpriteInstancedPro(const R3D_Sprite* sprite, const BoundingBox* glo
     drawCall.renderMode = R3D_DRAWCALL_RENDER_DEFERRED;
 
     r3d_sprite_get_uv_scale_offset(
-        &drawCall.geometry.sprite.uvScale,
-        &drawCall.geometry.sprite.uvOffset,
+        &drawCall.material.uvScale,
+        &drawCall.material.uvOffset,
         sprite, 1.0f, -1.0f
     );
 

@@ -57,9 +57,7 @@ typedef struct {
         } model;
 
         struct {
-            Vector2 uvOffset;   //< Offset in the texture on the quad
-            Vector2 uvScale;    //< Scale of the texture on the quad
-            Vector3 quad[4];    //< Used only to represent the sprite in space for specific tasks
+            Vector3 quad[4];    //< Used only to represent the sprite in world space
         } sprite;
 
     } geometry;
