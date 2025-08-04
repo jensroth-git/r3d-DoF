@@ -23,6 +23,9 @@
 
 ## **v0.5**
 
+* [ ] **Implement Screen Space Reflections (SSR)**
+  Add SSR support with an example.
+
 * [ ] **Create Shader Include System**
   Implement an internal shader include system to reduce code duplication in built-in shaders. This could be integrated during the compilation phase, either in `glsl_minifier` or a dedicated pre-processing script.
 
@@ -46,9 +49,6 @@
 
 * [ ] **Implement Cascaded Shadow Maps (CSM)**
   Add CSM support for directional lights.
-
-* [ ] **Implement Screen Space Reflections (SSR)**
-  Add SSR support with an example.
 
 *Note: v0.6 features are still incomplete.*
 
