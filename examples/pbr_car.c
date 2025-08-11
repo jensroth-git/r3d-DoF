@@ -16,7 +16,7 @@ static bool showSkybox = true;
 
 const char* Init(void)
 {
-    R3D_Flags falgs = R3D_FLAG_TRANSPARENT_SORTING | R3D_FLAG_FORCE_FORWARD | R3D_FLAG_FXAA;
+    R3D_Flags falgs = R3D_FLAG_TRANSPARENT_SORTING | R3D_FLAG_FXAA;
 
 	R3D_Init(GetScreenWidth(), GetScreenHeight(), falgs);
 	SetTargetFPS(60);
