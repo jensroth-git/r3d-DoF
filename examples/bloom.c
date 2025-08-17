@@ -1,6 +1,6 @@
 #include "./common.h"
-#include "r3d.h"
-#include "raymath.h"
+
+// TODO: Adding bloom prefilter settings here
 
 /* === Resources === */
 
