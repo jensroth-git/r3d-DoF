@@ -11,7 +11,6 @@ static R3D_Light lights[2] = { 0 };
 
 static bool sky = false;
 
-
 /* === Examples === */
 
 const char* Init(void)
@@ -19,19 +18,33 @@ const char* Init(void)
     R3D_Init(GetScreenWidth(), GetScreenHeight(), 0);
     SetTargetFPS(60);
 
+    /* --- Configure default post process settings --- */
+
     R3D_SetSSAO(true);
     R3D_SetSSAORadius(4.0f);
     R3D_SetBloomMode(R3D_BLOOM_MIX);
 
+    /* --- Set default ambient color (when no skybox is activated) --- */
+
     R3D_SetAmbientColor(GRAY);
 
-    sponza = R3D_LoadModel(RESOURCES_PATH "sponza.glb");
-    skybox = R3D_LoadSkybox(RESOURCES_PATH "sky/skybox3.png", CUBEMAP_LAYOUT_AUTO_DETECT);
+    /* --- Load Sponza scene --- */
 
-    // Useful if you use directional lights
+    sponza = R3D_LoadModel(RESOURCES_PATH "sponza.glb");
+
+    /* --- Load skybox (disabled by default) --- */
+
+    skybox = R3D_LoadSkybox(RESOURCES_PATH "sky/skybox3.png", CUBEMAP_LAYOUT_AUTO_DETECT);
+    //R3D_EnableSkybox(skybox);
+
+    /* --- Set scene bounds, useful if you use directional lights --- */
+
     R3D_SetSceneBounds(sponza.aabb);
 
-    for (int i = 0; i < 2; i++) {
+    /* --- Configure lights --- */
+
+    for (int i = 0; i < 2; i++)
+    {
         lights[i] = R3D_CreateLight(R3D_LIGHT_OMNI);
 
         R3D_SetLightPosition(lights[i], (Vector3) { i ? -10 : 10, 20, 0 });
@@ -42,12 +55,16 @@ const char* Init(void)
         R3D_EnableShadow(lights[i], 4096);
     }
 
-    camera = (Camera3D){
+    /* --- Configure camera --- */
+
+    camera = (Camera3D) {
         .position = (Vector3) { 0, 0, 0 },
         .target = (Vector3) { 0, 0, -1 },
         .up = (Vector3) { 0, 1, 0 },
         .fovy = 60,
     };
+
+    /* --- Ready to go! --- */
 
     DisableCursor();
 
@@ -56,23 +73,39 @@ const char* Init(void)
 
 void Update(float delta)
 {
+    /* --- Update the camera via raylib's functions --- */
+
     UpdateCamera(&camera, CAMERA_FREE);
 
-    if (IsKeyPressed(KEY_T)) {
+    /* --- Skybox toggling --- */
+
+    if (IsKeyPressed(KEY_ZERO)) {
         if (sky) R3D_DisableSkybox();
         else R3D_EnableSkybox(skybox);
         sky = !sky;
     }
 
-    if (IsKeyPressed(KEY_F)) {
+    /* --- SSAO toggling --- */
+
+    if (IsKeyPressed(KEY_ONE)) {
+        R3D_SetSSAO(!R3D_GetSSAO());
+    }
+
+    /* --- Fog toggling --- */
+
+    if (IsKeyPressed(KEY_TWO)) {
+        R3D_SetFogMode(R3D_GetFogMode() == R3D_FOG_DISABLED ? R3D_FOG_EXP : R3D_FOG_DISABLED);
+    }
+
+    /* --- FXAA toggling --- */
+
+    if (IsKeyPressed(KEY_THREE)) {
         bool fxaa = R3D_HasState(R3D_FLAG_FXAA);
         if (fxaa) R3D_ClearState(R3D_FLAG_FXAA);
         else R3D_SetState(R3D_FLAG_FXAA);
     }
 
-    if (IsKeyPressed(KEY_O)) {
-        R3D_SetSSAO(!R3D_GetSSAO());
-    }
+    /* --- Tonemapping setter --- */
 
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         R3D_Tonemap tonemap = R3D_GetTonemapMode();
@@ -86,14 +119,20 @@ void Update(float delta)
 
 void Draw(void)
 {
+    /* --- Render R3D scene --- */
+
     R3D_Begin(camera);
         R3D_DrawModel(&sponza, (Vector3) { 0 }, 1.0f);
     R3D_End();
+
+    /* --- 'Standard' raylib rendering to show where are the lights --- */
 
     BeginMode3D(camera);
         DrawSphere(R3D_GetLightPosition(lights[0]), 0.5f, WHITE);
         DrawSphere(R3D_GetLightPosition(lights[1]), 0.5f, WHITE);
     EndMode3D();
+
+    /* --- Indicates which tonemapping is used --- */
 
     R3D_Tonemap tonemap = R3D_GetTonemapMode();
 
@@ -125,8 +164,10 @@ void Draw(void)
     } break;
     default:
         break;
-    }    
-        
+    }
+
+    /* --- I think we understand what's going on here --- */
+
     DrawFPS(10, 10);
 }
 
