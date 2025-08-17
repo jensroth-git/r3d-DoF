@@ -1,3 +1,4 @@
+#include "details/r3d_math.h"
 #include "r3d.h"
 
 #include <math.h>
@@ -155,9 +156,9 @@ bool R3D_EmitParticle(R3D_ParticleSystem* system)
         system->initialScale, r3d_randf_range(-system->scaleVariance, system->scaleVariance)
     );
 
-    particle.transform = MatrixScale(particle.scale.x, particle.scale.y, particle.scale.z);
-    particle.transform = MatrixMultiply(particle.transform, MatrixRotateXYZ(particle.rotation));
-    particle.transform = MatrixMultiply(particle.transform, MatrixTranslate(particle.position.x, particle.position.y, particle.position.z));
+    particle.transform = r3d_matrix_scale_rotxyz_translate(
+        &particle.scale, &particle.rotation, &particle.position
+    );
 
     particle.velocity = particle.baseVelocity = (Vector3){
         velocity.x + r3d_randf_range(-system->velocityVariance.x, system->velocityVariance.x),
@@ -241,9 +242,9 @@ void R3D_UpdateParticleSystem(R3D_ParticleSystem* system, float deltaTime)
         particle->position.y += particle->velocity.y * deltaTime;
         particle->position.z += particle->velocity.z * deltaTime;
 
-        particle->transform = MatrixScale(particle->scale.x, particle->scale.y, particle->scale.z);
-        particle->transform = MatrixMultiply(particle->transform, MatrixRotateXYZ(particle->rotation));
-        particle->transform = MatrixMultiply(particle->transform, MatrixTranslate(particle->position.x, particle->position.y, particle->position.z));
+        particle->transform = r3d_matrix_scale_rotxyz_translate(
+            &particle->scale, &particle->rotation, &particle->position
+        );
 
         particle->velocity.x += system->gravity.x * deltaTime;
         particle->velocity.y += system->gravity.y * deltaTime;

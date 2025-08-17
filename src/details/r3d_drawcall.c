@@ -22,7 +22,7 @@
 #include "./r3d_primitives.h"
 #include "./r3d_frustum.h"
 #include "../r3d_state.h"
-#include "./r3d_simd.h"
+#include "./r3d_math.h"
 
 #include <raylib.h>
 #include <raymath.h>
@@ -70,8 +70,7 @@ void r3d_drawcall_sort_mixed_forward(r3d_drawcall_t* calls, size_t count)
 bool r3d_drawcall_geometry_is_visible(const r3d_drawcall_t* call)
 {
     if (call->geometryType == R3D_DRAWCALL_GEOMETRY_MODEL) {
-        // TODO: Need profile to determine if verification is really profitable
-        if (r3d_simd_is_matrix_identity((float*)&call->transform)) {
+        if (r3d_matrix_is_identity(&call->transform)) {
             return r3d_frustum_is_aabb_in(&R3D.state.frustum.shape, &call->geometry.model.mesh->aabb);
         }
         return r3d_frustum_is_obb_in(&R3D.state.frustum.shape, &call->geometry.model.mesh->aabb, &call->transform);
@@ -90,8 +89,7 @@ bool r3d_drawcall_instanced_geometry_is_visible(const r3d_drawcall_t* call)
         return true;
     }
 
-    // TODO: Need profile to determine if verification is really profitable
-    if (r3d_simd_is_matrix_identity((float*)&call->transform)) {
+    if (r3d_matrix_is_identity(&call->transform)) {
         return r3d_frustum_is_aabb_in(&R3D.state.frustum.shape, &call->instanced.allAabb);
     }
 
@@ -108,7 +106,7 @@ void r3d_drawcall_update_model_animation(const r3d_drawcall_t* call)
     for (int boneId = 0; boneId < call->geometry.model.anim->boneCount; boneId++) {
         const Matrix* offsetMatrix = &call->geometry.model.boneOffsets[boneId];
         const Matrix* targetMatrix = &call->geometry.model.anim->framePoses[frame][boneId];
-        call->geometry.model.mesh->boneMatrices[boneId] = MatrixMultiply(*offsetMatrix, *targetMatrix);
+        call->geometry.model.mesh->boneMatrices[boneId] = r3d_matrix_multiply(offsetMatrix, targetMatrix);
     }
 }
 
@@ -118,9 +116,15 @@ void r3d_drawcall_raster_depth(const r3d_drawcall_t* call, bool shadow)
         return;
     }
 
-    Matrix matMVP = MatrixMultiply(call->transform, rlGetMatrixTransform());
-    matMVP = MatrixMultiply(matMVP, rlGetMatrixModelview());
-    matMVP = MatrixMultiply(matMVP, rlGetMatrixProjection());
+    Matrix matMVP, temp;
+
+    // Calculate MVP
+    temp = rlGetMatrixTransform();
+    matMVP = r3d_matrix_multiply(&call->transform, &temp);
+    temp = rlGetMatrixModelview();
+    matMVP = r3d_matrix_multiply(&matMVP, &temp);
+    temp = rlGetMatrixProjection();
+    matMVP = r3d_matrix_multiply(&matMVP, &temp);
 
     // Send model view projection matrix
     r3d_shader_set_mat4(raster.depth, uMatMVP, matMVP);
@@ -177,8 +181,16 @@ void r3d_drawcall_raster_depth_inst(const r3d_drawcall_t* call, bool shadow)
         return;
     }
 
-    Matrix matModel = MatrixMultiply(call->transform, rlGetMatrixTransform());
-    Matrix matVP = MatrixMultiply(rlGetMatrixModelview(), rlGetMatrixProjection());
+    Matrix matModel, matVP, temp;
+
+    // Calculate transform
+    temp = rlGetMatrixTransform();
+    matModel = r3d_matrix_multiply(&call->transform, &temp);
+
+    // Calculate view projection
+    matVP = rlGetMatrixModelview();
+    temp = rlGetMatrixProjection();
+    matVP = r3d_matrix_multiply(&matVP, &temp);
 
     // Send matrices
     r3d_shader_set_mat4(raster.depthInst, uMatModel, matModel);
@@ -242,9 +254,17 @@ void r3d_drawcall_raster_depth_cube(const r3d_drawcall_t* call, bool shadow)
         return;
     }
 
-    Matrix matModel = MatrixMultiply(call->transform, rlGetMatrixTransform());
-    Matrix matMVP = MatrixMultiply(matModel, rlGetMatrixModelview());
-    matMVP = MatrixMultiply(matMVP, rlGetMatrixProjection());
+    Matrix matModel, matMVP, temp;
+
+    // Calculate transform
+    temp = rlGetMatrixTransform();
+    matModel = r3d_matrix_multiply(&call->transform, &temp);
+
+    // Calculate MVP
+    temp = rlGetMatrixModelview();
+    matMVP = r3d_matrix_multiply(&matModel, &temp);
+    temp = rlGetMatrixProjection();
+    matMVP = r3d_matrix_multiply(&matMVP, &temp);
 
     // Send matrices
     r3d_shader_set_mat4(raster.depthCube, uMatModel, matModel);
@@ -311,8 +331,16 @@ void r3d_drawcall_raster_depth_cube_inst(const r3d_drawcall_t* call, bool shadow
         return;
     }
 
-    Matrix matModel = MatrixMultiply(call->transform, rlGetMatrixTransform());
-    Matrix matVP = MatrixMultiply(rlGetMatrixModelview(), rlGetMatrixProjection());
+    Matrix matModel, matVP, temp;
+
+    // Calculate transform
+    temp = rlGetMatrixTransform();
+    matModel = r3d_matrix_multiply(&call->transform, &temp);
+
+    // Calculate view projection
+    matVP = rlGetMatrixModelview();
+    temp = rlGetMatrixProjection();
+    matVP = r3d_matrix_multiply(&matVP, &temp);
 
     // Send matrices
     r3d_shader_set_mat4(raster.depthCubeInst, uMatModel, matModel);
@@ -372,13 +400,20 @@ void r3d_drawcall_raster_depth_cube_inst(const r3d_drawcall_t* call, bool shadow
 
 void r3d_drawcall_raster_geometry(const r3d_drawcall_t* call)
 {
-    // Compute model/view/projection matrices
-    Matrix matModel = MatrixMultiply(call->transform, rlGetMatrixTransform());
-    Matrix matModelView = MatrixMultiply(matModel, rlGetMatrixModelview());
-    Matrix matMVP = MatrixMultiply(matModelView, rlGetMatrixProjection());
+    Matrix matModel, matMVP, temp;
+
+    // Calculate transform
+    temp = rlGetMatrixTransform();
+    matModel = r3d_matrix_multiply(&call->transform, &temp);
+
+    // Calculate MVP
+    temp = rlGetMatrixModelview();
+    matMVP = r3d_matrix_multiply(&matModel, &temp);
+    temp = rlGetMatrixProjection();
+    matMVP = r3d_matrix_multiply(&matMVP, &temp);
 
     // Set additional matrix uniforms
-    r3d_shader_set_mat4(raster.geometry, uMatNormal, MatrixTranspose(MatrixInvert(matModel)));
+    r3d_shader_set_mat4(raster.geometry, uMatNormal, r3d_matrix_normal(&matModel));
     r3d_shader_set_mat4(raster.geometry, uMatModel, matModel);
     r3d_shader_set_mat4(raster.geometry, uMatMVP, matMVP);
 
@@ -444,9 +479,16 @@ void r3d_drawcall_raster_geometry_inst(const r3d_drawcall_t* call)
         return;
     }
 
-    // Compute model/view/projection matrix
-    Matrix matModel = MatrixMultiply(call->transform, rlGetMatrixTransform());
-    Matrix matVP = MatrixMultiply(rlGetMatrixModelview(), rlGetMatrixProjection());
+    Matrix matModel, matVP, temp;
+
+    // Calculate transform
+    temp = rlGetMatrixTransform();
+    matModel = r3d_matrix_multiply(&call->transform, &temp);
+
+    // Calculate view projection
+    matVP = rlGetMatrixModelview();
+    temp = rlGetMatrixProjection();
+    matVP = r3d_matrix_multiply(&matVP, &temp);
 
     // Set additional matrix uniforms
     r3d_shader_set_mat4(raster.geometryInst, uMatModel, matModel);
@@ -516,13 +558,20 @@ void r3d_drawcall_raster_geometry_inst(const r3d_drawcall_t* call)
 
 void r3d_drawcall_raster_forward(const r3d_drawcall_t* call)
 {
-    // Compute model/view/projection matrices
-    Matrix matModel = MatrixMultiply(call->transform, rlGetMatrixTransform());
-    Matrix matModelView = MatrixMultiply(matModel, rlGetMatrixModelview());
-    Matrix matMVP = MatrixMultiply(matModelView, rlGetMatrixProjection());
+    Matrix matModel, matMVP, temp;
+
+    // Calculate transform
+    temp = rlGetMatrixTransform();
+    matModel = r3d_matrix_multiply(&call->transform, &temp);
+
+    // Calculate MVP
+    temp = rlGetMatrixModelview();
+    matMVP = r3d_matrix_multiply(&matModel, &temp);
+    temp = rlGetMatrixProjection();
+    matMVP = r3d_matrix_multiply(&matMVP, &temp);
 
     // Set additional matrix uniforms
-    r3d_shader_set_mat4(raster.forward, uMatNormal, MatrixTranspose(MatrixInvert(matModel)));
+    r3d_shader_set_mat4(raster.forward, uMatNormal, r3d_matrix_normal(&matModel));
     r3d_shader_set_mat4(raster.forward, uMatModel, matModel);
     r3d_shader_set_mat4(raster.forward, uMatMVP, matMVP);
 
@@ -592,9 +641,16 @@ void r3d_drawcall_raster_forward_inst(const r3d_drawcall_t* call)
         return;
     }
 
-    // Compute model/view/projection matrix
-    Matrix matModel = MatrixMultiply(call->transform, rlGetMatrixTransform());
-    Matrix matVP = MatrixMultiply(rlGetMatrixModelview(), rlGetMatrixProjection());
+    Matrix matModel, matVP, temp;
+
+    // Calculate transform
+    temp = rlGetMatrixTransform();
+    matModel = r3d_matrix_multiply(&call->transform, &temp);
+
+    // Calculate view projection
+    matVP = rlGetMatrixModelview();
+    temp = rlGetMatrixProjection();
+    matVP = r3d_matrix_multiply(&matVP, &temp);
 
     // Set additional matrix uniforms
     r3d_shader_set_mat4(raster.forwardInst, uMatModel, matModel);

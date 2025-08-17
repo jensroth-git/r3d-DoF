@@ -2,10 +2,10 @@
 #include "r3d.h"
 
 #include "./details/r3d_primitives.h"
-#include "./details/r3d_simd.h"
+#include "./details/r3d_math.h"
 #include "./r3d_state.h"
-#include "raylib.h"
 
+#include <raylib.h>
 #include <raymath.h>
 #include <glad.h>
 
@@ -1969,7 +1969,7 @@ static bool r3d_process_assimp_mesh(R3D_Model* model, Matrix modelMatrix, int me
 {
     /* --- Pre compute the normal matrix --- */
 
-    Matrix normalMatrix = MatrixTranspose(MatrixInvert(modelMatrix));
+    Matrix normalMatrix = r3d_matrix_normal(&modelMatrix);
 
     /* --- Cleanup macro in case we failed to process mesh --- */
 
@@ -1983,8 +1983,8 @@ static bool r3d_process_assimp_mesh(R3D_Model* model, Matrix modelMatrix, int me
         if ((mesh)->vao != 0) {                     \
             glDeleteVertexArrays(1, &(mesh)->vao);  \
         }                                           \
-        RL_FREE((mesh)->indices);                      \
-        RL_FREE((mesh)->vertices);                     \
+        RL_FREE((mesh)->indices);                   \
+        RL_FREE((mesh)->vertices);                  \
         (mesh)->indices = NULL;                     \
         (mesh)->vertices = NULL;                    \
         (mesh)->vertexCount = 0;                    \
@@ -2242,7 +2242,7 @@ static bool r3d_process_assimp_mesh(R3D_Model* model, Matrix modelMatrix, int me
 static bool r3d_process_assimp_meshes(const struct aiScene *scene, R3D_Model *model, struct aiNode *node, Matrix parentFinalTransform)
 {
     Matrix relativeTransform = r3d_matrix_from_ai_matrix(&node->mTransformation);
-    Matrix finalTransform = MatrixMultiply(relativeTransform, parentFinalTransform);
+    Matrix finalTransform = r3d_matrix_multiply(&relativeTransform, &parentFinalTransform);
 
     for (unsigned int i = 0; i < node->mNumMeshes; i++)
     {
@@ -2252,7 +2252,7 @@ static bool r3d_process_assimp_meshes(const struct aiScene *scene, R3D_Model *mo
         // and their transformations are handled by the skinning system.
         // Using the node’s transformation would cause a double transformation.
         if (scene->mMeshes[node->mMeshes[i]]->mNumBones != 0) {
-            meshTransform = MatrixIdentity();
+            meshTransform = R3D_MATRIX_IDENTITY;
         }
 
         if (!r3d_process_assimp_mesh(model, meshTransform, node->mMeshes[i], scene->mMeshes[node->mMeshes[i]], scene, true)) {
@@ -2636,7 +2636,7 @@ bool process_assimp_materials(const struct aiScene* scene, R3D_Material** materi
 
         if (mat->albedo.color.a == 255) {
             float opacity = 1.0f;
-            if (!aiGetMaterialFloat(aiMat, AI_MATKEY_OPACITY, &opacity) != AI_SUCCESS) {
+            if (aiGetMaterialFloat(aiMat, AI_MATKEY_OPACITY, &opacity) != AI_SUCCESS) {
                 if (aiGetMaterialFloat(aiMat, AI_MATKEY_TRANSPARENCYFACTOR, &opacity) == AI_SUCCESS) {
                     opacity = 1.0f - opacity;
                 }
@@ -2949,8 +2949,10 @@ Quaternion r3d_interpolate_animation_keys_quat(const struct aiQuatKey* keys, uns
     return QuaternionSlerp(q1, q2, factor);
 }
 
-Matrix r3d_get_node_transform_at_time(const struct aiAnimation* aiAnim, const char* nodeName, float time)
+bool r3d_get_node_transform_at_time(Matrix* outMatrix, const struct aiAnimation* aiAnim, const char* nodeName, float time)
 {
+    assert(outMatrix && aiAnim && nodeName);
+
     /* --- Search for the animation channel corresponding to the given node --- */
 
     for (unsigned int i = 0; i < aiAnim->mNumChannels; i++) {
@@ -2979,19 +2981,15 @@ Matrix r3d_get_node_transform_at_time(const struct aiAnimation* aiAnim, const ch
 
             /* --- Combine transformations: Scale * Rotation * Translation --- */
 
-            return MatrixMultiply(
-                MatrixMultiply(
-                    MatrixScale(scale.x, scale.y, scale.z),
-                    QuaternionToMatrix(rotation)
-                ),
-                MatrixTranslate(position.x, position.y, position.z)
-            );
+            *outMatrix = r3d_matrix_scale_rotq_translate(&scale, &rotation, &position);
+
+            return true;
         }
     }
 
     /* --- No animation channel found for the node: return identity matrix --- */
 
-    return MatrixIdentity();
+    return false;
 }
 
 void r3d_calculate_animation_global_transforms(
@@ -3001,17 +2999,15 @@ void r3d_calculate_animation_global_transforms(
 {
     /* --- Get the node's local transform at the specified time --- */
 
-    Matrix localTransform = r3d_get_node_transform_at_time(aiAnim, node->mName.data, time);
-
-    /* --- Fallback: use default transformation if no animation is found for this node --- */
-
-    if (r3d_simd_is_matrix_identity((float*)&localTransform)) {
+    Matrix localTransform;
+    if (!r3d_get_node_transform_at_time(&localTransform, aiAnim, node->mName.data, time)) {
+        // Use default transformation if no animation is found for this node
         localTransform = r3d_matrix_from_ai_matrix(&node->mTransformation);
     }
 
     /* --- Compute the global transformation by combining with the parent's transform --- */
 
-    Matrix globalTransform = MatrixMultiply(localTransform, parentTransform);
+    Matrix globalTransform = r3d_matrix_multiply(&localTransform, &parentTransform);
 
     /* --- Check if this node corresponds to a bone and store its global transform --- */
 
@@ -3149,12 +3145,12 @@ bool r3d_process_animation(R3D_ModelAnimation* animation, const struct aiScene* 
 
         // Initialize all bones to identity before calculating
         for (int i = 0; i < animation->boneCount; i++) {
-            animation->framePoses[frame][i] = MatrixIdentity();
+            animation->framePoses[frame][i] = R3D_MATRIX_IDENTITY;
         }
 
         r3d_calculate_animation_global_transforms(
             scene->mRootNode, aiAnim, timeInTicks,
-            MatrixIdentity(), animation->framePoses[frame],
+            R3D_MATRIX_IDENTITY, animation->framePoses[frame],
             animation->bones, animation->boneCount
         );
     }
@@ -3234,13 +3230,13 @@ static bool r3d_process_model_from_scene(R3D_Model* model, const struct aiScene*
 
     /* --- Process all meshes --- */
 
-    if (!r3d_process_assimp_meshes(scene, model, scene->mRootNode, MatrixIdentity())) {
+    if (!r3d_process_assimp_meshes(scene, model, scene->mRootNode, R3D_MATRIX_IDENTITY)) {
         return false;
     }
 
     for (int i = 0; i < model->meshCount; i++) {
         if (model->meshes[i].vertexCount == 0 && model->meshes[i].indexCount == 0) {
-            if (!r3d_process_assimp_mesh(model, MatrixIdentity(), i, scene->mMeshes[i], scene, true)) {
+            if (!r3d_process_assimp_mesh(model, R3D_MATRIX_IDENTITY, i, scene->mMeshes[i], scene, true)) {
                 TraceLog(LOG_ERROR, "R3D: Unable to load mesh [%d]; The model will be invalid", i);
                 return false;
             }

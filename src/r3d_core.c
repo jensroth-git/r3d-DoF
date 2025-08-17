@@ -17,7 +17,8 @@
  *   3. This notice may not be removed or altered from any source distribution.
  */
 
-#include "details/r3d_frustum.h"
+#include "./details/r3d_frustum.h"
+#include "./details/r3d_math.h"
 #include "r3d.h"
 
 #include <raylib.h>
@@ -328,7 +329,7 @@ void R3D_Begin(Camera3D camera)
     R3D.state.transform.invView = MatrixInvert(R3D.state.transform.view);
 
     // Compute view projection matrix
-    R3D.state.transform.viewProj = MatrixMultiply(R3D.state.transform.view, R3D.state.transform.proj);
+    R3D.state.transform.viewProj = r3d_matrix_multiply(&R3D.state.transform.view, &R3D.state.transform.proj);
 
     // Compute frustum
     R3D.state.frustum.aabb = r3d_frustum_get_bounding_box(R3D.state.transform.viewProj);
@@ -503,10 +504,16 @@ void R3D_DrawModel(const R3D_Model* model, Vector3 position, float scale)
 
 void R3D_DrawModelEx(const R3D_Model* model, Vector3 position, Vector3 rotationAxis, float rotationAngle, Vector3 scale)
 {
-    Matrix matScale = MatrixScale(scale.x, scale.y, scale.z);
-    Matrix matRotation = MatrixRotate(rotationAxis, rotationAngle * DEG2RAD);
-    Matrix matTranslation = MatrixTranslate(position.x, position.y, position.z);
-    Matrix matTransform = MatrixMultiply(MatrixMultiply(matScale, matRotation), matTranslation);
+    Matrix matTransform = r3d_matrix_scale_rotaxis_translate(
+        &scale,
+        &(Vector4) {
+            rotationAxis.x,
+            rotationAxis.y,
+            rotationAxis.z,
+            rotationAngle
+        },
+        &position
+    );
 
     R3D_DrawModelPro(model, matTransform);
 }
@@ -642,10 +649,20 @@ void R3D_DrawSpritePro(const R3D_Sprite* sprite, Vector3 position, Vector2 size,
 
     /* --- Calculation of the transformation matrix --- */
 
-    Matrix matScale = MatrixScale(fabsf(size.x) * 0.5f, -fabsf(size.y) * 0.5f, 1.0f);
-    Matrix matRotation = MatrixRotate(rotationAxis, rotationAngle * DEG2RAD);
-    Matrix matTranslation = MatrixTranslate(position.x, position.y, position.z);
-    Matrix matTransform = MatrixMultiply(MatrixMultiply(matScale, matRotation), matTranslation);
+    Matrix matTransform = r3d_matrix_scale_rotaxis_translate(
+        &(Vector3) {
+            fabsf(size.x) * 0.5f,
+            -fabsf(size.y) * 0.5f,
+            1.0f
+        },
+        &(Vector4) {
+            rotationAxis.x,
+            rotationAxis.y,
+            rotationAxis.z,
+            rotationAngle
+        },
+        &position
+    );
 
     /* --- Applying transformation to billboard --- */
 
@@ -1127,7 +1144,7 @@ void r3d_pass_shadow_maps(void)
                 }
 
                 // Store combined view and projection matrix for the shadow map
-                light->data->shadow.matVP = MatrixMultiply(matView, matProj);
+                light->data->shadow.matVP = r3d_matrix_multiply(&matView, &matProj);
 
                 // Set up projection matrix
                 rlMatrixMode(RL_PROJECTION);
@@ -1532,10 +1549,12 @@ void r3d_pass_deferred_lights(void)
 
                     Vector3 scale = Vector3Scale(Vector3Subtract(light->aabb.max, light->aabb.min), 0.5f);
                     Vector3 position = Vector3Scale(Vector3Add(light->aabb.min, light->aabb.max), 0.5f);
+                    Matrix transform = r3d_matrix_scale_translate(&scale, &position);
 
-                    Matrix transform = MatrixScale(scale.x, scale.y, scale.z);
-                    transform = MatrixMultiply(transform, MatrixTranslate(position.x, position.y, position.z));
-                    r3d_shader_set_mat4(raster.depthVolume, uMatMVP, MatrixMultiply(transform, R3D.state.transform.viewProj));
+                    r3d_shader_set_mat4(
+                        raster.depthVolume, uMatMVP,
+                        r3d_matrix_multiply(&transform, &R3D.state.transform.viewProj)
+                    );
                     
                     // Stencil setup for volume writing
                     if (R3D.state.flags & R3D_FLAG_STENCIL_TEST) {
