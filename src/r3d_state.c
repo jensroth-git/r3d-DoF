@@ -605,6 +605,7 @@ void r3d_shader_load_screen_dof(void)
 
     r3d_shader_get_location(screen.dof, uTexColor);
     r3d_shader_get_location(screen.dof, uTexDepth);
+    r3d_shader_get_location(screen.dof, uTexelSize);
     r3d_shader_get_location(screen.dof, uNear);
     r3d_shader_get_location(screen.dof, uFar);
     r3d_shader_get_location(screen.dof, uFocusPoint);

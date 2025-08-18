@@ -236,7 +236,8 @@ extern struct R3D_State {
         float dofFocusPoint;            // (post pass)
         float dofFocusScale;            // (post pass)
         float dofMaxBlurSize;           // (post pass)
-        int dofDebugMode;               // (post pass)
+        bool dofDebugMode;              // (post pass)
+
     } env;
 
     // Default textures

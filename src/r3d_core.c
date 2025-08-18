@@ -406,10 +406,6 @@ void R3D_End(void)
     }
 
     if (R3D.env.dofMode != R3D_DOF_DISABLED) {
-        // Ensure the DOF shader is loaded before use
-        if (R3D.shader.screen.dof.id == 0) {
-            r3d_shader_load_screen_dof();
-        }
         r3d_pass_post_dof();
     }
 
@@ -2228,6 +2224,7 @@ void r3d_pass_post_dof(void)
             r3d_shader_bind_sampler2D(screen.dof, uTexColor, R3D.framebuffer.pingPong.source);
             r3d_shader_bind_sampler2D(screen.dof, uTexDepth, R3D.framebuffer.gBuffer.depth);
 
+            r3d_shader_set_vec2(screen.dof, uTexelSize, (Vector2) { R3D.state.resolution.texelX, R3D.state.resolution.texelY });
             r3d_shader_set_float(screen.dof, uNear, (float)rlGetCullDistanceNear());
             r3d_shader_set_float(screen.dof, uFar, (float)rlGetCullDistanceFar());
             r3d_shader_set_float(screen.dof, uFocusPoint, R3D.env.dofFocusPoint);
