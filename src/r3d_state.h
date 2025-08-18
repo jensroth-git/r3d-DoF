@@ -284,8 +284,7 @@ extern struct R3D_State {
         struct {
             int width;
             int height;
-            float texelX;
-            float texelY;
+            Vector2 texel;
         } resolution;
 
         // Loading param

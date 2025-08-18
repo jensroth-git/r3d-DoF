@@ -141,8 +141,8 @@ void R3D_Init(int resWidth, int resHeight, unsigned int flags)
     // Init resolution state
     R3D.state.resolution.width = resWidth;
     R3D.state.resolution.height = resHeight;
-    R3D.state.resolution.texelX = 1.0f / resWidth;
-    R3D.state.resolution.texelY = 1.0f / resHeight;
+    R3D.state.resolution.texel.x = 1.0f / resWidth;
+    R3D.state.resolution.texel.y = 1.0f / resHeight;
 
     // Init scene data
     R3D.state.scene.bounds = (BoundingBox) {
@@ -262,8 +262,8 @@ void R3D_UpdateResolution(int width, int height)
 
     R3D.state.resolution.width = width;
     R3D.state.resolution.height = height;
-    R3D.state.resolution.texelX = 1.0f / width;
-    R3D.state.resolution.texelY = 1.0f / height;
+    R3D.state.resolution.texel.x = 1.0f / width;
+    R3D.state.resolution.texel.y = 1.0f / height;
 }
 
 void R3D_SetRenderTarget(const RenderTexture* target)
@@ -1373,7 +1373,7 @@ void r3d_pass_ssao(void)
                 // Horizontal pass
                 r3d_framebuffer_swap_pingpong(R3D.framebuffer.pingPongSSAO);
                 r3d_shader_set_vec2(generate.gaussianBlurDualPass, uTexelDir,
-                    (Vector2) { R3D.state.resolution.texelX, 0 }
+                    (Vector2) { R3D.state.resolution.texel.x, 0 }
                 );
                 r3d_shader_bind_sampler2D(
                     generate.gaussianBlurDualPass, uTexture,
@@ -1384,7 +1384,7 @@ void r3d_pass_ssao(void)
                 // Vertical pass
                 r3d_framebuffer_swap_pingpong(R3D.framebuffer.pingPongSSAO);
                 r3d_shader_set_vec2(generate.gaussianBlurDualPass, uTexelDir,
-                    (Vector2) { 0, R3D.state.resolution.texelY }
+                    (Vector2) { 0, R3D.state.resolution.texel.y }
                 );
                 r3d_shader_bind_sampler2D(
                     generate.gaussianBlurDualPass, uTexture,
@@ -2118,10 +2118,7 @@ void r3d_pass_post_bloom(void)
 
         r3d_shader_enable(generate.downsampling);
         {
-            r3d_shader_set_vec2(generate.downsampling, uTexelSize, (Vector2) {
-                (float)R3D.state.resolution.texelX,
-                (float)R3D.state.resolution.texelY
-            });
+            r3d_shader_set_vec2(generate.downsampling, uTexelSize, R3D.state.resolution.texel);
             r3d_shader_set_int(generate.downsampling, uMipLevel, 0);
 
             // Set brightness threshold prefilter data
@@ -2224,7 +2221,7 @@ void r3d_pass_post_dof(void)
             r3d_shader_bind_sampler2D(screen.dof, uTexColor, R3D.framebuffer.pingPong.source);
             r3d_shader_bind_sampler2D(screen.dof, uTexDepth, R3D.framebuffer.gBuffer.depth);
 
-            r3d_shader_set_vec2(screen.dof, uTexelSize, (Vector2) { R3D.state.resolution.texelX, R3D.state.resolution.texelY });
+            r3d_shader_set_vec2(screen.dof, uTexelSize, R3D.state.resolution.texel);
             r3d_shader_set_float(screen.dof, uNear, (float)rlGetCullDistanceNear());
             r3d_shader_set_float(screen.dof, uFar, (float)rlGetCullDistanceFar());
             r3d_shader_set_float(screen.dof, uFocusPoint, R3D.env.dofFocusPoint);
@@ -2310,11 +2307,7 @@ void r3d_pass_post_fxaa(void)
         r3d_shader_enable(screen.fxaa);
         {
             r3d_shader_bind_sampler2D(screen.fxaa, uTexture, R3D.framebuffer.pingPong.source);
-
-            r3d_shader_set_vec2(screen.fxaa, uTexelSize, (Vector2) {
-                R3D.state.resolution.texelX, R3D.state.resolution.texelY
-            });
-
+            r3d_shader_set_vec2(screen.fxaa, uTexelSize, R3D.state.resolution.texel);
             r3d_primitive_bind_and_draw_screen();
         }
         r3d_shader_disable();
