@@ -179,7 +179,15 @@ typedef enum R3D_Tonemap {
     R3D_TONEMAP_COUNT     ///< Number of tone mapping modes (used internally)
 } R3D_Tonemap;
 
-
+/**
+ * @brief Depth of field effect modes.
+ *
+ * Controls how depth of field is applied to the scene, affecting the focus and blur of objects.
+ */
+typedef enum R3D_Dof {
+    R3D_DOF_DISABLED, ///< Depth of field effect is disabled.
+    R3D_DOF_ENABLED,  ///< Depth of field effect is enabled.
+} R3D_Dof;
 
 // --------------------------------------------
 //                   TYPES
@@ -2520,6 +2528,40 @@ R3DAPI float R3D_GetSaturation(void);
  * @defgroup Skybox Skybox Functions
  * @{
  */
+
+// --------------------------------------------
+// ENVIRONMENT: Depth of Field (DoF) Functions
+// --------------------------------------------
+
+/** Enables/disables the DoF post-process. */
+R3DAPI void R3D_SetDofMode(R3D_Dof mode);
+/** Returns the current DoF mode. */
+R3DAPI R3D_Dof R3D_GetDofMode(void);
+
+/** Sets the focus point (in the same units as linearized depth). */
+R3DAPI void R3D_SetDofFocusPoint(float value);
+/** Gets the focus point. */
+R3DAPI float R3D_GetDofFocusPoint(void);
+
+/** Sets the focus scale (how shallow the DoF effect is). */
+R3DAPI void R3D_SetDofFocusScale(float value);
+/** Gets the focus scale. */
+R3DAPI float R3D_GetDofFocusScale(void);
+
+/** Sets the maximum blur size. (similar to lense size) */
+R3DAPI void R3D_SetDofMaxBlurSize(float value);
+/** Gets the maximum blur size. */
+R3DAPI float R3D_GetDofMaxBlurSize(void);
+
+/** Sets debug visualization mode
+0: off, 
+1: green / black / blue, 
+2: linear depth. 
+*/
+R3DAPI void R3D_SetDofDebugMode(int value);
+/** Gets debug mode. */
+R3DAPI int R3D_GetDofDebugMode(void);
+
 
 // --------------------------------------------
 // SKYBOX: Skybox Loading Functions

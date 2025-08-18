@@ -74,6 +74,7 @@ static void r3d_pass_scene_forward(void);
 static void r3d_pass_post_setup(void);
 static void r3d_pass_post_bloom(void);
 static void r3d_pass_post_fog(void);
+static void r3d_pass_post_dof(void);
 static void r3d_pass_post_output(void);
 static void r3d_pass_post_fxaa(void);
 
@@ -129,6 +130,13 @@ void R3D_Init(int resWidth, int resHeight, unsigned int flags)
     R3D.env.brightness = 1.0f;
     R3D.env.contrast = 1.0f;
     R3D.env.saturation = 1.0f;
+
+    //dof
+    R3D.env.dofMode = R3D_DOF_DISABLED;
+    R3D.env.dofFocusPoint = 10.0f;
+    R3D.env.dofFocusScale = 1.0f;
+    R3D.env.dofMaxBlurSize = 20.0f;
+    R3D.env.dofDebugMode = 0;
 
     // Init resolution state
     R3D.state.resolution.width = resWidth;
@@ -393,12 +401,20 @@ void R3D_End(void)
 
     r3d_pass_post_setup();
 
-    if (R3D.env.bloomMode != R3D_BLOOM_DISABLED) {
-        r3d_pass_post_bloom();
-    }
-
     if (R3D.env.fogMode != R3D_FOG_DISABLED) {
         r3d_pass_post_fog();
+    }
+
+    if (R3D.env.dofMode != R3D_DOF_DISABLED) {
+        // Ensure the DOF shader is loaded before use
+        if (R3D.shader.screen.dof.id == 0) {
+            r3d_shader_load_screen_dof();
+        }
+        r3d_pass_post_dof();
+    }
+
+    if (R3D.env.bloomMode != R3D_BLOOM_DISABLED) {
+        r3d_pass_post_bloom();
     }
 
     r3d_pass_post_output();
@@ -2192,6 +2208,32 @@ void r3d_pass_post_bloom(void)
 
             r3d_shader_set_int(screen.bloom, uBloomMode, R3D.env.bloomMode);
             r3d_shader_set_float(screen.bloom, uBloomIntensity, R3D.env.bloomIntensity);
+
+            r3d_primitive_bind_and_draw_screen();
+        }
+        r3d_shader_disable();
+    }
+}
+
+void r3d_pass_post_dof(void)	
+{
+    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.pingPong.id);
+    {
+        glViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
+
+        r3d_framebuffer_swap_pingpong(R3D.framebuffer.pingPong);
+
+        r3d_shader_enable(screen.dof);
+        {
+            r3d_shader_bind_sampler2D(screen.dof, uTexColor, R3D.framebuffer.pingPong.source);
+            r3d_shader_bind_sampler2D(screen.dof, uTexDepth, R3D.framebuffer.gBuffer.depth);
+
+            r3d_shader_set_float(screen.dof, uNear, (float)rlGetCullDistanceNear());
+            r3d_shader_set_float(screen.dof, uFar, (float)rlGetCullDistanceFar());
+            r3d_shader_set_float(screen.dof, uFocusPoint, R3D.env.dofFocusPoint);
+            r3d_shader_set_float(screen.dof, uFocusScale, R3D.env.dofFocusScale);
+            r3d_shader_set_float(screen.dof, uMaxBlurSize, R3D.env.dofMaxBlurSize);
+            r3d_shader_set_int(screen.dof, uDebugMode, R3D.env.dofDebugMode);
 
             r3d_primitive_bind_and_draw_screen();
         }

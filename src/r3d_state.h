@@ -188,6 +188,7 @@ extern struct R3D_State {
             r3d_shader_screen_fog_t fog;
             r3d_shader_screen_output_t output[R3D_TONEMAP_COUNT];
             r3d_shader_screen_fxaa_t fxaa;
+            r3d_shader_screen_dof_t dof;
         } screen;
 
     } shader;
@@ -231,6 +232,11 @@ extern struct R3D_State {
         float contrast;                 // (post pass)
         float saturation;               // (post pass)
 
+        R3D_Dof dofMode;                // (post pass)
+        float dofFocusPoint;            // (post pass)
+        float dofFocusScale;            // (post pass)
+        float dofMaxBlurSize;           // (post pass)
+        int dofDebugMode;               // (post pass)
     } env;
 
     // Default textures
@@ -360,6 +366,7 @@ void r3d_shader_load_screen_lighting(void);
 void r3d_shader_load_screen_scene(void);
 void r3d_shader_load_screen_bloom(void);
 void r3d_shader_load_screen_fog(void);
+void r3d_shader_load_screen_dof(void);
 void r3d_shader_load_screen_output(R3D_Tonemap tonemap);
 void r3d_shader_load_screen_fxaa(void);
 
