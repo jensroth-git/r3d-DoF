@@ -71,10 +71,10 @@ static void r3d_pass_scene_forward_depth_prepass(void);
 static void r3d_pass_scene_forward(void);
 
 static void r3d_pass_post_setup(void);
-static void r3d_pass_post_bloom(void);
 static void r3d_pass_post_ssr(void);
 static void r3d_pass_post_fog(void);
 static void r3d_pass_post_dof(void);
+static void r3d_pass_post_bloom(void);
 static void r3d_pass_post_output(void);
 static void r3d_pass_post_fxaa(void);
 
@@ -2086,6 +2086,95 @@ void r3d_pass_post_setup(void)
     glStencilMask(0x00);
 }
 
+void r3d_pass_post_ssr(void)
+{
+    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.scene);
+    {
+        glViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
+
+        r3d_shader_enable(screen.ssr);
+        {
+            r3d_shader_bind_sampler2D(screen.ssr, uTexColor, R3D.target.scenePp[1]);
+            r3d_shader_bind_sampler2D(screen.ssr, uTexNormal, R3D.target.normal);
+            r3d_shader_bind_sampler2D(screen.ssr, uTexORM, R3D.target.orm);
+            r3d_shader_bind_sampler2D(screen.ssr, uTexDepth, R3D.target.depthStencil);
+
+            r3d_shader_set_int(screen.ssr, uMaxRaySteps, R3D.env.ssrMaxRaySteps);
+            r3d_shader_set_int(screen.ssr, uBinarySearchSteps, R3D.env.ssrBinarySearchSteps);
+            r3d_shader_set_float(screen.ssr, uRayMarchLength, R3D.env.ssrRayMarchLength);
+            r3d_shader_set_float(screen.ssr, uDepthThickness, R3D.env.ssrDepthThickness);
+            r3d_shader_set_float(screen.ssr, uDepthTolerance, R3D.env.ssrDepthTolerance);
+            r3d_shader_set_float(screen.ssr, uEdgeFadeStart, R3D.env.ssrEdgeFadeStart);
+            r3d_shader_set_float(screen.ssr, uEdgeFadeEnd, R3D.env.ssrEdgeFadeEnd);
+
+            r3d_shader_set_mat4(screen.ssr, uMatView, R3D.state.transform.view);
+            r3d_shader_set_mat4(screen.ssr, uMatInvProj, R3D.state.transform.invProj);
+            r3d_shader_set_mat4(screen.ssr, uMatInvView, R3D.state.transform.invView);
+            r3d_shader_set_mat4(screen.ssr, uMatViewProj, R3D.state.transform.viewProj);
+            r3d_shader_set_vec3(screen.ssr, uViewPosition, R3D.state.transform.viewPos);
+
+            r3d_primitive_bind_and_draw_screen();
+        }
+        r3d_shader_disable();
+
+        r3d_target_swap_pingpong(R3D.target.scenePp);
+    }
+}
+
+void r3d_pass_post_fog(void)
+{
+    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.scene);
+    {
+        glViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
+
+        r3d_shader_enable(screen.fog);
+        {
+            r3d_shader_bind_sampler2D(screen.fog, uTexColor, R3D.target.scenePp[1]);
+            r3d_shader_bind_sampler2D(screen.fog, uTexDepth, R3D.target.depthStencil);
+
+            r3d_shader_set_float(screen.fog, uNear, (float)rlGetCullDistanceNear());
+            r3d_shader_set_float(screen.fog, uFar, (float)rlGetCullDistanceFar());
+            r3d_shader_set_int(screen.fog, uFogMode, R3D.env.fogMode);
+            r3d_shader_set_vec3(screen.fog, uFogColor, R3D.env.fogColor);
+            r3d_shader_set_float(screen.fog, uFogStart, R3D.env.fogStart);
+            r3d_shader_set_float(screen.fog, uFogEnd, R3D.env.fogEnd);
+            r3d_shader_set_float(screen.fog, uFogDensity, R3D.env.fogDensity);
+
+            r3d_primitive_bind_and_draw_screen();
+        }
+        r3d_shader_disable();
+
+        r3d_target_swap_pingpong(R3D.target.scenePp);
+    }
+}
+
+void r3d_pass_post_dof(void)	
+{
+    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.scene);
+    {
+        glViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
+
+        r3d_shader_enable(screen.dof);
+        {
+            r3d_shader_bind_sampler2D(screen.dof, uTexColor, R3D.target.scenePp[1]);
+            r3d_shader_bind_sampler2D(screen.dof, uTexDepth, R3D.target.depthStencil);
+
+            r3d_shader_set_vec2(screen.dof, uTexelSize, R3D.state.resolution.texel);
+            r3d_shader_set_float(screen.dof, uNear, (float)rlGetCullDistanceNear());
+            r3d_shader_set_float(screen.dof, uFar, (float)rlGetCullDistanceFar());
+            r3d_shader_set_float(screen.dof, uFocusPoint, R3D.env.dofFocusPoint);
+            r3d_shader_set_float(screen.dof, uFocusScale, R3D.env.dofFocusScale);
+            r3d_shader_set_float(screen.dof, uMaxBlurSize, R3D.env.dofMaxBlurSize);
+            r3d_shader_set_int(screen.dof, uDebugMode, R3D.env.dofDebugMode);
+
+            r3d_primitive_bind_and_draw_screen();
+        }
+        r3d_shader_disable();
+
+        r3d_target_swap_pingpong(R3D.target.scenePp);
+    }
+}
+
 void r3d_pass_post_bloom(void)
 {
     /* ---- Generate mip chain --- */
@@ -2177,95 +2266,6 @@ void r3d_pass_post_bloom(void)
 
             r3d_shader_set_int(screen.bloom, uBloomMode, R3D.env.bloomMode);
             r3d_shader_set_float(screen.bloom, uBloomIntensity, R3D.env.bloomIntensity);
-
-            r3d_primitive_bind_and_draw_screen();
-        }
-        r3d_shader_disable();
-
-        r3d_target_swap_pingpong(R3D.target.scenePp);
-    }
-}
-
-void r3d_pass_post_ssr(void)
-{
-    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.scene);
-    {
-        glViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
-
-        r3d_shader_enable(screen.ssr);
-        {
-            r3d_shader_bind_sampler2D(screen.ssr, uTexColor, R3D.target.scenePp[1]);
-            r3d_shader_bind_sampler2D(screen.ssr, uTexNormal, R3D.target.normal);
-            r3d_shader_bind_sampler2D(screen.ssr, uTexORM, R3D.target.orm);
-            r3d_shader_bind_sampler2D(screen.ssr, uTexDepth, R3D.target.depthStencil);
-
-            r3d_shader_set_int(screen.ssr, uMaxRaySteps, R3D.env.ssrMaxRaySteps);
-            r3d_shader_set_int(screen.ssr, uBinarySearchSteps, R3D.env.ssrBinarySearchSteps);
-            r3d_shader_set_float(screen.ssr, uRayMarchLength, R3D.env.ssrRayMarchLength);
-            r3d_shader_set_float(screen.ssr, uDepthThickness, R3D.env.ssrDepthThickness);
-            r3d_shader_set_float(screen.ssr, uDepthTolerance, R3D.env.ssrDepthTolerance);
-            r3d_shader_set_float(screen.ssr, uEdgeFadeStart, R3D.env.ssrEdgeFadeStart);
-            r3d_shader_set_float(screen.ssr, uEdgeFadeEnd, R3D.env.ssrEdgeFadeEnd);
-
-            r3d_shader_set_mat4(screen.ssr, uMatView, R3D.state.transform.view);
-            r3d_shader_set_mat4(screen.ssr, uMatInvProj, R3D.state.transform.invProj);
-            r3d_shader_set_mat4(screen.ssr, uMatInvView, R3D.state.transform.invView);
-            r3d_shader_set_mat4(screen.ssr, uMatViewProj, R3D.state.transform.viewProj);
-            r3d_shader_set_vec3(screen.ssr, uViewPosition, R3D.state.transform.viewPos);
-
-            r3d_primitive_bind_and_draw_screen();
-        }
-        r3d_shader_disable();
-
-        r3d_target_swap_pingpong(R3D.target.scenePp);
-    }
-}
-
-void r3d_pass_post_fog(void)
-{
-    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.scene);
-    {
-        glViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
-
-        r3d_shader_enable(screen.fog);
-        {
-            r3d_shader_bind_sampler2D(screen.fog, uTexColor, R3D.target.scenePp[1]);
-            r3d_shader_bind_sampler2D(screen.fog, uTexDepth, R3D.target.depthStencil);
-
-            r3d_shader_set_float(screen.fog, uNear, (float)rlGetCullDistanceNear());
-            r3d_shader_set_float(screen.fog, uFar, (float)rlGetCullDistanceFar());
-            r3d_shader_set_int(screen.fog, uFogMode, R3D.env.fogMode);
-            r3d_shader_set_vec3(screen.fog, uFogColor, R3D.env.fogColor);
-            r3d_shader_set_float(screen.fog, uFogStart, R3D.env.fogStart);
-            r3d_shader_set_float(screen.fog, uFogEnd, R3D.env.fogEnd);
-            r3d_shader_set_float(screen.fog, uFogDensity, R3D.env.fogDensity);
-
-            r3d_primitive_bind_and_draw_screen();
-        }
-        r3d_shader_disable();
-
-        r3d_target_swap_pingpong(R3D.target.scenePp);
-    }
-}
-
-void r3d_pass_post_dof(void)	
-{
-    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.scene);
-    {
-        glViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
-
-        r3d_shader_enable(screen.dof);
-        {
-            r3d_shader_bind_sampler2D(screen.dof, uTexColor, R3D.target.scenePp[1]);
-            r3d_shader_bind_sampler2D(screen.dof, uTexDepth, R3D.target.depthStencil);
-
-            r3d_shader_set_vec2(screen.dof, uTexelSize, R3D.state.resolution.texel);
-            r3d_shader_set_float(screen.dof, uNear, (float)rlGetCullDistanceNear());
-            r3d_shader_set_float(screen.dof, uFar, (float)rlGetCullDistanceFar());
-            r3d_shader_set_float(screen.dof, uFocusPoint, R3D.env.dofFocusPoint);
-            r3d_shader_set_float(screen.dof, uFocusScale, R3D.env.dofFocusScale);
-            r3d_shader_set_float(screen.dof, uMaxBlurSize, R3D.env.dofMaxBlurSize);
-            r3d_shader_set_int(screen.dof, uDebugMode, R3D.env.dofDebugMode);
 
             r3d_primitive_bind_and_draw_screen();
         }
