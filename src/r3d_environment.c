@@ -76,8 +76,8 @@ void R3D_SetSSAO(bool enabled)
 	R3D.env.ssaoEnabled = enabled;
 
 	if (enabled) {
-		if (R3D.framebuffer.pingPongSSAO.id == 0) {
-			r3d_framebuffer_load_pingpong_ssao(
+		if (R3D.framebuffer.ssao == 0) {
+			r3d_framebuffer_load_ssao(
 				R3D.state.resolution.width,
 				R3D.state.resolution.height
 			);
@@ -137,8 +137,8 @@ void R3D_SetBloomMode(R3D_Bloom mode)
 	R3D.env.bloomMode = mode;
 
 	if (mode != R3D_BLOOM_DISABLED) {
-		if (R3D.framebuffer.mipChainBloom.id == 0) {
-			r3d_framebuffer_load_mipchain_bloom(
+		if (R3D.framebuffer.bloom == 0) {
+			r3d_framebuffer_load_bloom(
 				R3D.state.resolution.width,
 				R3D.state.resolution.height
 			);

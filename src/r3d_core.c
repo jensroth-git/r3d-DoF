@@ -44,7 +44,6 @@ static bool r3d_has_forward_calls(void);
 
 static void r3d_sprite_get_uv_scale_offset(Vector2* uvScale, Vector2* uvOffset, const R3D_Sprite* sprite, float sgnX, float sgnY);
 
-static void r3d_depth_stencil_attach(void);
 static void r3d_stencil_enable_geometry_write(void);
 static void r3d_stencil_enable_geometry_test(GLenum condition);
 static void r3d_stencil_enable_effect_write(uint8_t effectID);
@@ -835,13 +834,6 @@ void r3d_sprite_get_uv_scale_offset(Vector2* uvScale, Vector2* uvOffset, const R
     uvOffset->y = frameY * uvScale->y;
 }
 
-void r3d_depth_stencil_attach(void)
-{
-    // Attach depth-stencil texture to the framebuffer
-    GLuint stencil = R3D.framebuffer.gBuffer.depth;
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, stencil, 0);
-}
-
 void r3d_stencil_enable_geometry_write(void)
 {
     // Enable stencil test and write the geometry bit
@@ -1236,7 +1228,7 @@ void r3d_pass_shadow_maps(void)
 void r3d_clear_gbuffer(bool bindFramebuffer, bool clearColor, bool clearDepth, bool clearStencil)
 {
     if (bindFramebuffer) {
-        glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.gBuffer.id);
+        glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.gBuffer);
     }
 
     GLuint bitfield = 0;
@@ -1245,10 +1237,6 @@ void r3d_clear_gbuffer(bool bindFramebuffer, bool clearColor, bool clearDepth, b
         glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
         glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
         bitfield |= GL_COLOR_BUFFER_BIT;
-    }
-
-    if (clearDepth || clearStencil) {
-        r3d_depth_stencil_attach();
     }
 
     if (clearDepth) {
@@ -1268,7 +1256,7 @@ void r3d_clear_gbuffer(bool bindFramebuffer, bool clearColor, bool clearDepth, b
 
 void r3d_pass_gbuffer(void)
 {
-    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.gBuffer.id);
+    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.gBuffer);
     {
         glViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
         glEnable(GL_DEPTH_TEST);
@@ -1322,7 +1310,7 @@ void r3d_pass_gbuffer(void)
 
 void r3d_pass_ssao(void)
 {
-    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.pingPongSSAO.id);
+    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.ssao);
     {
         glViewport(0, 0, R3D.state.resolution.width / 2, R3D.state.resolution.height / 2);
         glDisable(GL_DEPTH_TEST);
@@ -1330,24 +1318,15 @@ void r3d_pass_ssao(void)
 
         // Enable gbuffer stencil test (render on geometry)
         if (R3D.state.flags & R3D_FLAG_STENCIL_TEST) {
-            r3d_depth_stencil_attach();
             r3d_stencil_enable_geometry_test(GL_EQUAL);
         }
         else {
             r3d_stencil_disable();
         }
 
-        // Bind first SSAO output texture
-        glFramebufferTexture2D(
-            GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
-            R3D.framebuffer.pingPongSSAO.target, 0
-        );
-
         // Render SSAO
         r3d_shader_enable(screen.ssao);
         {
-            r3d_framebuffer_swap_pingpong(R3D.framebuffer.pingPongSSAO);
-
             r3d_shader_set_mat4(screen.ssao, uMatInvProj, R3D.state.transform.invProj);
             r3d_shader_set_mat4(screen.ssao, uMatInvView, R3D.state.transform.invView);
             r3d_shader_set_mat4(screen.ssao, uMatProj, R3D.state.transform.proj);
@@ -1364,8 +1343,8 @@ void r3d_pass_ssao(void)
             r3d_shader_set_float(screen.ssao, uRadius, R3D.env.ssaoRadius);
             r3d_shader_set_float(screen.ssao, uBias, R3D.env.ssaoBias);
 
-            r3d_shader_bind_sampler2D(screen.ssao, uTexDepth, R3D.framebuffer.gBuffer.depth);
-            r3d_shader_bind_sampler2D(screen.ssao, uTexNormal, R3D.framebuffer.gBuffer.normal);
+            r3d_shader_bind_sampler2D(screen.ssao, uTexDepth, R3D.target.depthStencil);
+            r3d_shader_bind_sampler2D(screen.ssao, uTexNormal, R3D.target.normal);
             r3d_shader_bind_sampler1D(screen.ssao, uTexKernel, R3D.texture.ssaoKernel);
             r3d_shader_bind_sampler2D(screen.ssao, uTexNoise, R3D.texture.ssaoNoise);
 
@@ -1375,6 +1354,8 @@ void r3d_pass_ssao(void)
             r3d_shader_unbind_sampler2D(screen.ssao, uTexNormal);
             r3d_shader_unbind_sampler1D(screen.ssao, uTexKernel);
             r3d_shader_unbind_sampler2D(screen.ssao, uTexNoise);
+
+            r3d_target_swap_pingpong(R3D.target.ssaoPpHs);
         }
         r3d_shader_disable();
 
@@ -1384,26 +1365,16 @@ void r3d_pass_ssao(void)
             for (int i = 0; i < R3D.env.ssaoIterations; i++)
             {
                 // Horizontal pass
-                r3d_framebuffer_swap_pingpong(R3D.framebuffer.pingPongSSAO);
-                r3d_shader_set_vec2(generate.gaussianBlurDualPass, uTexelDir,
-                    (Vector2) { R3D.state.resolution.texel.x, 0 }
-                );
-                r3d_shader_bind_sampler2D(
-                    generate.gaussianBlurDualPass, uTexture,
-                    R3D.framebuffer.pingPongSSAO.source
-                );
+                r3d_shader_set_vec2(generate.gaussianBlurDualPass, uTexelDir, (Vector2) { R3D.state.resolution.texel.x, 0 });
+                r3d_shader_bind_sampler2D(generate.gaussianBlurDualPass, uTexture, R3D.target.ssaoPpHs[1]);
                 r3d_primitive_bind_and_draw_screen();
+                r3d_target_swap_pingpong(R3D.target.ssaoPpHs);
 
                 // Vertical pass
-                r3d_framebuffer_swap_pingpong(R3D.framebuffer.pingPongSSAO);
-                r3d_shader_set_vec2(generate.gaussianBlurDualPass, uTexelDir,
-                    (Vector2) { 0, R3D.state.resolution.texel.y }
-                );
-                r3d_shader_bind_sampler2D(
-                    generate.gaussianBlurDualPass, uTexture,
-                    R3D.framebuffer.pingPongSSAO.source
-                );
+                r3d_shader_set_vec2(generate.gaussianBlurDualPass, uTexelDir, (Vector2) { 0, R3D.state.resolution.texel.y });
+                r3d_shader_bind_sampler2D(generate.gaussianBlurDualPass, uTexture, R3D.target.ssaoPpHs[1]);
                 r3d_primitive_bind_and_draw_screen();
+                r3d_target_swap_pingpong(R3D.target.ssaoPpHs);
             }
         }
         r3d_shader_disable();
@@ -1412,7 +1383,7 @@ void r3d_pass_ssao(void)
 
 void r3d_pass_deferred_ambient(void)
 {
-    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.deferred.id);
+    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.deferred);
     {
         glViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
         glDisable(GL_DEPTH_TEST);
@@ -1425,7 +1396,6 @@ void r3d_pass_deferred_ambient(void)
 
         // Enable gbuffer stencil test (render on geometry)
         if (R3D.state.flags & R3D_FLAG_STENCIL_TEST) {
-            r3d_depth_stencil_attach();
             r3d_stencil_enable_geometry_test(GL_EQUAL);
         }
         else {
@@ -1437,22 +1407,16 @@ void r3d_pass_deferred_ambient(void)
             // Compute skybox IBL
             r3d_shader_enable(screen.ambientIbl);
             {
-                r3d_shader_bind_sampler2D(screen.ambientIbl, uTexAlbedo, R3D.framebuffer.gBuffer.albedo);
-                r3d_shader_bind_sampler2D(screen.ambientIbl, uTexNormal, R3D.framebuffer.gBuffer.normal);
-                r3d_shader_bind_sampler2D(screen.ambientIbl, uTexDepth, R3D.framebuffer.gBuffer.depth);
-                r3d_shader_bind_sampler2D(screen.ambientIbl, uTexORM, R3D.framebuffer.gBuffer.orm);
+                r3d_shader_bind_sampler2D(screen.ambientIbl, uTexAlbedo, R3D.target.albedo);
+                r3d_shader_bind_sampler2D(screen.ambientIbl, uTexNormal, R3D.target.normal);
+                r3d_shader_bind_sampler2D(screen.ambientIbl, uTexDepth, R3D.target.depthStencil);
+                r3d_shader_bind_sampler2D(screen.ambientIbl, uTexORM, R3D.target.orm);
 
                 if (R3D.env.ssaoEnabled) {
-                    r3d_shader_bind_sampler2D(
-                        screen.ambientIbl, uTexSSAO,
-                        R3D.framebuffer.pingPongSSAO.target
-                    );
+                    r3d_shader_bind_sampler2D(screen.ambientIbl, uTexSSAO, R3D.target.ssaoPpHs[1]);
                 }
                 else {
-                    r3d_shader_bind_sampler2D(
-                        screen.ambientIbl, uTexSSAO,
-                        R3D.texture.white
-                    );
+                    r3d_shader_bind_sampler2D(screen.ambientIbl, uTexSSAO, R3D.texture.white);
                 }
 
                 r3d_shader_bind_samplerCube(screen.ambientIbl, uCubeIrradiance, R3D.env.sky.irradiance.id);
@@ -1490,11 +1454,11 @@ void r3d_pass_deferred_ambient(void)
 
             r3d_shader_enable(screen.ambient);
             {
-                r3d_shader_bind_sampler2D(screen.ambient, uTexAlbedo, R3D.framebuffer.gBuffer.albedo);
-                r3d_shader_bind_sampler2D(screen.ambient, uTexORM, R3D.framebuffer.gBuffer.orm);
+                r3d_shader_bind_sampler2D(screen.ambient, uTexAlbedo, R3D.target.albedo);
+                r3d_shader_bind_sampler2D(screen.ambient, uTexORM, R3D.target.orm);
 
                 if (R3D.env.ssaoEnabled) {
-                    r3d_shader_bind_sampler2D(screen.ambient, uTexSSAO, R3D.framebuffer.pingPongSSAO.target);
+                    r3d_shader_bind_sampler2D(screen.ambient, uTexSSAO, R3D.target.ssaoPpHs[1]);
                 }
                 else {
                     r3d_shader_bind_sampler2D(screen.ambient, uTexSSAO, R3D.texture.white);
@@ -1519,7 +1483,7 @@ void r3d_pass_deferred_ambient(void)
 
 void r3d_pass_deferred_lights(void)
 {
-    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.deferred.id);
+    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.deferred);
     {
         glViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
 
@@ -1535,15 +1499,12 @@ void r3d_pass_deferred_lights(void)
         glBlendFunc(GL_ONE, GL_ONE);
         glBlendEquation(GL_FUNC_ADD);
 
-        // Attaches the stencil buffer for rendering volumes
-        r3d_depth_stencil_attach();
-
         /* --- Bind all textures --- */
 
-        r3d_shader_bind_sampler2D(screen.lighting, uTexAlbedo, R3D.framebuffer.gBuffer.albedo);
-        r3d_shader_bind_sampler2D(screen.lighting, uTexNormal, R3D.framebuffer.gBuffer.normal);
-        r3d_shader_bind_sampler2D(screen.lighting, uTexDepth, R3D.framebuffer.gBuffer.depth);
-        r3d_shader_bind_sampler2D(screen.lighting, uTexORM, R3D.framebuffer.gBuffer.orm);
+        r3d_shader_bind_sampler2D(screen.lighting, uTexAlbedo, R3D.target.albedo);
+        r3d_shader_bind_sampler2D(screen.lighting, uTexNormal, R3D.target.normal);
+        r3d_shader_bind_sampler2D(screen.lighting, uTexDepth, R3D.target.depthStencil);
+        r3d_shader_bind_sampler2D(screen.lighting, uTexORM, R3D.target.orm);
         r3d_shader_bind_sampler2D(screen.lighting, uTexNoise, R3D.texture.blueNoise);
 
         /* --- Defines constant uniforms --- */
@@ -1668,7 +1629,7 @@ void r3d_pass_deferred_lights(void)
 
 void r3d_pass_scene_background(void)
 {
-    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.pingPong.id);
+    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.scene);
     {
         glViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
 
@@ -1731,7 +1692,7 @@ void r3d_pass_scene_background(void)
 
 void r3d_pass_scene_deferred(void)
 {
-    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.pingPong.id);
+    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.scene);
     {
         glViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
         glDisable(GL_DEPTH_TEST);
@@ -1740,15 +1701,14 @@ void r3d_pass_scene_deferred(void)
 
         // Enable gbuffer stencil test (render on geometry)
         // This is necessary to maintain a correct background
-        r3d_depth_stencil_attach();
         r3d_stencil_enable_geometry_test(GL_EQUAL);
 
         r3d_shader_enable(screen.scene);
         {
-            r3d_shader_bind_sampler2D(screen.scene, uTexAlbedo, R3D.framebuffer.gBuffer.albedo);
-            r3d_shader_bind_sampler2D(screen.scene, uTexEmission, R3D.framebuffer.gBuffer.emission);
-            r3d_shader_bind_sampler2D(screen.scene, uTexDiffuse, R3D.framebuffer.deferred.diffuse);
-            r3d_shader_bind_sampler2D(screen.scene, uTexSpecular, R3D.framebuffer.deferred.specular);
+            r3d_shader_bind_sampler2D(screen.scene, uTexAlbedo, R3D.target.albedo);
+            r3d_shader_bind_sampler2D(screen.scene, uTexEmission, R3D.target.emission);
+            r3d_shader_bind_sampler2D(screen.scene, uTexDiffuse, R3D.target.diffuse);
+            r3d_shader_bind_sampler2D(screen.scene, uTexSpecular, R3D.target.specular);
 
             r3d_primitive_bind_and_draw_screen();
 
@@ -1923,7 +1883,7 @@ static void r3d_pass_scene_forward_instanced_filter_and_send_lights(const r3d_dr
 
 void r3d_pass_scene_forward_depth_prepass(void)
 {
-    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.pingPong.id);
+    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.scene);
     {
         glViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
 
@@ -1933,7 +1893,6 @@ void r3d_pass_scene_forward_depth_prepass(void)
         glDepthMask(GL_TRUE);
 
         // Reactivation of geometry drawing in the stencil buffer
-        r3d_depth_stencil_attach();
         r3d_stencil_enable_geometry_write();
 
         // Setup projection matrix
@@ -1984,7 +1943,7 @@ void r3d_pass_scene_forward_depth_prepass(void)
 
 void r3d_pass_scene_forward(void)
 {
-    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.pingPong.id);
+    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.scene);
     {
         glViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
         glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
@@ -1995,7 +1954,6 @@ void r3d_pass_scene_forward(void)
             glDepthMask(GL_FALSE);
         }
         else {
-            r3d_depth_stencil_attach();
             r3d_stencil_enable_geometry_write();
             glDepthMask(GL_TRUE);
         }
@@ -2112,6 +2070,14 @@ void r3d_pass_scene_forward(void)
 
 void r3d_pass_post_setup(void)
 {
+    // Swap the scene buffers to prepare for post-processing.
+    // This allows us to use the rendered scene as the source.
+    // The swap is done here because the final scene pass is not guaranteed:
+    // it might be forward rendered objects, or it might not.
+
+    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.scene);
+    r3d_target_swap_pingpong(R3D.target.scenePp);
+
     glDisable(GL_STENCIL_TEST);
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_BLEND);
@@ -2124,7 +2090,7 @@ void r3d_pass_post_bloom(void)
 {
     /* ---- Generate mip chain --- */
 
-    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.mipChainBloom.id);
+    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.bloom);
     {
         /* --- Bloom: Down Sampling --- */
 
@@ -2136,13 +2102,13 @@ void r3d_pass_post_bloom(void)
             // Set brightness threshold prefilter data
             r3d_shader_set_vec4(generate.downsampling, uPrefilter, R3D.env.bloomPrefilter);
 
-            // Bind scene color (HDR color buffer) as initial texture input
-            r3d_shader_bind_sampler2D(generate.downsampling, uTexture, R3D.framebuffer.pingPong.target);
+            // Bind scene color as initial texture input
+            r3d_shader_bind_sampler2D(generate.downsampling, uTexture, R3D.target.scenePp[1]);
         
             // Progressively downsample through the mip chain
-            for (int i = 0; i < R3D.framebuffer.mipChainBloom.mipCount; i++)
+            for (int i = 0; i < R3D.target.mipChainHs.count; i++)
             {
-                const struct r3d_mip_bloom* mip = &R3D.framebuffer.mipChainBloom.mipChain[i];
+                const struct r3d_mip* mip = &R3D.target.mipChainHs.chain[i];
 
                 glViewport(0, 0, mip->w, mip->h);
                 glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, mip->id, 0);
@@ -2170,10 +2136,10 @@ void r3d_pass_post_bloom(void)
             glBlendFunc(GL_ONE, GL_ONE);
             glBlendEquation(GL_FUNC_ADD);
 
-            for (int i = R3D.framebuffer.mipChainBloom.mipCount - 1; i > 0; i--)
+            for (int i = R3D.target.mipChainHs.count - 1; i > 0; i--)
             {
-                const struct r3d_mip_bloom* mip = &R3D.framebuffer.mipChainBloom.mipChain[i];
-                const struct r3d_mip_bloom* nextMip = &R3D.framebuffer.mipChainBloom.mipChain[i-1];
+                const struct r3d_mip* mip = &R3D.target.mipChainHs.chain[i];
+                const struct r3d_mip* nextMip = &R3D.target.mipChainHs.chain[i-1];
 
                 // Bind viewport and texture from where to read
                 glActiveTexture(GL_TEXTURE0);
@@ -2200,16 +2166,14 @@ void r3d_pass_post_bloom(void)
 
     /* --- Apply bloom to the scene --- */
 
-    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.pingPong.id);
+    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.scene);
     {
         glViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
 
-        r3d_framebuffer_swap_pingpong(R3D.framebuffer.pingPong);
-
         r3d_shader_enable(screen.bloom);
         {
-            r3d_shader_bind_sampler2D(screen.bloom, uTexColor, R3D.framebuffer.pingPong.source);
-            r3d_shader_bind_sampler2D(screen.bloom, uTexBloomBlur, R3D.framebuffer.mipChainBloom.mipChain[0].id);
+            r3d_shader_bind_sampler2D(screen.bloom, uTexColor, R3D.target.scenePp[1]);
+            r3d_shader_bind_sampler2D(screen.bloom, uTexBloomBlur, R3D.target.mipChainHs.chain[0].id);
 
             r3d_shader_set_int(screen.bloom, uBloomMode, R3D.env.bloomMode);
             r3d_shader_set_float(screen.bloom, uBloomIntensity, R3D.env.bloomIntensity);
@@ -2217,23 +2181,23 @@ void r3d_pass_post_bloom(void)
             r3d_primitive_bind_and_draw_screen();
         }
         r3d_shader_disable();
+
+        r3d_target_swap_pingpong(R3D.target.scenePp);
     }
 }
 
 void r3d_pass_post_ssr(void)
 {
-    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.pingPong.id);
+    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.scene);
     {
         glViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
 
-        r3d_framebuffer_swap_pingpong(R3D.framebuffer.pingPong);
-
         r3d_shader_enable(screen.ssr);
         {
-            r3d_shader_bind_sampler2D(screen.ssr, uTexColor, R3D.framebuffer.pingPong.source);
-            r3d_shader_bind_sampler2D(screen.ssr, uTexNormal, R3D.framebuffer.gBuffer.normal);
-            r3d_shader_bind_sampler2D(screen.ssr, uTexORM, R3D.framebuffer.gBuffer.orm);
-            r3d_shader_bind_sampler2D(screen.ssr, uTexDepth, R3D.framebuffer.gBuffer.depth);
+            r3d_shader_bind_sampler2D(screen.ssr, uTexColor, R3D.target.scenePp[1]);
+            r3d_shader_bind_sampler2D(screen.ssr, uTexNormal, R3D.target.normal);
+            r3d_shader_bind_sampler2D(screen.ssr, uTexORM, R3D.target.orm);
+            r3d_shader_bind_sampler2D(screen.ssr, uTexDepth, R3D.target.depthStencil);
 
             r3d_shader_set_int(screen.ssr, uMaxRaySteps, R3D.env.ssrMaxRaySteps);
             r3d_shader_set_int(screen.ssr, uBinarySearchSteps, R3D.env.ssrBinarySearchSteps);
@@ -2252,21 +2216,21 @@ void r3d_pass_post_ssr(void)
             r3d_primitive_bind_and_draw_screen();
         }
         r3d_shader_disable();
+
+        r3d_target_swap_pingpong(R3D.target.scenePp);
     }
 }
 
 void r3d_pass_post_fog(void)
 {
-    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.pingPong.id);
+    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.scene);
     {
         glViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
 
-        r3d_framebuffer_swap_pingpong(R3D.framebuffer.pingPong);
-
         r3d_shader_enable(screen.fog);
         {
-            r3d_shader_bind_sampler2D(screen.fog, uTexColor, R3D.framebuffer.pingPong.source);
-            r3d_shader_bind_sampler2D(screen.fog, uTexDepth, R3D.framebuffer.gBuffer.depth);
+            r3d_shader_bind_sampler2D(screen.fog, uTexColor, R3D.target.scenePp[1]);
+            r3d_shader_bind_sampler2D(screen.fog, uTexDepth, R3D.target.depthStencil);
 
             r3d_shader_set_float(screen.fog, uNear, (float)rlGetCullDistanceNear());
             r3d_shader_set_float(screen.fog, uFar, (float)rlGetCullDistanceFar());
@@ -2279,21 +2243,21 @@ void r3d_pass_post_fog(void)
             r3d_primitive_bind_and_draw_screen();
         }
         r3d_shader_disable();
+
+        r3d_target_swap_pingpong(R3D.target.scenePp);
     }
 }
 
 void r3d_pass_post_dof(void)	
 {
-    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.pingPong.id);
+    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.scene);
     {
         glViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
 
-        r3d_framebuffer_swap_pingpong(R3D.framebuffer.pingPong);
-
         r3d_shader_enable(screen.dof);
         {
-            r3d_shader_bind_sampler2D(screen.dof, uTexColor, R3D.framebuffer.pingPong.source);
-            r3d_shader_bind_sampler2D(screen.dof, uTexDepth, R3D.framebuffer.gBuffer.depth);
+            r3d_shader_bind_sampler2D(screen.dof, uTexColor, R3D.target.scenePp[1]);
+            r3d_shader_bind_sampler2D(screen.dof, uTexDepth, R3D.target.depthStencil);
 
             r3d_shader_set_vec2(screen.dof, uTexelSize, R3D.state.resolution.texel);
             r3d_shader_set_float(screen.dof, uNear, (float)rlGetCullDistanceNear());
@@ -2306,6 +2270,8 @@ void r3d_pass_post_dof(void)
             r3d_primitive_bind_and_draw_screen();
         }
         r3d_shader_disable();
+
+        r3d_target_swap_pingpong(R3D.target.scenePp);
     }
 }
 
@@ -2318,15 +2284,13 @@ void r3d_pass_post_output(void)
         r3d_shader_load_screen_output(tonemap);
     }
 
-    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.pingPong.id);
+    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.scene);
     {
         glViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
 
-        r3d_framebuffer_swap_pingpong(R3D.framebuffer.pingPong);
-
         r3d_shader_enable(screen.output[tonemap]);
         {
-            r3d_shader_bind_sampler2D(screen.output[tonemap], uTexColor, R3D.framebuffer.pingPong.source);
+            r3d_shader_bind_sampler2D(screen.output[tonemap], uTexColor, R3D.target.scenePp[1]);
 
             r3d_shader_set_float(screen.output[tonemap], uTonemapExposure, R3D.env.tonemapExposure);
             r3d_shader_set_float(screen.output[tonemap], uTonemapWhite, R3D.env.tonemapWhite);
@@ -2340,31 +2304,40 @@ void r3d_pass_post_output(void)
             r3d_primitive_bind_and_draw_screen();
         }
         r3d_shader_disable();
+
+        r3d_target_swap_pingpong(R3D.target.scenePp);
     }
 }
 
 void r3d_pass_post_fxaa(void)
 {
-    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.pingPong.id);
+    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.scene);
     {
         glViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
 
-        r3d_framebuffer_swap_pingpong(R3D.framebuffer.pingPong);
-
         r3d_shader_enable(screen.fxaa);
         {
-            r3d_shader_bind_sampler2D(screen.fxaa, uTexture, R3D.framebuffer.pingPong.source);
+            r3d_shader_bind_sampler2D(screen.fxaa, uTexture, R3D.target.scenePp[1]);
             r3d_shader_set_vec2(screen.fxaa, uTexelSize, R3D.state.resolution.texel);
             r3d_primitive_bind_and_draw_screen();
         }
         r3d_shader_disable();
+
+        r3d_target_swap_pingpong(R3D.target.scenePp);
     }
 }
 
 void r3d_pass_final_blit(void)
 {
+    // Re-swap the scene framebuffer to ensure you have the latest attach target
+    // NOTE: This will change when we do the final blit via a shader
+    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.scene);
+    r3d_target_swap_pingpong(R3D.target.scenePp);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
     unsigned int dstId = 0;
     int dstX = 0, dstY = 0;
+
     // Use render size (framebuffer size) to handle HiDPI/Retina on macOS
     int dstW = GetRenderWidth();
     int dstH = GetRenderHeight();
@@ -2397,19 +2370,11 @@ void r3d_pass_final_blit(void)
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, dstId);
 
     // Blit only the color data from the post-processing framebuffer to the main framebuffer
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, R3D.framebuffer.pingPong.id);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, R3D.framebuffer.scene);
     glBlitFramebuffer(
         0, 0, R3D.state.resolution.width, R3D.state.resolution.height,
-        dstX, dstY, dstX + dstW, dstY + dstH, GL_COLOR_BUFFER_BIT,
+        dstX, dstY, dstX + dstW, dstY + dstH, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT,
         (R3D.state.flags & R3D_FLAG_BLIT_LINEAR) ? GL_LINEAR : GL_NEAREST
-    );
-
-    // Blit the depth data from the gbuffer framebuffer to the main framebuffer
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, R3D.framebuffer.gBuffer.id);
-    glBlitFramebuffer(
-        0, 0, R3D.state.resolution.width, R3D.state.resolution.height,
-        dstX, dstY, dstX + dstW, dstY + dstH,
-        GL_DEPTH_BUFFER_BIT, GL_NEAREST
     );
 }
 

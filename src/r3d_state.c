@@ -79,10 +79,10 @@ static char* r3d_shader_inject_defines(const char* code, const char* defines[], 
 }
 
 // Test if a format can be used as internal format and framebuffer attachment
-static struct r3d_spport_internal_format
+static struct r3d_support_internal_format
 r3d_test_internal_format(GLuint fbo, GLuint tex, GLenum internalFormat, GLenum format, GLenum type)
 {
-    struct r3d_spport_internal_format result = { 0 };
+    struct r3d_support_internal_format result = { 0 };
 
     glBindTexture(GL_TEXTURE_2D, tex);
     glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, 4, 4, 0, format, type, NULL);
@@ -135,7 +135,7 @@ GLenum r3d_support_get_internal_format(GLenum internalFormat, bool asAttachment)
     // Structure for defining format alternatives
     struct format_info {
         GLenum format;
-        const struct r3d_spport_internal_format* support;
+        const struct r3d_support_internal_format* support;
         const char* name;
     };
 
@@ -360,7 +360,7 @@ void r3d_supports_check(void)
         GLenum internal;
         GLenum format;
         GLenum type;
-        struct r3d_spport_internal_format* outFlag;
+        struct r3d_support_internal_format* outFlag;
         const char* name;
     } probes[] = {
         // Single Channel Formats
@@ -423,30 +423,76 @@ void r3d_framebuffers_load(int width, int height)
 {
     r3d_framebuffer_load_gbuffer(width, height);
     r3d_framebuffer_load_deferred(width, height);
-    r3d_framebuffer_load_pingpong(width, height);
+    r3d_framebuffer_load_scene(width, height);
 
     if (R3D.env.ssaoEnabled) {
-        r3d_framebuffer_load_pingpong_ssao(width, height);
+        r3d_framebuffer_load_ssao(width, height);
     }
 
     if (R3D.env.bloomMode != R3D_BLOOM_DISABLED) {
-        r3d_framebuffer_load_mipchain_bloom(width, height);
+        r3d_framebuffer_load_bloom(width, height);
     }
 }
 
 void r3d_framebuffers_unload(void)
 {
-    r3d_framebuffer_unload_gbuffer();
-    r3d_framebuffer_unload_deferred();
-    r3d_framebuffer_unload_pingpong();
+    /* --- Unload framebuffers --- */
 
-    if (R3D.framebuffer.pingPongSSAO.id != 0) {
-        r3d_framebuffer_unload_pingpong_ssao();
+    if (R3D.framebuffer.gBuffer > 0) {
+        glDeleteFramebuffers(1, &R3D.framebuffer.gBuffer);
+    }
+    if (R3D.framebuffer.deferred > 0) {
+        glDeleteFramebuffers(1, &R3D.framebuffer.deferred);
+    }
+    if (R3D.framebuffer.scene > 0) {
+        glDeleteFramebuffers(1, &R3D.framebuffer.scene);
+    }
+    if (R3D.framebuffer.ssao > 0) {
+        glDeleteFramebuffers(1, &R3D.framebuffer.ssao);
+    }
+    if (R3D.framebuffer.bloom > 0) {
+        glDeleteFramebuffers(1, &R3D.framebuffer.bloom);
     }
 
-    if (R3D.framebuffer.mipChainBloom.id != 0) {
-        r3d_framebuffer_unload_mipchain_bloom();
+    memset(&R3D.framebuffer, 0, sizeof(R3D.framebuffer));
+
+    /* --- Unload targets --- */
+
+    if (R3D.target.albedo > 0) {
+        glDeleteTextures(1, &R3D.target.albedo);
     }
+    if (R3D.target.emission > 0) {
+        glDeleteTextures(1, &R3D.target.emission);
+    }
+    if (R3D.target.normal > 0) {
+        glDeleteTextures(1, &R3D.target.normal);
+    }
+    if (R3D.target.orm > 0) {
+        glDeleteTextures(1, &R3D.target.orm);
+    }
+    if (R3D.target.depthStencil > 0) {
+        glDeleteTextures(1, &R3D.target.depthStencil);
+    }
+    if (R3D.target.diffuse > 0) {
+        glDeleteTextures(1, &R3D.target.diffuse);
+    }
+    if (R3D.target.specular > 0) {
+        glDeleteTextures(1, &R3D.target.specular);
+    }
+    if (R3D.target.ssaoPpHs[0] > 0) {
+        glDeleteTextures(2, R3D.target.ssaoPpHs);
+    }
+    if (R3D.target.scenePp[0] > 0) {
+        glDeleteTextures(2, R3D.target.scenePp);
+    }
+    if (R3D.target.mipChainHs.chain != NULL) {
+        for (int i = 0; i < R3D.target.mipChainHs.count; i++) {
+            glDeleteTextures(1, &R3D.target.mipChainHs.chain[i].id);
+        }
+        RL_FREE(R3D.target.mipChainHs.chain);
+    }
+
+    memset(&R3D.target, 0, sizeof(R3D.target));
 }
 
 void r3d_textures_load(void)
@@ -616,210 +662,209 @@ void r3d_shader_load_screen_dof(void)
     r3d_shader_disable();
 }
 
-/* === Framebuffer loading functions === */
+/* === Target loading functions === */
 
-void r3d_framebuffer_load_gbuffer(int width, int height)
+static void r3d_target_load_albedo(int width, int height)
 {
-    struct r3d_fb_gbuffer* gBuffer = &R3D.framebuffer.gBuffer;
+    assert(R3D.target.albedo == 0);
 
-    gBuffer->id = rlLoadFramebuffer();
-    if (gBuffer->id == 0) {
-        TraceLog(LOG_FATAL, "R3D: Failed to create G-Buffer");
-        return;
-    }
-
-    rlEnableFramebuffer(gBuffer->id);
-
-    // Determines the HDR color buffers precision
-    GLenum hdrFormat = (R3D.state.flags & R3D_FLAG_LOW_PRECISION_BUFFERS)
-        ? GL_R11F_G11F_B10F : GL_RGB16F;
-
-    // Generate (albedo / orm) buffers
-    gBuffer->albedo = rlLoadTexture(NULL, width, height, RL_PIXELFORMAT_UNCOMPRESSED_R8G8B8, 1);
-    gBuffer->orm = rlLoadTexture(NULL, width, height, RL_PIXELFORMAT_UNCOMPRESSED_R8G8B8, 1);
-
-    // Generate emission buffer
-    glGenTextures(1, &gBuffer->emission);
-    glBindTexture(GL_TEXTURE_2D, gBuffer->emission);
-    glTexImage2D(GL_TEXTURE_2D, 0, r3d_support_get_internal_format(hdrFormat, true), width, height, 0, GL_RGB, GL_FLOAT, NULL);
+    glGenTextures(1, &R3D.target.albedo);
+    glBindTexture(GL_TEXTURE_2D, R3D.target.albedo);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
 
-    // Generate normal buffer
-    // Normals will be encoded and decoded using octahedral mapping
-    glGenTextures(1, &gBuffer->normal);
-    glBindTexture(GL_TEXTURE_2D, gBuffer->normal);
+static void r3d_target_load_emission(int width, int height)
+{
+    assert(R3D.target.emission == 0);
+
+    GLenum internalFormat = r3d_support_get_internal_format(GL_R11F_G11F_B10F, true);
+
+    glGenTextures(1, &R3D.target.emission);
+    glBindTexture(GL_TEXTURE_2D, R3D.target.emission);
+    glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, GL_RGB, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+static void r3d_target_load_normal(int width, int height)
+{
+    assert(R3D.target.normal == 0);
+
+    glGenTextures(1, &R3D.target.normal);
+    glBindTexture(GL_TEXTURE_2D, R3D.target.normal);
+
     if ((R3D.state.flags & R3D_FLAG_8_BIT_NORMALS) || !R3D.support.RG16F.attachment) {
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RG8, width, height, 0, GL_RG, GL_UNSIGNED_BYTE, NULL);
     }
     else {
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RG16F, width, height, 0, GL_RG, GL_FLOAT, NULL);
     }
+
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
 
-    // Generate depth stencil texture
-    glGenTextures(1, &gBuffer->depth);
-    glBindTexture(GL_TEXTURE_2D, gBuffer->depth);
+static void r3d_target_load_orm(int width, int height)
+{
+    assert(R3D.target.orm == 0);
+
+    glGenTextures(1, &R3D.target.orm);
+    glBindTexture(GL_TEXTURE_2D, R3D.target.orm);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+static void r3d_target_load_depth_stencil(int width, int height)
+{
+    assert(R3D.target.depthStencil == 0);
+
+    glGenTextures(1, &R3D.target.depthStencil);
+    glBindTexture(GL_TEXTURE_2D, R3D.target.depthStencil);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH24_STENCIL8, width, height, 0, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-    // Unbind last texture
     glBindTexture(GL_TEXTURE_2D, 0);
-
-    // Activate the draw buffers for all the attachments
-    rlActiveDrawBuffers(R3D_GBUFFER_COUNT);
-
-    // Attach the textures to the framebuffer
-    rlFramebufferAttach(gBuffer->id, gBuffer->albedo, RL_ATTACHMENT_COLOR_CHANNEL0, RL_ATTACHMENT_TEXTURE2D, 0);
-    rlFramebufferAttach(gBuffer->id, gBuffer->emission, RL_ATTACHMENT_COLOR_CHANNEL1, RL_ATTACHMENT_TEXTURE2D, 0);
-    rlFramebufferAttach(gBuffer->id, gBuffer->normal, RL_ATTACHMENT_COLOR_CHANNEL2, RL_ATTACHMENT_TEXTURE2D, 0);
-    rlFramebufferAttach(gBuffer->id, gBuffer->orm, RL_ATTACHMENT_COLOR_CHANNEL3, RL_ATTACHMENT_TEXTURE2D, 0);
-
-    glBindFramebuffer(GL_FRAMEBUFFER, gBuffer->id); // rlFramebufferAttach unbind the framebuffer...
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, gBuffer->depth, 0);
-
-    // Check if the framebuffer is complete
-    if (!rlFramebufferComplete(gBuffer->id)) {
-        TraceLog(LOG_WARNING, "R3D: The G-Buffer is not complete");
-    }
 }
 
-void r3d_framebuffer_load_pingpong_ssao(int width, int height)
+static void r3d_target_load_diffuse(int width, int height)
 {
-    struct r3d_fb_pingpong_ssao* ssao = &R3D.framebuffer.pingPongSSAO;
+    assert(R3D.target.diffuse == 0);
 
-    width /= 2, height /= 2; // Half resolution
-
-    ssao->id = rlLoadFramebuffer();
-    if (ssao->id == 0) {
-        TraceLog(LOG_FATAL, "R3D: Failed to create the SSAO ping-pong buffer");
-        return;
+    GLenum internalFormat;
+    if (R3D.state.flags & R3D_FLAG_LOW_PRECISION_BUFFERS) {
+        internalFormat = r3d_support_get_internal_format(GL_R11F_G11F_B10F, true);
+    }
+    else {
+        internalFormat = r3d_support_get_internal_format(GL_RGB16F, true);
     }
 
-    rlEnableFramebuffer(ssao->id);
+    glGenTextures(1, &R3D.target.diffuse);
+    glBindTexture(GL_TEXTURE_2D, R3D.target.diffuse);
+    glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, GL_RGB, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
 
-    // Generate (ssao) buffers
-    GLuint textures[2];
-    glGenTextures(2, textures);
+static void r3d_target_load_specular(int width, int height)
+{
+    assert(R3D.target.specular == 0);
+
+    GLenum internalFormat;
+    if (R3D.state.flags & R3D_FLAG_LOW_PRECISION_BUFFERS) {
+        internalFormat = r3d_support_get_internal_format(GL_R11F_G11F_B10F, true);
+    }
+    else {
+        internalFormat = r3d_support_get_internal_format(GL_RGB16F, true);
+    }
+
+    glGenTextures(1, &R3D.target.specular);
+    glBindTexture(GL_TEXTURE_2D, R3D.target.specular);
+    glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, GL_RGB, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+static void r3d_target_load_ssao_pp_hs(int width, int height)
+{
+    assert(R3D.target.ssaoPpHs[0] == 0);
+
+    width /= 2, height /= 2;
+
+    glGenTextures(2, R3D.target.ssaoPpHs);
+
     for (int i = 0; i < 2; i++) {
-        glBindTexture(GL_TEXTURE_2D, textures[i]);
+        glBindTexture(GL_TEXTURE_2D, R3D.target.ssaoPpHs[i]);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, width, height, 0, GL_RED, GL_UNSIGNED_BYTE, NULL);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    }
-    glBindTexture(GL_TEXTURE_2D, 0);
-    ssao->target = textures[0];
-    ssao->source = textures[1];
-
-    // Activate the draw buffers for all the attachments
-    rlActiveDrawBuffers(1);
-
-    // Attach the textures to the framebuffer
-    rlFramebufferAttach(ssao->id, ssao->target, RL_ATTACHMENT_COLOR_CHANNEL0, RL_ATTACHMENT_TEXTURE2D, 0);
-
-    // Check if the framebuffer is complete
-    if (!rlFramebufferComplete(ssao->id)) {
-        TraceLog(LOG_WARNING, "R3D: The SSAO ping-pong buffer is not complete");
-    }
-}
-
-void r3d_framebuffer_load_deferred(int width, int height)
-{
-    struct r3d_fb_deferred* deferred = &R3D.framebuffer.deferred;
-
-    deferred->id = rlLoadFramebuffer();
-    if (deferred->id == 0) {
-        TraceLog(LOG_FATAL, "R3D: Failed to create the deferred pass framebuffer");
-        return;
-    }
-
-    rlEnableFramebuffer(deferred->id);
-
-    // Generate diffuse/specular textures
-    GLuint textures[2];
-    glGenTextures(2, textures);
-    for (int i = 0; i < 2; i++) {
-        glBindTexture(GL_TEXTURE_2D, textures[i]);
-        glTexImage2D(GL_TEXTURE_2D, 0, r3d_support_get_internal_format(GL_RGB16F, true), width, height, 0, GL_RGB, GL_FLOAT, NULL);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     }
+
     glBindTexture(GL_TEXTURE_2D, 0);
-    deferred->diffuse = textures[0];
-    deferred->specular = textures[1];
-
-    // Activate the draw buffers for all the attachments
-    rlActiveDrawBuffers(2);
-
-    // Attach the textures to the framebuffer
-    rlFramebufferAttach(deferred->id, deferred->diffuse, RL_ATTACHMENT_COLOR_CHANNEL0, RL_ATTACHMENT_TEXTURE2D, 0);
-    rlFramebufferAttach(deferred->id, deferred->specular, RL_ATTACHMENT_COLOR_CHANNEL1, RL_ATTACHMENT_TEXTURE2D, 0);
-
-    // Check if the framebuffer is complete
-    if (!rlFramebufferComplete(deferred->id)) {
-        TraceLog(LOG_WARNING, "R3D: The deferred pass framebuffer is not complete");
-    }
 }
 
-void r3d_framebuffer_load_mipchain_bloom(int width, int height)
+static void r3d_target_load_scene_pp(int width, int height)
 {
-    struct r3d_fb_mipchain_bloom* bloom = &R3D.framebuffer.mipChainBloom;
+    assert(R3D.target.scenePp[0] == 0);
+
+    GLenum internalFormat;
+    if (R3D.state.flags & R3D_FLAG_LOW_PRECISION_BUFFERS) {
+        internalFormat = r3d_support_get_internal_format(GL_R11F_G11F_B10F, true);
+    }
+    else {
+        internalFormat = r3d_support_get_internal_format(GL_RGB16F, true);
+    }
+
+    glGenTextures(2, R3D.target.scenePp);
+
+    for (int i = 0; i < 2; i++) {
+        glBindTexture(GL_TEXTURE_2D, R3D.target.scenePp[i]);
+        glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, GL_RGB, GL_FLOAT, NULL);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    }
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+static void r3d_target_load_mip_chain_hs(int width, int height)
+{
+    assert(R3D.target.mipChainHs.chain == NULL);
 
     width /= 2, height /= 2; // Half resolution
 
-    glGenFramebuffers(1, &bloom->id);
-    if (bloom->id == 0) {
-        TraceLog(LOG_FATAL, "R3D: Failed to create the bloom mipchain framebuffer");
-        return;
+    GLenum internalFormat;
+    if (R3D.state.flags & R3D_FLAG_LOW_PRECISION_BUFFERS) {
+        internalFormat = r3d_support_get_internal_format(GL_R11F_G11F_B10F, true);
     }
-
-    glBindFramebuffer(GL_FRAMEBUFFER, bloom->id);
-
-    // Determines the HDR color buffers precision
-    GLenum hdrFormat = (R3D.state.flags & R3D_FLAG_LOW_PRECISION_BUFFERS)
-        ? GL_R11F_G11F_B10F : GL_RGB16F;
-
-    // Minimum mip size to avoid tiny levels
-    const int minSize = 8;
+    else {
+        internalFormat = r3d_support_get_internal_format(GL_RGB16F, true);
+    }
 
     // Calculate max mip levels based on smallest dimension
-    int minDimension = (width < height) ? width : height;
-    int maxMipChainLength = (int)floor(log2((float)minDimension));
-
-    // Determine mip chain length stopping at minSize
-    int mipChainLength = 0;
-    for (; mipChainLength < maxMipChainLength; mipChainLength++) {
-        if ((minDimension >> mipChainLength) < minSize) break;
-    }
+    int maxDimension = (width > height) ? width : height;
+    R3D.target.mipChainHs.count = 1 + (int)floor(log2((float)maxDimension));
 
     // Allocate the array containing the mipmaps
-    bloom->mipChain = MemAlloc(mipChainLength * sizeof(struct r3d_mip_bloom));
-    if (bloom->mipChain == NULL) {
-        TraceLog(LOG_ERROR, "R3D: Failed to allocate memory to store bloom mip chain");
+    R3D.target.mipChainHs.chain = RL_MALLOC(R3D.target.mipChainHs.count * sizeof(struct r3d_mip));
+    if (R3D.target.mipChainHs.chain == NULL) {
+        TraceLog(LOG_ERROR, "R3D: Failed to allocate memory to store mip chain");
         return;
     }
-    bloom->mipCount = mipChainLength;
 
     // Dynamic value copy
     uint32_t wMip = (uint32_t)width;
     uint32_t hMip = (uint32_t)height;
 
     // Create the mip chain
-    for (GLuint i = 0; i < mipChainLength; i++, wMip /= 2, hMip /= 2)
-    {
-        struct r3d_mip_bloom* mip = &bloom->mipChain[i];
+    for (GLuint i = 0; i < R3D.target.mipChainHs.count; i++, wMip /= 2, hMip /= 2) {
+        struct r3d_mip* mip = &R3D.target.mipChainHs.chain[i];
 
         mip->w = wMip;
         mip->h = hMip;
@@ -828,136 +873,171 @@ void r3d_framebuffer_load_mipchain_bloom(int width, int height)
 
         glGenTextures(1, &mip->id);
         glBindTexture(GL_TEXTURE_2D, mip->id);
-        glTexImage2D(GL_TEXTURE_2D, 0, r3d_support_get_internal_format(hdrFormat, true), wMip, hMip, 0, GL_RGB, GL_FLOAT, NULL);
+        glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, wMip, hMip, 0, GL_RGB, GL_FLOAT, NULL);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     }
 
-    // Attach first mip to the framebuffer
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, bloom->mipChain[0].id, 0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
 
-    GLenum attachments[1] = { GL_COLOR_ATTACHMENT0 };
-    glDrawBuffers(1, attachments);
+/* === Framebuffer loading functions === */
 
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-        TraceLog(LOG_WARNING, "R3D: The bloom mipchain framebuffer is not complete");
+void r3d_framebuffer_load_gbuffer(int width, int height)
+{
+    /* --- Ensures that targets exist --- */
+
+    if (!R3D.target.albedo)         r3d_target_load_albedo(width, height);
+    if (!R3D.target.emission)       r3d_target_load_emission(width, height);
+    if (!R3D.target.normal)         r3d_target_load_normal(width, height);
+    if (!R3D.target.orm)            r3d_target_load_orm(width, height);
+    if (!R3D.target.depthStencil)   r3d_target_load_depth_stencil(width, height);
+
+    /* --- Create and configure the framebuffer --- */
+
+    glGenFramebuffers(1, &R3D.framebuffer.gBuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.gBuffer);
+
+    glDrawBuffers(4, (GLenum[]) {
+        GL_COLOR_ATTACHMENT0,
+        GL_COLOR_ATTACHMENT1,
+        GL_COLOR_ATTACHMENT2,
+        GL_COLOR_ATTACHMENT3
+    });
+
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, R3D.target.albedo, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, R3D.target.emission, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, R3D.target.normal, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, R3D.target.orm, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, R3D.target.depthStencil, 0);
+
+    GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if (status != GL_FRAMEBUFFER_COMPLETE) {
+        TraceLog(LOG_WARNING, "R3D: The G-Buffer is not complete (status: 0x%4x)", status);
     }
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void r3d_framebuffer_load_pingpong(int width, int height)
+void r3d_framebuffer_load_ssao(int width, int height)
 {
-    struct r3d_fb_pingpong* pingPong = &R3D.framebuffer.pingPong;
+    /* --- Ensures that targets exist --- */
 
-    pingPong->id = rlLoadFramebuffer();
-    if (pingPong->id == 0) {
-        TraceLog(LOG_FATAL, "R3D: Failed to create the final ping-pong framebuffer");
-        return;
+    if (!R3D.target.ssaoPpHs[0]) r3d_target_load_ssao_pp_hs(width, height);
+    if (!R3D.target.depthStencil) r3d_target_load_depth_stencil(width, height);
+
+    /* --- Create and configure the framebuffer --- */
+
+    glGenFramebuffers(1, &R3D.framebuffer.ssao);
+    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.ssao);
+
+    glDrawBuffers(1, (GLenum[]) {
+        GL_COLOR_ATTACHMENT0
+    });
+
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, R3D.target.ssaoPpHs[0], 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, R3D.target.depthStencil, 0);
+
+    GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if (status != GL_FRAMEBUFFER_COMPLETE) {
+        TraceLog(LOG_WARNING, "R3D: The SSAO ping-pong buffer is not complete (status: 0x%4x)", status);
     }
 
-    rlEnableFramebuffer(pingPong->id);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
 
-    // Determines the HDR color buffers precision
-    GLenum hdrFormat = (R3D.state.flags & R3D_FLAG_LOW_PRECISION_BUFFERS)
-        ? GL_R11F_G11F_B10F : GL_RGB16F;
+void r3d_framebuffer_load_deferred(int width, int height)
+{
+    /* --- Ensures that targets exist --- */
 
-    // Generate (color) buffers
-    GLuint textures[2];
-    glGenTextures(2, textures);
-    for (int i = 0; i < 2; i++) {
-        glBindTexture(GL_TEXTURE_2D, textures[i]);
-        glTexImage2D(GL_TEXTURE_2D, 0, r3d_support_get_internal_format(hdrFormat, true), width, height, 0, GL_RGB, GL_FLOAT, NULL);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    if (!R3D.target.diffuse)        r3d_target_load_diffuse(width, height);
+    if (!R3D.target.specular)       r3d_target_load_specular(width, height);
+    if (!R3D.target.depthStencil)   r3d_target_load_depth_stencil(width, height);
+
+    /* --- Create and configure the framebuffer --- */
+
+    glGenFramebuffers(1, &R3D.framebuffer.deferred);
+    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.deferred);
+
+    glDrawBuffers(2, (GLenum[]) {
+        GL_COLOR_ATTACHMENT0,
+        GL_COLOR_ATTACHMENT1,
+    });
+
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, R3D.target.diffuse, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, R3D.target.specular, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, R3D.target.depthStencil, 0);
+
+    GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if (status != GL_FRAMEBUFFER_COMPLETE) {
+        TraceLog(LOG_WARNING, "R3D: The deferred buffer is not complete (status: 0x%4x)", status);
     }
-    glBindTexture(GL_TEXTURE_2D, 0);
-    pingPong->target = textures[0];
-    pingPong->source = textures[1];
 
-    // Activate the draw buffers for all the attachments
-    rlActiveDrawBuffers(1);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
 
-    // Attach the textures to the framebuffer
-    rlFramebufferAttach(pingPong->id, pingPong->target, RL_ATTACHMENT_COLOR_CHANNEL0, RL_ATTACHMENT_TEXTURE2D, 0);
+void r3d_framebuffer_load_bloom(int width, int height)
+{
+    /* --- Ensures that targets exist --- */
 
-    // Check if the framebuffer is complete
-    if (!rlFramebufferComplete(pingPong->id)) {
-        TraceLog(LOG_WARNING, "R3D: The final ping-pong framebuffer is not complete");
+    if (R3D.target.mipChainHs.chain == NULL) {
+        r3d_target_load_mip_chain_hs(width, height);
     }
-}
 
-void r3d_framebuffer_unload_gbuffer(void)
-{
-    struct r3d_fb_gbuffer* gBuffer = &R3D.framebuffer.gBuffer;
+    /* --- Create and configure the framebuffer --- */
 
-    rlUnloadTexture(gBuffer->albedo);
-    rlUnloadTexture(gBuffer->emission);
-    rlUnloadTexture(gBuffer->normal);
-    rlUnloadTexture(gBuffer->orm);
-    rlUnloadTexture(gBuffer->depth);
+    glGenFramebuffers(1, &R3D.framebuffer.bloom);
+    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.bloom);
 
-    rlUnloadFramebuffer(gBuffer->id);
+    glDrawBuffers(1, (GLenum[]) {
+        GL_COLOR_ATTACHMENT0
+    });
 
-    memset(gBuffer, 0, sizeof(struct r3d_fb_gbuffer));
-}
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, R3D.target.mipChainHs.chain[0].id, 0);
 
-void r3d_framebuffer_unload_pingpong_ssao(void)
-{
-    struct r3d_fb_pingpong_ssao* ssao = &R3D.framebuffer.pingPongSSAO;
-
-    rlUnloadTexture(ssao->source);
-    rlUnloadTexture(ssao->target);
-
-    rlUnloadFramebuffer(ssao->id);
-
-    memset(ssao, 0, sizeof(struct r3d_fb_pingpong_ssao));
-}
-
-void r3d_framebuffer_unload_deferred(void)
-{
-    struct r3d_fb_deferred* deferred = &R3D.framebuffer.deferred;
-
-    rlUnloadTexture(deferred->diffuse);
-    rlUnloadTexture(deferred->specular);
-
-    rlUnloadFramebuffer(deferred->id);
-
-    memset(deferred, 0, sizeof(struct r3d_fb_deferred));
-}
-
-void r3d_framebuffer_unload_mipchain_bloom(void)
-{
-    struct r3d_fb_mipchain_bloom* bloom = &R3D.framebuffer.mipChainBloom;
-
-    for (int i = 0; i < bloom->mipCount; i++) {
-        glDeleteTextures(1, &bloom->mipChain[i].id);
+    GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if (status != GL_FRAMEBUFFER_COMPLETE) {
+        TraceLog(LOG_WARNING, "R3D: The bloom buffer is not complete (status: 0x%4x)", status);
     }
-    glDeleteFramebuffers(1, &bloom->id);
 
-    MemFree(bloom->mipChain);
-
-    bloom->mipChain = NULL;
-    bloom->mipCount = 0;
-    bloom->id = 0;
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void r3d_framebuffer_unload_pingpong(void)
+void r3d_framebuffer_load_scene(int width, int height)
 {
-    struct r3d_fb_pingpong* pingPong = &R3D.framebuffer.pingPong;
+    /* --- Ensures that targets exist --- */
 
-    rlUnloadTexture(pingPong->source);
-    rlUnloadTexture(pingPong->target);
+    if (!R3D.target.scenePp[0])     r3d_target_load_scene_pp(width, height);
+    if (!R3D.target.normal)         r3d_target_load_normal(width, height);
+    if (!R3D.target.orm)            r3d_target_load_orm(width, height);
+    if (!R3D.target.depthStencil)   r3d_target_load_depth_stencil(width, height);
 
-    rlUnloadFramebuffer(pingPong->id);
+    /* --- Create and configure the framebuffer --- */
 
-    memset(pingPong, 0, sizeof(struct r3d_fb_pingpong));
+    glGenFramebuffers(1, &R3D.framebuffer.scene);
+    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.scene);
+
+    // By default, only attachment 0 (the ping-pong buffer) is enabled.
+    // The additional attachments 'normal' and 'orm' will only be enabled
+    // when needed, for example during forward rendering.
+    glDrawBuffers(1, (GLenum[]) {
+        GL_COLOR_ATTACHMENT0
+    });
+
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, R3D.target.scenePp[0], 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, R3D.target.normal, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, R3D.target.orm, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, R3D.target.depthStencil, 0);
+
+    GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if (status != GL_FRAMEBUFFER_COMPLETE) {
+        TraceLog(LOG_WARNING, "R3D: The deferred buffer is not complete (status: 0x%4x)", status);
+    }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
-
 
 /* === Shader loading functions === */
 

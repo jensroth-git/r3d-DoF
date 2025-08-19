@@ -58,7 +58,7 @@ Texture2D R3D_GetNormalTexture(void)
 Texture2D R3D_GetBufferColor(void)
 {
     Texture2D texture = { 0 };
-    texture.id = R3D.framebuffer.pingPong.target;
+    texture.id = R3D.target.scenePp[1];
     texture.width = R3D.state.resolution.width;
     texture.height = R3D.state.resolution.height;
     texture.mipmaps = 1;
@@ -69,7 +69,7 @@ Texture2D R3D_GetBufferColor(void)
 Texture2D R3D_GetBufferNormal(void)
 {
     Texture2D texture = { 0 };
-    texture.id = R3D.framebuffer.gBuffer.normal;
+    texture.id = R3D.target.normal;
     texture.width = R3D.state.resolution.width;
     texture.height = R3D.state.resolution.height;
     texture.mipmaps = 1;
@@ -80,7 +80,7 @@ Texture2D R3D_GetBufferNormal(void)
 Texture2D R3D_GetBufferDepth(void)
 {
     Texture2D texture = { 0 };
-    texture.id = R3D.framebuffer.gBuffer.depth;
+    texture.id = R3D.target.depthStencil;
     texture.width = R3D.state.resolution.width;
     texture.height = R3D.state.resolution.height;
     texture.mipmaps = 1;
@@ -111,7 +111,7 @@ Matrix R3D_GetMatrixInvProjection(void)
 void R3D_DrawBufferAlbedo(float x, float y, float w, float h)
 {
     Texture2D tex = {
-        .id = R3D.framebuffer.gBuffer.albedo,
+        .id = R3D.target.albedo,
         .width = R3D.state.resolution.width,
         .height = R3D.state.resolution.width
     };
@@ -131,7 +131,7 @@ void R3D_DrawBufferAlbedo(float x, float y, float w, float h)
 void R3D_DrawBufferEmission(float x, float y, float w, float h)
 {
     Texture2D tex = {
-        .id = R3D.framebuffer.gBuffer.emission,
+        .id = R3D.target.emission,
         .width = R3D.state.resolution.width,
         .height = R3D.state.resolution.height
     };
@@ -151,7 +151,7 @@ void R3D_DrawBufferEmission(float x, float y, float w, float h)
 void R3D_DrawBufferNormal(float x, float y, float w, float h)
 {
     Texture2D tex = {
-        .id = R3D.framebuffer.gBuffer.normal,
+        .id = R3D.target.normal,
         .width = R3D.state.resolution.width,
         .height = R3D.state.resolution.height
     };
@@ -171,7 +171,7 @@ void R3D_DrawBufferNormal(float x, float y, float w, float h)
 void R3D_DrawBufferORM(float x, float y, float w, float h)
 {
     Texture2D tex = {
-        .id = R3D.framebuffer.gBuffer.orm,
+        .id = R3D.target.orm,
         .width = R3D.state.resolution.width,
         .height = R3D.state.resolution.height
     };
@@ -191,7 +191,7 @@ void R3D_DrawBufferORM(float x, float y, float w, float h)
 void R3D_DrawBufferSSAO(float x, float y, float w, float h)
 {
     Texture2D tex = {
-        .id = R3D.framebuffer.pingPongSSAO.target,
+        .id = R3D.target.ssaoPpHs[1],
         .width = R3D.state.resolution.width / 2,
         .height = R3D.state.resolution.height / 2
     };
@@ -210,8 +210,12 @@ void R3D_DrawBufferSSAO(float x, float y, float w, float h)
 
 void R3D_DrawBufferBloom(float x, float y, float w, float h)
 {
+    if (R3D.target.mipChainHs.chain == NULL) {
+        return;
+    }
+
     Texture2D tex = {
-        .id = R3D.framebuffer.mipChainBloom.mipChain[0].id,
+        .id = R3D.target.mipChainHs.chain[0].id,
         .width = R3D.state.resolution.width / 2,
         .height = R3D.state.resolution.height / 2
     };
