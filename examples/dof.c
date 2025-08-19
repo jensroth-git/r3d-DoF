@@ -92,6 +92,8 @@ void Update(float delta)
 
 void Draw(void)
 {
+    ClearBackground(BLACK);
+    
     R3D_Begin(camDefault);
         R3D_SetBackgroundColor((Color){0, 0, 0, 255});
         R3D_DrawMeshInstancedEx(&meshSphere, &matDefault, instances, instanceColors, INSTANCE_COUNT);

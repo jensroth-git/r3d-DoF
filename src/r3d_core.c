@@ -2309,8 +2309,9 @@ void r3d_pass_final_blit(void)
 {
     unsigned int dstId = 0;
     int dstX = 0, dstY = 0;
-    int dstW = GetScreenWidth();
-    int dstH = GetScreenHeight();
+    // Use render size (framebuffer size) to handle HiDPI/Retina on macOS
+    int dstW = GetRenderWidth();
+    int dstH = GetRenderHeight();
 
     // If a custom final framebuffer is set, use its ID and dimensions
     if (R3D.framebuffer.customTarget.id != 0) {
@@ -2325,7 +2326,8 @@ void r3d_pass_final_blit(void)
         float dstRatio = (float)dstW / dstH;
         if (srcRatio > dstRatio) {
             int prevH = dstH;
-            dstH = (int)(dstW * srcRatio + 0.5f);
+            // Source is wider than destination: reduce height
+            dstH = (int)(dstW / srcRatio + 0.5f);
             dstY = (prevH - dstH) / 2;
         }
         else {
