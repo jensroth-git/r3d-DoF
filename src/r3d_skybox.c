@@ -175,7 +175,7 @@ static TextureCubemap r3d_skybox_load_cubemap_from_panorama(Image image, int siz
     SetTextureFilter(panorama, TEXTURE_FILTER_BILINEAR);
 
     // Choose the best HDR format available
-    GLenum format = r3d_texture_get_best_internal_format(GL_RGB16F);
+    GLenum format = r3d_support_get_internal_format(GL_RGB16F, true);
 
     // Create the skybox cubemap texture
     unsigned int cubemapId = 0;
@@ -258,7 +258,7 @@ static TextureCubemap r3d_skybox_generate_irradiance(TextureCubemap sky)
     if (size < 32) size = 32;
 
     // Choose the best HDR format available
-    GLenum format = r3d_texture_get_best_internal_format(GL_RGB16F);
+    GLenum format = r3d_support_get_internal_format(GL_RGB16F, true);
 
     // Create the irradiance cubemap texture
     unsigned int irradianceId = 0;
@@ -332,7 +332,7 @@ static TextureCubemap r3d_skybox_generate_prefilter(TextureCubemap sky)
     static const int MAX_MIP_LEVELS = 8;    //< 1 + (int)floor(log2(PREFILTER_SIZE))
 
     // Choose the best HDR format available
-    GLenum format = r3d_texture_get_best_internal_format(GL_RGB16F);
+    GLenum format = r3d_support_get_internal_format(GL_RGB16F, true);
 
     // Create the prefilter cubemap texture
     unsigned int prefilterId = 0;

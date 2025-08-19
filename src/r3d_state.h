@@ -21,6 +21,7 @@
 #define R3D_STATE_H
 
 #include "r3d.h"
+#include "glad.h"
 
 #include "./details/r3d_shaders.h"
 #include "./details/r3d_frustum.h"
@@ -37,7 +38,13 @@
 #define R3D_STENCIL_EFFECT_MASK      0x7F                               // Mask for effect bits (bits 0-6)
 #define R3D_STENCIL_EFFECT_ID(n)     ((n) & R3D_STENCIL_EFFECT_MASK)    // Extract effect ID (7 bits - 127 effects)
 
-/* === Global r3d state === */
+/* === Internal Strucs === */
+
+struct r3d_spport_internal_format {
+    bool internal, attachment;
+};
+
+/* === Global R3D State === */
 
 extern struct R3D_State {
 
@@ -45,36 +52,36 @@ extern struct R3D_State {
     struct {
 
         // Single Channel Formats
-        int texR8;              // 8-bit normalized red channel
-        int texR16F;            // 16-bit half-precision floating point red channel
-        int texR32F;            // 32-bit full-precision floating point red channel
+        struct r3d_spport_internal_format R8;               // 8-bit normalized red channel
+        struct r3d_spport_internal_format R16F;             // 16-bit half-precision floating point red channel
+        struct r3d_spport_internal_format R32F;             // 32-bit full-precision floating point red channel
 
         // Dual Channel Formats
-        int texRG8;             // 8-bit normalized red-green channels
-        int texRG16F;           // 16-bit half-precision floating point red-green channels
-        int texRG32F;           // 32-bit full-precision floating point red-green channels
+        struct r3d_spport_internal_format RG8;              // 8-bit normalized red-green channels
+        struct r3d_spport_internal_format RG16F;            // 16-bit half-precision floating point red-green channels
+        struct r3d_spport_internal_format RG32F;            // 32-bit full-precision floating point red-green channels
 
         // Triple Channel Formats (RGB)
-        int texRGB565;          // 5-6-5 bits RGB (packed, legacy)
-        int texRGB8;            // 8-bit normalized RGB channels
-        int texSRGB8;           // 8-bit sRGB color space RGB channels
-        int texRGB12;           // 12-bit normalized RGB channels
-        int texRGB16;           // 16-bit normalized RGB channels
-        int texRGB9_E5;         // RGB with shared 5-bit exponent (compact HDR format)
-        int texR11F_G11F_B10F;  // 11-bit red, 11-bit green, 10-bit blue floating point (packed HDR)
-        int texRGB16F;          // 16-bit half-precision floating point RGB channels
-        int texRGB32F;          // 32-bit full-precision floating point RGB channels
+        struct r3d_spport_internal_format RGB565;           // 5-6-5 bits RGB (packed, legacy)
+        struct r3d_spport_internal_format RGB8;             // 8-bit normalized RGB channels
+        struct r3d_spport_internal_format SRGB8;            // 8-bit sRGB color space RGB channels
+        struct r3d_spport_internal_format RGB12;            // 12-bit normalized RGB channels
+        struct r3d_spport_internal_format RGB16;            // 16-bit normalized RGB channels
+        struct r3d_spport_internal_format RGB9_E5;          // RGB with shared 5-bit exponent (compact HDR format)
+        struct r3d_spport_internal_format R11F_G11F_B10F;   // 11-bit red, 11-bit green, 10-bit blue floating point (packed HDR)
+        struct r3d_spport_internal_format RGB16F;           // 16-bit half-precision floating point RGB channels
+        struct r3d_spport_internal_format RGB32F;           // 32-bit full-precision floating point RGB channels
 
         // Quad Channel Formats (RGBA)
-        int texRGBA4;           // 4-4-4-4 bits RGBA (packed, legacy)
-        int texRGB5_A1;         // 5-5-5-1 bits RGBA (packed, legacy)
-        int texRGBA8;           // 8-bit normalized RGBA channels
-        int texSRGB8_ALPHA8;    // 8-bit sRGB RGB + 8-bit linear alpha channel
-        int texRGB10_A2;        // 10-bit RGB + 2-bit alpha (HDR color with minimal alpha)
-        int texRGBA12;          // 12-bit normalized RGBA channels
-        int texRGBA16;          // 16-bit normalized RGBA channels
-        int texRGBA16F;         // 16-bit half-precision floating point RGBA channels
-        int texRGBA32F;         // 32-bit full-precision floating point RGBA channels
+        struct r3d_spport_internal_format RGBA4;            // 4-4-4-4 bits RGBA (packed, legacy)
+        struct r3d_spport_internal_format RGB5_A1;          // 5-5-5-1 bits RGBA (packed, legacy)
+        struct r3d_spport_internal_format RGBA8;            // 8-bit normalized RGBA channels
+        struct r3d_spport_internal_format SRGB8_ALPHA8;     // 8-bit sRGB RGB + 8-bit linear alpha channel
+        struct r3d_spport_internal_format RGB10_A2;         // 10-bit RGB + 2-bit alpha (HDR color with minimal alpha)
+        struct r3d_spport_internal_format RGBA12;           // 12-bit normalized RGBA channels
+        struct r3d_spport_internal_format RGBA16;           // 16-bit normalized RGBA channels
+        struct r3d_spport_internal_format RGBA16F;          // 16-bit half-precision floating point RGBA channels
+        struct r3d_spport_internal_format RGBA32F;          // 32-bit full-precision floating point RGBA channels
 
     } support;
 
@@ -318,14 +325,16 @@ extern struct R3D_State {
 
 /* === Helper functions === */
 
-int r3d_texture_get_best_internal_format(int internalFormat);
 bool r3d_texture_is_default(unsigned int id);
-void r3d_calculate_bloom_prefilter_data();
+void r3d_calculate_bloom_prefilter_data(void);
 
+/* === Support functions === */
+
+GLenum r3d_support_get_internal_format(GLenum internalFormat, bool asAttachment);
 
 /* === Main loading functions === */
 
-void r3d_support_check_texture_internal_formats(void);
+void r3d_supports_check(void);
 
 void r3d_framebuffers_load(int width, int height);
 void r3d_framebuffers_unload(void);

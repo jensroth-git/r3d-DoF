@@ -78,78 +78,73 @@ static char* r3d_shader_inject_defines(const char* code, const char* defines[], 
     return newShader;
 }
 
-static const char* r3d_get_internal_format_name(GLenum format)
+// Test if a format can be used as internal format and framebuffer attachment
+static struct r3d_spport_internal_format
+r3d_test_internal_format(GLuint fbo, GLuint tex, GLenum internalFormat, GLenum format, GLenum type)
 {
-    switch (format) {
-        case GL_R8: return "GL_R8";
-        case GL_R16F: return "GL_R16F";
-        case GL_R32F: return "GL_R32F";
-        case GL_RG8: return "GL_RG8";
-        case GL_RG16F: return "GL_RG16F";
-        case GL_RG32F: return "GL_RG32F";
-        case GL_RGB565: return "GL_RGB565";
-        case GL_RGB8: return "GL_RGB8";
-        case GL_SRGB8: return "GL_SRGB8";
-        case GL_RGB12: return "GL_RGB12";
-        case GL_RGB16: return "GL_RGB16";
-        case GL_RGB9_E5: return "GL_RGB9_E5";
-        case GL_R11F_G11F_B10F: return "GL_R11F_G11F_B10F";
-        case GL_RGB16F: return "GL_RGB16F";
-        case GL_RGB32F: return "GL_RGB32F";
-        case GL_RGBA4: return "GL_RGBA4";
-        case GL_RGB5_A1: return "GL_RGB5_A1";
-        case GL_RGBA8: return "GL_RGBA8";
-        case GL_SRGB8_ALPHA8: return "GL_SRGB8_ALPHA8";
-        case GL_RGB10_A2: return "GL_RGB10_A2";
-        case GL_RGBA12: return "GL_RGBA12";
-        case GL_RGBA16: return "GL_RGBA16";
-        case GL_RGBA16F: return "GL_RGBA16F";
-        case GL_RGBA32F: return "GL_RGBA32F";
-        default: return "UNKNOWN";
-    }
-}
+    struct r3d_spport_internal_format result = { 0 };
 
+    glBindTexture(GL_TEXTURE_2D, tex);
+    glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, 4, 4, 0, format, type, NULL);
+
+    result.internal = (glGetError() == GL_NO_ERROR);
+    if (!result.internal) return result;
+
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex, 0);
+
+    GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    result.attachment = (status == GL_FRAMEBUFFER_COMPLETE);
+
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
+
+    return result;
+}
 
 /* === Helper functions === */
 
-// Try to allocate a small texture with a specific internal format.
-// Returns true if no GL error occurred during allocation, false otherwise.
-static bool r3d_try_internal_format(GLenum internalFormat, GLenum format, GLenum type)
+bool r3d_texture_is_default(unsigned int id)
 {
-    GLuint tex = 0;
-    GLenum err = GL_NO_ERROR;
+    for (int i = 0; i < sizeof(R3D.texture) / sizeof(unsigned int); i++) {
+        if (id == ((unsigned int*)(&R3D.texture))[i]) {
+            return true;
+        }
+    }
 
-    glGenTextures(1, &tex);
-    glBindTexture(GL_TEXTURE_2D, tex);
-    glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, 4, 4, 0, format, type, NULL);
-    err = glGetError();
-
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glDeleteTextures(1, &tex);
-
-    return (err == GL_NO_ERROR);
+    return false;
 }
 
+void r3d_calculate_bloom_prefilter_data(void)
+{
+    float knee = R3D.env.bloomThreshold * R3D.env.bloomSoftThreshold;
+    R3D.env.bloomPrefilter.x = R3D.env.bloomThreshold;
+    R3D.env.bloomPrefilter.y = R3D.env.bloomPrefilter.x - knee;
+    R3D.env.bloomPrefilter.z = 2.0f * knee;
+    R3D.env.bloomPrefilter.w = 0.25f / (knee + 0.00001f);
+}
+
+/* === Support functions === */
+
 // Returns the best format in case of incompatibility
-int r3d_texture_get_best_internal_format(int internalFormat)
+GLenum r3d_support_get_internal_format(GLenum internalFormat, bool asAttachment)
 {
     // Macro to simplify the definition of supports
-    #define SUPPORT(fmt) { GL_##fmt, &R3D.support.tex##fmt, #fmt }
+    #define SUPPORT(fmt) { GL_##fmt, &R3D.support.fmt, #fmt }
     #define END_ALTERNATIVES { GL_NONE, NULL, NULL }
 
     // Structure for defining format alternatives
     struct format_info {
         GLenum format;
-        int* supportFlag;
+        const struct r3d_spport_internal_format* support;
         const char* name;
     };
 
     // Structure for defining fallbacks of a format
     struct format_fallback {
-        GLenum requested_format;
+        GLenum requestedInternalFormat;
         struct format_info alternatives[8];
     };
-    
+
     // Table of fallbacks for each format
     static const struct format_fallback fallbacks[] =
     {
@@ -158,28 +153,25 @@ int r3d_texture_get_best_internal_format(int internalFormat)
             SUPPORT(R8),
             END_ALTERNATIVES
         }},
-        
         { GL_R16F, {
             SUPPORT(R16F),
             SUPPORT(R32F),
             SUPPORT(R8),
             END_ALTERNATIVES
         }},
-        
         { GL_R32F, {
             SUPPORT(R32F),
             SUPPORT(R16F),
             SUPPORT(R8),
             END_ALTERNATIVES
         }},
-        
+
         // Dual Channel Formats
         { GL_RG8, {
             SUPPORT(RG8),
             SUPPORT(RGBA8),
             END_ALTERNATIVES
         }},
-        
         { GL_RG16F, {
             SUPPORT(RG16F),
             SUPPORT(RG32F),
@@ -187,7 +179,6 @@ int r3d_texture_get_best_internal_format(int internalFormat)
             SUPPORT(RG8),
             END_ALTERNATIVES
         }},
-        
         { GL_RG32F, {
             SUPPORT(RG32F),
             SUPPORT(RG16F),
@@ -203,7 +194,6 @@ int r3d_texture_get_best_internal_format(int internalFormat)
             SUPPORT(RGBA8),
             END_ALTERNATIVES
         }},
-        
         { GL_RGB8, {
             SUPPORT(RGB8),
             SUPPORT(SRGB8),
@@ -211,7 +201,6 @@ int r3d_texture_get_best_internal_format(int internalFormat)
             SUPPORT(RGB565),
             END_ALTERNATIVES
         }},
-        
         { GL_SRGB8, {
             SUPPORT(SRGB8),
             SUPPORT(RGB8),
@@ -219,7 +208,6 @@ int r3d_texture_get_best_internal_format(int internalFormat)
             SUPPORT(RGBA8),
             END_ALTERNATIVES
         }},
-        
         { GL_RGB12, {
             SUPPORT(RGB12),
             SUPPORT(RGB16),
@@ -227,7 +215,6 @@ int r3d_texture_get_best_internal_format(int internalFormat)
             SUPPORT(RGB8),
             END_ALTERNATIVES
         }},
-        
         { GL_RGB16, {
             SUPPORT(RGB16),
             SUPPORT(RGB12),
@@ -235,7 +222,6 @@ int r3d_texture_get_best_internal_format(int internalFormat)
             SUPPORT(RGB8),
             END_ALTERNATIVES
         }},
-        
         { GL_RGB9_E5, {
             SUPPORT(RGB9_E5),
             SUPPORT(R11F_G11F_B10F),
@@ -243,7 +229,6 @@ int r3d_texture_get_best_internal_format(int internalFormat)
             SUPPORT(RGB32F),
             END_ALTERNATIVES
         }},
-        
         { GL_R11F_G11F_B10F, {
             SUPPORT(R11F_G11F_B10F),
             SUPPORT(RGB9_E5),
@@ -251,7 +236,6 @@ int r3d_texture_get_best_internal_format(int internalFormat)
             SUPPORT(RGB32F),
             END_ALTERNATIVES
         }},
-        
         { GL_RGB16F, {
             SUPPORT(RGB16F),
             SUPPORT(RGB32F),
@@ -260,7 +244,6 @@ int r3d_texture_get_best_internal_format(int internalFormat)
             SUPPORT(RGB9_E5),
             END_ALTERNATIVES
         }},
-        
         { GL_RGB32F, {
             SUPPORT(RGB32F),
             SUPPORT(RGB16F),
@@ -276,14 +259,12 @@ int r3d_texture_get_best_internal_format(int internalFormat)
             SUPPORT(RGBA8),
             END_ALTERNATIVES
         }},
-        
         { GL_RGB5_A1, {
             SUPPORT(RGB5_A1),
             SUPPORT(RGBA4),
             SUPPORT(RGBA8),
             END_ALTERNATIVES
         }},
-        
         { GL_RGBA8, {
             SUPPORT(RGBA8),
             SUPPORT(SRGB8_ALPHA8),
@@ -291,21 +272,18 @@ int r3d_texture_get_best_internal_format(int internalFormat)
             SUPPORT(RGB5_A1),
             END_ALTERNATIVES
         }},
-        
         { GL_SRGB8_ALPHA8, {
             SUPPORT(SRGB8_ALPHA8),
             SUPPORT(RGBA8),
             SUPPORT(SRGB8),
             END_ALTERNATIVES
         }},
-        
         { GL_RGB10_A2, {
             SUPPORT(RGB10_A2),
             SUPPORT(RGBA16),
             SUPPORT(RGBA8),
             END_ALTERNATIVES
         }},
-        
         { GL_RGBA12, {
             SUPPORT(RGBA12),
             SUPPORT(RGBA16),
@@ -313,7 +291,6 @@ int r3d_texture_get_best_internal_format(int internalFormat)
             SUPPORT(RGBA8),
             END_ALTERNATIVES
         }},
-        
         { GL_RGBA16, {
             SUPPORT(RGBA16),
             SUPPORT(RGBA12),
@@ -321,7 +298,6 @@ int r3d_texture_get_best_internal_format(int internalFormat)
             SUPPORT(RGBA8),
             END_ALTERNATIVES
         }},
-        
         { GL_RGBA16F, {
             SUPPORT(RGBA16F),
             SUPPORT(RGBA32F),
@@ -329,7 +305,6 @@ int r3d_texture_get_best_internal_format(int internalFormat)
             SUPPORT(RGB10_A2),
             END_ALTERNATIVES
         }},
-        
         { GL_RGBA32F, {
             SUPPORT(RGBA32F),
             SUPPORT(RGBA16F),
@@ -337,170 +312,111 @@ int r3d_texture_get_best_internal_format(int internalFormat)
             SUPPORT(RGB10_A2),
             END_ALTERNATIVES
         }},
-        
+
         // Sentinel
         { GL_NONE, { END_ALTERNATIVES } }
     };
-    
+
     // Search for format in table
-    for (const struct format_fallback* fallback = fallbacks; fallback->requested_format != GL_NONE; fallback++) {
-        if (fallback->requested_format == internalFormat) {
-            // Test each alternative in order
+    for (const struct format_fallback* fallback = fallbacks; fallback->requestedInternalFormat != GL_NONE; fallback++) {
+        if (fallback->requestedInternalFormat == internalFormat) {
             for (int i = 0; fallback->alternatives[i].format != GL_NONE; i++) {
                 const struct format_info* alt = &fallback->alternatives[i];
-                if (*(alt->supportFlag)) {
-                    // Log if this is not the exact format requested
-                    if (i > 0) {
-                        TraceLog(LOG_WARNING, "R3D: %s not supported, using %s instead", r3d_get_internal_format_name(internalFormat), alt->name);
-                    }
+                if ((asAttachment && alt->support->attachment) || (!asAttachment && alt->support->internal)) {
+                    if (i > 0) TraceLog(LOG_WARNING, "R3D: %s not supported, using %s instead", fallback->alternatives[0].name, alt->name);
                     return alt->format;
                 }
             }
-            
+
             // No alternatives found
-            TraceLog(LOG_FATAL, "R3D: Texture format [0x%04x] is not supported and no fallback could be found", internalFormat);
+            TraceLog(LOG_FATAL, "R3D: Texture format %s is not supported and no fallback could be found", fallback->alternatives[0].name);
             return GL_NONE;
         }
     }
-    
+
     // Unknown format...
     assert(false && "Unknown or unsupported texture format requested");
     return GL_NONE;
-    
+
     #undef SUPPORT
     #undef END_ALTERNATIVES
 }
 
-bool r3d_texture_is_default(unsigned int id)
-{
-    for (int i = 0; i < sizeof(R3D.texture) / sizeof(unsigned int); i++) {
-        if (id == ((unsigned int*)(&R3D.texture))[i]) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-void r3d_calculate_bloom_prefilter_data()
-{
-    float knee = R3D.env.bloomThreshold * R3D.env.bloomSoftThreshold;
-    R3D.env.bloomPrefilter.x = R3D.env.bloomThreshold;
-    R3D.env.bloomPrefilter.y = R3D.env.bloomPrefilter.x - knee;
-    R3D.env.bloomPrefilter.z = 2.0f * knee;
-    R3D.env.bloomPrefilter.w = 0.25f / (knee + 0.00001f);
-}
-
-
 /* === Main loading functions === */
 
-void r3d_support_check_texture_internal_formats(void)
+void r3d_supports_check(void)
 {
     memset(&R3D.support, 0, sizeof(R3D.support));
 
-    // Prefer the modern internalformat query when available (GL 4.2+ or ARB_internalformat_query).
-    // On macOS OpenGL 4.1 this query is not available and returns false, so we fall back to probing.
-#if defined(GLAD_GL_VERSION_4_2)
-    if (GLAD_GL_VERSION_4_2) {
-        struct {
-            GLenum format;
-            int* outFlag;
-            const char* name;
-        } formats[] = {
-            // Single Channel Formats
-            { GL_R8, &R3D.support.texR8, "R8" },
-            { GL_R16F, &R3D.support.texR16F, "R16F" },
-            { GL_R32F, &R3D.support.texR32F, "R32F" },
+    /* --- Generate objects only once for all tests --- */
 
-            // Dual Channel Formats
-            { GL_RG8, &R3D.support.texRG8, "RG8" },
-            { GL_RG16F, &R3D.support.texRG16F, "RG16F" },
-            { GL_RG32F, &R3D.support.texRG32F, "RG32F" },
+    GLuint fbo, tex;
+    glGenFramebuffers(1, &fbo);
+    glGenTextures(1, &tex);
 
-            // Triple Channel Formats (RGB)
-            { GL_RGB565, &R3D.support.texRGB565, "RGB565" },
-            { GL_RGB8, &R3D.support.texRGB8, "RGB8" },
-            { GL_SRGB8, &R3D.support.texSRGB8, "SRGB8" },
-            { GL_RGB12, &R3D.support.texRGB12, "RGB12" },
-            { GL_RGB16, &R3D.support.texRGB16, "RGB16" },
-            { GL_RGB9_E5, &R3D.support.texRGB9_E5, "RGB9_E5" },
-            { GL_R11F_G11F_B10F, &R3D.support.texR11F_G11F_B10F, "R11F_G11F_B10F" },
-            { GL_RGB16F, &R3D.support.texRGB16F, "RGB16F" },
-            { GL_RGB32F, &R3D.support.texRGB32F, "RGB32F" },
+    /* --- Test each internal format and framebuffer attachment --- */
 
-            // Quad Channel Formats (RGBA)
-            { GL_RGBA4, &R3D.support.texRGBA4, "RGBA4" },
-            { GL_RGB5_A1, &R3D.support.texRGB5_A1, "RGB5_A1" },
-            { GL_RGBA8, &R3D.support.texRGBA8, "RGBA8" },
-            { GL_SRGB8_ALPHA8, &R3D.support.texSRGB8_ALPHA8, "SRGB8_ALPHA8" },
-            { GL_RGB10_A2, &R3D.support.texRGB10_A2, "RGB10_A2" },
-            { GL_RGBA12, &R3D.support.texRGBA12, "RGBA12" },
-            { GL_RGBA16, &R3D.support.texRGBA16, "RGBA16" },
-            { GL_RGBA16F, &R3D.support.texRGBA16F, "RGBA16F" },
-            { GL_RGBA32F, &R3D.support.texRGBA32F, "RGBA32F" },
-        };
-
-        for (int i = 0; i < (int)(sizeof(formats)/sizeof(formats[0])); ++i) {
-            glGetInternalformativ(GL_TEXTURE_2D, formats[i].format, GL_INTERNALFORMAT_SUPPORTED, 1, formats[i].outFlag);
-            if (*formats[i].outFlag) {
-                TraceLog(LOG_INFO, "R3D: Texture format %s is supported", formats[i].name);
-            } else {
-                TraceLog(LOG_WARNING, "R3D: Texture format %s is NOT supported", formats[i].name);
-            }
-        }
-        return;
-    }
-#endif
-
-    // Fallback probing path (works on macOS OpenGL 4.1): try to allocate a small texture for each format
     struct probe {
         GLenum internal;
         GLenum format;
         GLenum type;
-        int* outFlag;
+        struct r3d_spport_internal_format* outFlag;
         const char* name;
     } probes[] = {
         // Single Channel Formats
-        { GL_R8,                 GL_RED,   GL_UNSIGNED_BYTE,                &R3D.support.texR8,              "R8" },
-        { GL_R16F,               GL_RED,   GL_HALF_FLOAT,                   &R3D.support.texR16F,            "R16F" },
-        { GL_R32F,               GL_RED,   GL_FLOAT,                        &R3D.support.texR32F,            "R32F" },
+        { GL_R8,                 GL_RED,   GL_UNSIGNED_BYTE,                &R3D.support.R8,              "R8" },
+        { GL_R16F,               GL_RED,   GL_HALF_FLOAT,                   &R3D.support.R16F,            "R16F" },
+        { GL_R32F,               GL_RED,   GL_FLOAT,                        &R3D.support.R32F,            "R32F" },
 
         // Dual Channel Formats
-        { GL_RG8,                GL_RG,    GL_UNSIGNED_BYTE,                &R3D.support.texRG8,             "RG8" },
-        { GL_RG16F,              GL_RG,    GL_HALF_FLOAT,                   &R3D.support.texRG16F,           "RG16F" },
-        { GL_RG32F,              GL_RG,    GL_FLOAT,                        &R3D.support.texRG32F,           "RG32F" },
+        { GL_RG8,                GL_RG,    GL_UNSIGNED_BYTE,                &R3D.support.RG8,             "RG8" },
+        { GL_RG16F,              GL_RG,    GL_HALF_FLOAT,                   &R3D.support.RG16F,           "RG16F" },
+        { GL_RG32F,              GL_RG,    GL_FLOAT,                        &R3D.support.RG32F,           "RG32F" },
 
         // Triple Channel Formats (RGB)
-        { GL_RGB565,             GL_RGB,   GL_UNSIGNED_SHORT_5_6_5,         &R3D.support.texRGB565,          "RGB565" },
-        { GL_RGB8,               GL_RGB,   GL_UNSIGNED_BYTE,                &R3D.support.texRGB8,            "RGB8" },
-        { GL_SRGB8,              GL_RGB,   GL_UNSIGNED_BYTE,                &R3D.support.texSRGB8,           "SRGB8" },
-        { GL_RGB12,              GL_RGB,   GL_UNSIGNED_BYTE,                &R3D.support.texRGB12,           "RGB12" },
-        { GL_RGB16,              GL_RGB,   GL_UNSIGNED_BYTE,                &R3D.support.texRGB16,           "RGB16" },
-        { GL_RGB9_E5,            GL_RGB,   GL_UNSIGNED_INT_5_9_9_9_REV,     &R3D.support.texRGB9_E5,         "RGB9_E5" },
-        { GL_R11F_G11F_B10F,     GL_RGB,   GL_UNSIGNED_INT_10F_11F_11F_REV, &R3D.support.texR11F_G11F_B10F,  "R11F_G11F_B10F" },
-        { GL_RGB16F,             GL_RGB,   GL_HALF_FLOAT,                   &R3D.support.texRGB16F,          "RGB16F" },
-        { GL_RGB32F,             GL_RGB,   GL_FLOAT,                        &R3D.support.texRGB32F,          "RGB32F" },
+        { GL_RGB565,             GL_RGB,   GL_UNSIGNED_SHORT_5_6_5,         &R3D.support.RGB565,          "RGB565" },
+        { GL_RGB8,               GL_RGB,   GL_UNSIGNED_BYTE,                &R3D.support.RGB8,            "RGB8" },
+        { GL_SRGB8,              GL_RGB,   GL_UNSIGNED_BYTE,                &R3D.support.SRGB8,           "SRGB8" },
+        { GL_RGB12,              GL_RGB,   GL_UNSIGNED_SHORT,               &R3D.support.RGB12,           "RGB12" },
+        { GL_RGB16,              GL_RGB,   GL_UNSIGNED_SHORT,               &R3D.support.RGB16,           "RGB16" },
+        { GL_RGB9_E5,            GL_RGB,   GL_UNSIGNED_INT_5_9_9_9_REV,     &R3D.support.RGB9_E5,         "RGB9_E5" },
+        { GL_R11F_G11F_B10F,     GL_RGB,   GL_UNSIGNED_INT_10F_11F_11F_REV, &R3D.support.R11F_G11F_B10F,  "R11F_G11F_B10F" },
+        { GL_RGB16F,             GL_RGB,   GL_HALF_FLOAT,                   &R3D.support.RGB16F,          "RGB16F" },
+        { GL_RGB32F,             GL_RGB,   GL_FLOAT,                        &R3D.support.RGB32F,          "RGB32F" },
 
         // Quad Channel Formats (RGBA)
-        { GL_RGBA4,              GL_RGBA,  GL_UNSIGNED_SHORT_4_4_4_4,       &R3D.support.texRGBA4,           "RGBA4" },
-        { GL_RGB5_A1,            GL_RGBA,  GL_UNSIGNED_SHORT_5_5_5_1,       &R3D.support.texRGB5_A1,         "RGB5_A1" },
-        { GL_RGBA8,              GL_RGBA,  GL_UNSIGNED_BYTE,                &R3D.support.texRGBA8,           "RGBA8" },
-        { GL_SRGB8_ALPHA8,       GL_RGBA,  GL_UNSIGNED_BYTE,                &R3D.support.texSRGB8_ALPHA8,    "SRGB8_ALPHA8" },
-        { GL_RGB10_A2,           GL_RGBA,  GL_UNSIGNED_INT_10_10_10_2,      &R3D.support.texRGB10_A2,        "RGB10_A2" },
-        { GL_RGBA12,             GL_RGBA,  GL_UNSIGNED_BYTE,                &R3D.support.texRGBA12,          "RGBA12" },
-        { GL_RGBA16,             GL_RGBA,  GL_UNSIGNED_BYTE,                &R3D.support.texRGBA16,          "RGBA16" },
-        { GL_RGBA16F,            GL_RGBA,  GL_HALF_FLOAT,                   &R3D.support.texRGBA16F,         "RGBA16F" },
-        { GL_RGBA32F,            GL_RGBA,  GL_FLOAT,                        &R3D.support.texRGBA32F,         "RGBA32F" },
+        { GL_RGBA4,              GL_RGBA,  GL_UNSIGNED_SHORT_4_4_4_4,       &R3D.support.RGBA4,           "RGBA4" },
+        { GL_RGB5_A1,            GL_RGBA,  GL_UNSIGNED_SHORT_5_5_5_1,       &R3D.support.RGB5_A1,         "RGB5_A1" },
+        { GL_RGBA8,              GL_RGBA,  GL_UNSIGNED_BYTE,                &R3D.support.RGBA8,           "RGBA8" },
+        { GL_SRGB8_ALPHA8,       GL_RGBA,  GL_UNSIGNED_BYTE,                &R3D.support.SRGB8_ALPHA8,    "SRGB8_ALPHA8" },
+        { GL_RGB10_A2,           GL_RGBA,  GL_UNSIGNED_INT_10_10_10_2,      &R3D.support.RGB10_A2,        "RGB10_A2" },
+        { GL_RGBA12,             GL_RGBA,  GL_UNSIGNED_SHORT,               &R3D.support.RGBA12,          "RGBA12" },
+        { GL_RGBA16,             GL_RGBA,  GL_UNSIGNED_SHORT,               &R3D.support.RGBA16,          "RGBA16" },
+        { GL_RGBA16F,            GL_RGBA,  GL_HALF_FLOAT,                   &R3D.support.RGBA16F,         "RGBA16F" },
+        { GL_RGBA32F,            GL_RGBA,  GL_FLOAT,                        &R3D.support.RGBA32F,         "RGBA32F" },
     };
 
-    for (int i = 0; i < (int)(sizeof(probes)/sizeof(probes[0])); ++i) {
-        *probes[i].outFlag = r3d_try_internal_format(probes[i].internal, probes[i].format, probes[i].type);
-        if (*probes[i].outFlag) {
-            TraceLog(LOG_INFO, "R3D: Texture format %s is supported", probes[i].name);
-        } else {
-            TraceLog(LOG_WARNING, "R3D: Texture format %s is NOT supported", probes[i].name);
-        }
+    for (int i = 0; i < (int)(sizeof(probes)/sizeof(probes[0])); ++i)
+    {
+        *probes[i].outFlag = r3d_test_internal_format(fbo, tex, probes[i].internal, probes[i].format, probes[i].type);
+
+        TraceLog(LOG_INFO,
+            "R3D: Texture format %s has been checked:\n"
+            "    > Supported: %s\n"
+            "    > Attachment: %s",
+            probes[i].name,
+            probes[i].outFlag->internal ? "YES" : "NO",
+            probes[i].outFlag->attachment ? "YES" : "NO"
+        );
     }
+
+    /* --- Clean up objects and residual errors --- */
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glDeleteFramebuffers(1, &fbo);
+    glDeleteTextures(1, &tex);
+    glGetError();
 }
 
 void r3d_framebuffers_load(int width, int height)
@@ -725,7 +641,7 @@ void r3d_framebuffer_load_gbuffer(int width, int height)
     // Generate emission buffer
     glGenTextures(1, &gBuffer->emission);
     glBindTexture(GL_TEXTURE_2D, gBuffer->emission);
-    glTexImage2D(GL_TEXTURE_2D, 0, r3d_texture_get_best_internal_format(hdrFormat), width, height, 0, GL_RGB, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, r3d_support_get_internal_format(hdrFormat, true), width, height, 0, GL_RGB, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -735,7 +651,7 @@ void r3d_framebuffer_load_gbuffer(int width, int height)
     // Normals will be encoded and decoded using octahedral mapping
     glGenTextures(1, &gBuffer->normal);
     glBindTexture(GL_TEXTURE_2D, gBuffer->normal);
-    if ((R3D.state.flags & R3D_FLAG_8_BIT_NORMALS) || (R3D.support.texRG16F == false)) {
+    if ((R3D.state.flags & R3D_FLAG_8_BIT_NORMALS) || !R3D.support.RG16F.attachment) {
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RG8, width, height, 0, GL_RG, GL_UNSIGNED_BYTE, NULL);
     }
     else {
@@ -834,7 +750,7 @@ void r3d_framebuffer_load_deferred(int width, int height)
     glGenTextures(2, textures);
     for (int i = 0; i < 2; i++) {
         glBindTexture(GL_TEXTURE_2D, textures[i]);
-        glTexImage2D(GL_TEXTURE_2D, 0, r3d_texture_get_best_internal_format(GL_RGB16F), width, height, 0, GL_RGB, GL_FLOAT, NULL);
+        glTexImage2D(GL_TEXTURE_2D, 0, r3d_support_get_internal_format(GL_RGB16F, true), width, height, 0, GL_RGB, GL_FLOAT, NULL);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -912,7 +828,7 @@ void r3d_framebuffer_load_mipchain_bloom(int width, int height)
 
         glGenTextures(1, &mip->id);
         glBindTexture(GL_TEXTURE_2D, mip->id);
-        glTexImage2D(GL_TEXTURE_2D, 0, r3d_texture_get_best_internal_format(hdrFormat), wMip, hMip, 0, GL_RGB, GL_FLOAT, NULL);
+        glTexImage2D(GL_TEXTURE_2D, 0, r3d_support_get_internal_format(hdrFormat, true), wMip, hMip, 0, GL_RGB, GL_FLOAT, NULL);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -953,7 +869,7 @@ void r3d_framebuffer_load_pingpong(int width, int height)
     glGenTextures(2, textures);
     for (int i = 0; i < 2; i++) {
         glBindTexture(GL_TEXTURE_2D, textures[i]);
-        glTexImage2D(GL_TEXTURE_2D, 0, r3d_texture_get_best_internal_format(hdrFormat), width, height, 0, GL_RGB, GL_FLOAT, NULL);
+        glTexImage2D(GL_TEXTURE_2D, 0, r3d_support_get_internal_format(hdrFormat, true), width, height, 0, GL_RGB, GL_FLOAT, NULL);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -1842,7 +1758,7 @@ void r3d_texture_load_ssao_kernel(void)
 
 void r3d_texture_load_ibl_brdf_lut(void)
 {
-    // TODO: Review in case 'R3D.support.TEX_RG16F' is false
+    // TODO: Review in case 'R3D.support.RG16F.internal' is false
 
     Image img = { 0 };
 

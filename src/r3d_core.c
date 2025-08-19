@@ -91,7 +91,7 @@ void R3D_Init(int resWidth, int resHeight, unsigned int flags)
     R3D.state.flags = flags;
 
     // Check GPU supports
-    r3d_support_check_texture_internal_formats();
+    r3d_supports_check();
 
     // Load draw call arrays
     R3D.container.aDrawForward = r3d_array_create(128, sizeof(r3d_drawcall_t));
