@@ -229,6 +229,7 @@ EmbedShaders(${PROJECT_NAME}
     "${R3D_ROOT_PATH}/shaders/screen/lighting.frag"
     "${R3D_ROOT_PATH}/shaders/screen/scene.frag"
     "${R3D_ROOT_PATH}/shaders/screen/bloom.frag"
+    "${R3D_ROOT_PATH}/shaders/screen/ssr.frag"
     "${R3D_ROOT_PATH}/shaders/screen/fog.frag"
     "${R3D_ROOT_PATH}/shaders/screen/dof.frag"
     "${R3D_ROOT_PATH}/shaders/screen/output.frag"
