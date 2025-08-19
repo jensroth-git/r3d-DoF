@@ -1,4 +1,4 @@
-﻿#include "./common.h"
+#include "./common.h"
 #include "r3d.h"
 #include "rcamera.h"
 #include <stdlib.h>
@@ -107,6 +107,9 @@ void Update(float delta)
 
 void Draw(void)
 {
+    /* --- Ensure Clear Background --- */
+    ClearBackground(BLACK);
+  
     /* --- Render R3D scene --- */
 
     R3D_Begin(camDefault);
@@ -137,4 +140,3 @@ void Close(void)
     R3D_UnloadMesh(&meshSphere);
     R3D_Close();
 }
-

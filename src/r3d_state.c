@@ -112,6 +112,24 @@ static const char* r3d_get_internal_format_name(GLenum format)
 
 /* === Helper functions === */
 
+// Try to allocate a small texture with a specific internal format.
+// Returns true if no GL error occurred during allocation, false otherwise.
+static bool r3d_try_internal_format(GLenum internalFormat, GLenum format, GLenum type)
+{
+    GLuint tex = 0;
+    GLenum err = GL_NO_ERROR;
+
+    glGenTextures(1, &tex);
+    glBindTexture(GL_TEXTURE_2D, tex);
+    glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, 4, 4, 0, format, type, NULL);
+    err = glGetError();
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glDeleteTextures(1, &tex);
+
+    return (err == GL_NO_ERROR);
+}
+
 // Returns the best format in case of incompatibility
 int r3d_texture_get_best_internal_format(int internalFormat)
 {
@@ -380,50 +398,107 @@ void r3d_support_check_texture_internal_formats(void)
 {
     memset(&R3D.support, 0, sizeof(R3D.support));
 
-    struct {
+    // Prefer the modern internalformat query when available (GL 4.2+ or ARB_internalformat_query).
+    // On macOS OpenGL 4.1 this query is not available and returns false, so we fall back to probing.
+#if defined(GLAD_GL_VERSION_4_2)
+    if (GLAD_GL_VERSION_4_2) {
+        struct {
+            GLenum format;
+            int* outFlag;
+            const char* name;
+        } formats[] = {
+            // Single Channel Formats
+            { GL_R8, &R3D.support.texR8, "R8" },
+            { GL_R16F, &R3D.support.texR16F, "R16F" },
+            { GL_R32F, &R3D.support.texR32F, "R32F" },
+
+            // Dual Channel Formats
+            { GL_RG8, &R3D.support.texRG8, "RG8" },
+            { GL_RG16F, &R3D.support.texRG16F, "RG16F" },
+            { GL_RG32F, &R3D.support.texRG32F, "RG32F" },
+
+            // Triple Channel Formats (RGB)
+            { GL_RGB565, &R3D.support.texRGB565, "RGB565" },
+            { GL_RGB8, &R3D.support.texRGB8, "RGB8" },
+            { GL_SRGB8, &R3D.support.texSRGB8, "SRGB8" },
+            { GL_RGB12, &R3D.support.texRGB12, "RGB12" },
+            { GL_RGB16, &R3D.support.texRGB16, "RGB16" },
+            { GL_RGB9_E5, &R3D.support.texRGB9_E5, "RGB9_E5" },
+            { GL_R11F_G11F_B10F, &R3D.support.texR11F_G11F_B10F, "R11F_G11F_B10F" },
+            { GL_RGB16F, &R3D.support.texRGB16F, "RGB16F" },
+            { GL_RGB32F, &R3D.support.texRGB32F, "RGB32F" },
+
+            // Quad Channel Formats (RGBA)
+            { GL_RGBA4, &R3D.support.texRGBA4, "RGBA4" },
+            { GL_RGB5_A1, &R3D.support.texRGB5_A1, "RGB5_A1" },
+            { GL_RGBA8, &R3D.support.texRGBA8, "RGBA8" },
+            { GL_SRGB8_ALPHA8, &R3D.support.texSRGB8_ALPHA8, "SRGB8_ALPHA8" },
+            { GL_RGB10_A2, &R3D.support.texRGB10_A2, "RGB10_A2" },
+            { GL_RGBA12, &R3D.support.texRGBA12, "RGBA12" },
+            { GL_RGBA16, &R3D.support.texRGBA16, "RGBA16" },
+            { GL_RGBA16F, &R3D.support.texRGBA16F, "RGBA16F" },
+            { GL_RGBA32F, &R3D.support.texRGBA32F, "RGBA32F" },
+        };
+
+        for (int i = 0; i < (int)(sizeof(formats)/sizeof(formats[0])); ++i) {
+            glGetInternalformativ(GL_TEXTURE_2D, formats[i].format, GL_INTERNALFORMAT_SUPPORTED, 1, formats[i].outFlag);
+            if (*formats[i].outFlag) {
+                TraceLog(LOG_INFO, "R3D: Texture format %s is supported", formats[i].name);
+            } else {
+                TraceLog(LOG_WARNING, "R3D: Texture format %s is NOT supported", formats[i].name);
+            }
+        }
+        return;
+    }
+#endif
+
+    // Fallback probing path (works on macOS OpenGL 4.1): try to allocate a small texture for each format
+    struct probe {
+        GLenum internal;
         GLenum format;
+        GLenum type;
         int* outFlag;
         const char* name;
-    } formats[] = {
+    } probes[] = {
         // Single Channel Formats
-        { GL_R8, &R3D.support.texR8, "R8" },
-        { GL_R16F, &R3D.support.texR16F, "R16F" },
-        { GL_R32F, &R3D.support.texR32F, "R32F" },
+        { GL_R8,                 GL_RED,   GL_UNSIGNED_BYTE,                &R3D.support.texR8,              "R8" },
+        { GL_R16F,               GL_RED,   GL_HALF_FLOAT,                   &R3D.support.texR16F,            "R16F" },
+        { GL_R32F,               GL_RED,   GL_FLOAT,                        &R3D.support.texR32F,            "R32F" },
 
         // Dual Channel Formats
-        { GL_RG8, &R3D.support.texRG8, "RG8" },
-        { GL_RG16F, &R3D.support.texRG16F, "RG16F" },
-        { GL_RG32F, &R3D.support.texRG32F, "RG32F" },
+        { GL_RG8,                GL_RG,    GL_UNSIGNED_BYTE,                &R3D.support.texRG8,             "RG8" },
+        { GL_RG16F,              GL_RG,    GL_HALF_FLOAT,                   &R3D.support.texRG16F,           "RG16F" },
+        { GL_RG32F,              GL_RG,    GL_FLOAT,                        &R3D.support.texRG32F,           "RG32F" },
 
         // Triple Channel Formats (RGB)
-        { GL_RGB565, &R3D.support.texRGB565, "RGB565" },
-        { GL_RGB8, &R3D.support.texRGB8, "RGB8" },
-        { GL_SRGB8, &R3D.support.texSRGB8, "SRGB8" },
-        { GL_RGB12, &R3D.support.texRGB12, "RGB12" },
-        { GL_RGB16, &R3D.support.texRGB16, "RGB16" },
-        { GL_RGB9_E5, &R3D.support.texRGB9_E5, "RGB9_E5" },
-        { GL_R11F_G11F_B10F, &R3D.support.texR11F_G11F_B10F, "R11F_G11F_B10F" },
-        { GL_RGB16F, &R3D.support.texRGB16F, "RGB16F" },
-        { GL_RGB32F, &R3D.support.texRGB32F, "RGB32F" },
+        { GL_RGB565,             GL_RGB,   GL_UNSIGNED_SHORT_5_6_5,         &R3D.support.texRGB565,          "RGB565" },
+        { GL_RGB8,               GL_RGB,   GL_UNSIGNED_BYTE,                &R3D.support.texRGB8,            "RGB8" },
+        { GL_SRGB8,              GL_RGB,   GL_UNSIGNED_BYTE,                &R3D.support.texSRGB8,           "SRGB8" },
+        { GL_RGB12,              GL_RGB,   GL_UNSIGNED_BYTE,                &R3D.support.texRGB12,           "RGB12" },
+        { GL_RGB16,              GL_RGB,   GL_UNSIGNED_BYTE,                &R3D.support.texRGB16,           "RGB16" },
+        { GL_RGB9_E5,            GL_RGB,   GL_UNSIGNED_INT_5_9_9_9_REV,     &R3D.support.texRGB9_E5,         "RGB9_E5" },
+        { GL_R11F_G11F_B10F,     GL_RGB,   GL_UNSIGNED_INT_10F_11F_11F_REV, &R3D.support.texR11F_G11F_B10F,  "R11F_G11F_B10F" },
+        { GL_RGB16F,             GL_RGB,   GL_HALF_FLOAT,                   &R3D.support.texRGB16F,          "RGB16F" },
+        { GL_RGB32F,             GL_RGB,   GL_FLOAT,                        &R3D.support.texRGB32F,          "RGB32F" },
 
         // Quad Channel Formats (RGBA)
-        { GL_RGBA4, &R3D.support.texRGBA4, "RGBA4" },
-        { GL_RGB5_A1, &R3D.support.texRGB5_A1, "RGB5_A1" },
-        { GL_RGBA8, &R3D.support.texRGBA8, "RGBA8" },
-        { GL_SRGB8_ALPHA8, &R3D.support.texSRGB8_ALPHA8, "SRGB8_ALPHA8" },
-        { GL_RGB10_A2, &R3D.support.texRGB10_A2, "RGB10_A2" },
-        { GL_RGBA12, &R3D.support.texRGBA12, "RGBA12" },
-        { GL_RGBA16, &R3D.support.texRGBA16, "RGBA16" },
-        { GL_RGBA16F, &R3D.support.texRGBA16F, "RGBA16F" },
-        { GL_RGBA32F, &R3D.support.texRGBA32F, "RGBA32F" },
+        { GL_RGBA4,              GL_RGBA,  GL_UNSIGNED_SHORT_4_4_4_4,       &R3D.support.texRGBA4,           "RGBA4" },
+        { GL_RGB5_A1,            GL_RGBA,  GL_UNSIGNED_SHORT_5_5_5_1,       &R3D.support.texRGB5_A1,         "RGB5_A1" },
+        { GL_RGBA8,              GL_RGBA,  GL_UNSIGNED_BYTE,                &R3D.support.texRGBA8,           "RGBA8" },
+        { GL_SRGB8_ALPHA8,       GL_RGBA,  GL_UNSIGNED_BYTE,                &R3D.support.texSRGB8_ALPHA8,    "SRGB8_ALPHA8" },
+        { GL_RGB10_A2,           GL_RGBA,  GL_UNSIGNED_INT_10_10_10_2,      &R3D.support.texRGB10_A2,        "RGB10_A2" },
+        { GL_RGBA12,             GL_RGBA,  GL_UNSIGNED_BYTE,                &R3D.support.texRGBA12,          "RGBA12" },
+        { GL_RGBA16,             GL_RGBA,  GL_UNSIGNED_BYTE,                &R3D.support.texRGBA16,          "RGBA16" },
+        { GL_RGBA16F,            GL_RGBA,  GL_HALF_FLOAT,                   &R3D.support.texRGBA16F,         "RGBA16F" },
+        { GL_RGBA32F,            GL_RGBA,  GL_FLOAT,                        &R3D.support.texRGBA32F,         "RGBA32F" },
     };
 
-    for (int i = 0; i < sizeof(formats)/sizeof(formats[0]); ++i) {
-        glGetInternalformativ(GL_TEXTURE_2D, formats[i].format, GL_INTERNALFORMAT_SUPPORTED, 1, formats[i].outFlag);
-        if (*formats[i].outFlag) {
-            TraceLog(LOG_INFO, "R3D: Texture format %s is supported", formats[i].name);
+    for (int i = 0; i < (int)(sizeof(probes)/sizeof(probes[0])); ++i) {
+        *probes[i].outFlag = r3d_try_internal_format(probes[i].internal, probes[i].format, probes[i].type);
+        if (*probes[i].outFlag) {
+            TraceLog(LOG_INFO, "R3D: Texture format %s is supported", probes[i].name);
         } else {
-            TraceLog(LOG_WARNING, "R3D: Texture format %s is NOT supported", formats[i].name);
+            TraceLog(LOG_WARNING, "R3D: Texture format %s is NOT supported", probes[i].name);
         }
     }
 }
