@@ -2366,16 +2366,30 @@ void r3d_pass_final_blit(void)
         }
     }
 
-    // Bind the destination framebuffer for drawing
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, dstId);
-
-    // Blit only the color data from the post-processing framebuffer to the main framebuffer
     glBindFramebuffer(GL_READ_FRAMEBUFFER, R3D.framebuffer.scene);
-    glBlitFramebuffer(
-        0, 0, R3D.state.resolution.width, R3D.state.resolution.height,
-        dstX, dstY, dstX + dstW, dstY + dstH, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT,
-        (R3D.state.flags & R3D_FLAG_BLIT_LINEAR) ? GL_LINEAR : GL_NEAREST
-    );
+
+    if (R3D.state.flags & R3D_FLAG_BLIT_LINEAR) {
+        glBlitFramebuffer(
+            0, 0, R3D.state.resolution.width, R3D.state.resolution.height,
+            dstX, dstY, dstX + dstW, dstY + dstH,
+            GL_COLOR_BUFFER_BIT, GL_LINEAR
+        );
+        glBlitFramebuffer(
+            0, 0, R3D.state.resolution.width, R3D.state.resolution.height,
+            dstX, dstY, dstX + dstW, dstY + dstH,
+            GL_DEPTH_BUFFER_BIT, GL_NEAREST
+        );
+    }
+    else {
+        glBlitFramebuffer(
+            0, 0, R3D.state.resolution.width, R3D.state.resolution.height,
+            dstX, dstY, dstX + dstW, dstY + dstH,
+            GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT,
+            GL_NEAREST
+        );
+    }
+
 }
 
 void r3d_reset_raylib_state(void)
