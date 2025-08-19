@@ -193,9 +193,12 @@ static TextureCubemap r3d_skybox_load_cubemap_from_panorama(Image image, int siz
     unsigned int rbo = rlLoadTextureDepth(size, size, true);
     rlFramebufferAttach(fbo, rbo, RL_ATTACHMENT_DEPTH, RL_ATTACHMENT_RENDERBUFFER, 0);
 
+    // Calculate projection matrix
+    const Matrix matProj = MatrixPerspective(90.0 * DEG2RAD, 1.0, 0.1, 10.0);
+
     // Enable and configure the shader for converting panorama to cubemap
     r3d_shader_enable(generate.cubemapFromEquirectangular);
-    r3d_shader_set_mat4(generate.cubemapFromEquirectangular, uMatProj, MatrixPerspective(90.0 * DEG2RAD, 1.0, 0.1, 10.0));
+    r3d_shader_set_mat4(generate.cubemapFromEquirectangular, uMatProj, matProj);
     r3d_shader_bind_sampler2D(generate.cubemapFromEquirectangular, uTexEquirectangular, panorama.id);
 
     // Set viewport to framebuffer dimensions
@@ -281,9 +284,12 @@ static TextureCubemap r3d_skybox_generate_irradiance(TextureCubemap sky)
     unsigned int rbo = rlLoadTextureDepth(size, size, true);
     rlFramebufferAttach(fbo, rbo, RL_ATTACHMENT_DEPTH, RL_ATTACHMENT_RENDERBUFFER, 0);
 
+    // Calculate projection matrix
+    const Matrix matProj = MatrixPerspective(90.0 * DEG2RAD, 1.0, 0.1, 10.0);
+
     // Enable and configure irradiance convolution shader
     r3d_shader_enable(generate.irradianceConvolution);
-    r3d_shader_set_mat4(generate.irradianceConvolution, uMatProj, MatrixPerspective(90.0 * DEG2RAD, 1.0, 0.1, 10.0));
+    r3d_shader_set_mat4(generate.irradianceConvolution, uMatProj, matProj);
     r3d_shader_bind_samplerCube(generate.irradianceConvolution, uCubemap, sky.id);
 
     // Set viewport to framebuffer dimensions
@@ -362,9 +368,12 @@ static TextureCubemap r3d_skybox_generate_prefilter(TextureCubemap sky)
     // It will be configured for each mipmap
     unsigned int fbo = rlLoadFramebuffer();
 
+    // Calculate projection matrix
+    const Matrix matProj = MatrixPerspective(90.0 * DEG2RAD, 1.0, 0.1, 10.0);
+
     // Enable shader for prefiltering
     r3d_shader_enable(generate.prefilter);
-    r3d_shader_set_mat4(generate.prefilter, uMatProj, MatrixPerspective(90.0 * DEG2RAD, 1.0, 0.1, 10.0));
+    r3d_shader_set_mat4(generate.prefilter, uMatProj, matProj);
     r3d_shader_bind_samplerCube(generate.prefilter, uCubemap, sky.id);
 
     // Configure framebuffer and rendering parameters

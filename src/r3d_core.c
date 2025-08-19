@@ -1574,12 +1574,11 @@ void r3d_pass_deferred_lights(void)
 
                     Vector3 scale = Vector3Scale(Vector3Subtract(light->aabb.max, light->aabb.min), 0.5f);
                     Vector3 position = Vector3Scale(Vector3Add(light->aabb.min, light->aabb.max), 0.5f);
-                    Matrix transform = r3d_matrix_scale_translate(&scale, &position);
 
-                    r3d_shader_set_mat4(
-                        raster.depthVolume, uMatMVP,
-                        r3d_matrix_multiply(&transform, &R3D.state.transform.viewProj)
-                    );
+                    Matrix transform = r3d_matrix_scale_translate(&scale, &position);
+                    Matrix mvp = r3d_matrix_multiply(&transform, &R3D.state.transform.viewProj);
+
+                    r3d_shader_set_mat4(raster.depthVolume, uMatMVP, mvp);
                     
                     // Stencil setup for volume writing
                     if (R3D.state.flags & R3D_FLAG_STENCIL_TEST) {

@@ -421,17 +421,17 @@ void r3d_texture_load_ibl_brdf_lut(void);
 
 #define r3d_shader_enable(shader_name)                                                          \
 do {                                                                                            \
-    rlEnableShader(R3D.shader.shader_name.id);                                                  \
+    glUseProgram(R3D.shader.shader_name.id);                                                    \
 } while(0)
 
 #define r3d_shader_disable()                                                                    \
 do {                                                                                            \
-    rlDisableShader();                                                                          \
+    glUseProgram(0);                                                                            \
 } while(0)
 
 #define r3d_shader_get_location(shader_name, uniform)                                           \
 do {                                                                                            \
-    R3D.shader.shader_name.uniform.loc = rlGetLocationUniform(                                  \
+    R3D.shader.shader_name.uniform.loc = glGetUniformLocation(                                  \
         R3D.shader.shader_name.id, #uniform                                                     \
     );                                                                                          \
 } while(0)
@@ -440,10 +440,9 @@ do {                                                                            
 do {                                                                                            \
     if (R3D.shader.shader_name.uniform.slot1D != (value)) {                                     \
         R3D.shader.shader_name.uniform.slot1D = (value);                                        \
-        rlSetUniform(                                                                           \
+        glUniform1i(                                                                            \
             R3D.shader.shader_name.uniform.loc,                                                 \
-            &R3D.shader.shader_name.uniform.slot1D,                                             \
-            RL_SHADER_UNIFORM_INT, 1                                                            \
+            R3D.shader.shader_name.uniform.slot1D                                               \
         );                                                                                      \
     }                                                                                           \
 } while(0)
@@ -452,10 +451,9 @@ do {                                                                            
 do {                                                                                            \
     if (R3D.shader.shader_name.uniform.slot2D != (value)) {                                     \
         R3D.shader.shader_name.uniform.slot2D = (value);                                        \
-        rlSetUniform(                                                                           \
+        glUniform1i(                                                                            \
             R3D.shader.shader_name.uniform.loc,                                                 \
-            &R3D.shader.shader_name.uniform.slot2D,                                             \
-            RL_SHADER_UNIFORM_INT, 1                                                            \
+            R3D.shader.shader_name.uniform.slot2D                                               \
         );                                                                                      \
     }                                                                                           \
 } while(0)
@@ -464,10 +462,9 @@ do {                                                                            
 do {                                                                                            \
     if (R3D.shader.shader_name.uniform.slotCube != (value)) {                                   \
         R3D.shader.shader_name.uniform.slotCube = (value);                                      \
-        rlSetUniform(                                                                           \
+        glUniform1i(                                                                            \
             R3D.shader.shader_name.uniform.loc,                                                 \
-            &R3D.shader.shader_name.uniform.slotCube,                                           \
-            RL_SHADER_UNIFORM_INT, 1                                                            \
+            R3D.shader.shader_name.uniform.slotCube                                             \
         );                                                                                      \
     }                                                                                           \
 } while(0)
@@ -519,10 +516,9 @@ do {                                                                            
 do {                                                                                            \
     if (R3D.shader.shader_name.uniform.val != (value)) {                                        \
         R3D.shader.shader_name.uniform.val = (value);                                           \
-        rlSetUniform(                                                                           \
+        glUniform1i(                                                                            \
             R3D.shader.shader_name.uniform.loc,                                                 \
-            &R3D.shader.shader_name.uniform.val,                                                \
-            RL_SHADER_UNIFORM_INT, 1                                                            \
+            R3D.shader.shader_name.uniform.val                                                  \
         );                                                                                      \
     }                                                                                           \
 } while(0)
@@ -531,10 +527,9 @@ do {                                                                            
 do {                                                                                            \
     if (R3D.shader.shader_name.uniform.val != (value)) {                                        \
         R3D.shader.shader_name.uniform.val = (value);                                           \
-        rlSetUniform(                                                                           \
+        glUniform1f(                                                                            \
             R3D.shader.shader_name.uniform.loc,                                                 \
-            &R3D.shader.shader_name.uniform.val,                                                \
-            RL_SHADER_UNIFORM_FLOAT, 1                                                          \
+            R3D.shader.shader_name.uniform.val                                                  \
         );                                                                                      \
     }                                                                                           \
 } while(0)
@@ -544,10 +539,9 @@ do {                                                                            
     const Vector2 tmp = (__VA_ARGS__);                                                          \
     if (!Vector2Equals(R3D.shader.shader_name.uniform.val, tmp)) {                              \
         R3D.shader.shader_name.uniform.val = tmp;                                               \
-        rlSetUniform(                                                                           \
+        glUniform2fv(                                                                           \
             R3D.shader.shader_name.uniform.loc,                                                 \
-            &R3D.shader.shader_name.uniform.val,                                                \
-            RL_SHADER_UNIFORM_VEC2, 1                                                           \
+            1, (float*)(&R3D.shader.shader_name.uniform.val)                                    \
         );                                                                                      \
     }                                                                                           \
 } while(0)
@@ -557,10 +551,9 @@ do {                                                                            
     const Vector3 tmp = (__VA_ARGS__);                                                          \
     if (!Vector3Equals(R3D.shader.shader_name.uniform.val, tmp)) {                              \
         R3D.shader.shader_name.uniform.val = tmp;                                               \
-        rlSetUniform(                                                                           \
+        glUniform3fv(                                                                           \
             R3D.shader.shader_name.uniform.loc,                                                 \
-            &R3D.shader.shader_name.uniform.val,                                                \
-            RL_SHADER_UNIFORM_VEC3, 1                                                           \
+            1, (float*)(&R3D.shader.shader_name.uniform.val)                                    \
         );                                                                                      \
     }                                                                                           \
 } while(0)
@@ -570,10 +563,9 @@ do {                                                                            
     const Vector4 tmp = (__VA_ARGS__);                                                          \
     if (!Vector4Equals(R3D.shader.shader_name.uniform.val, tmp)) {                              \
         R3D.shader.shader_name.uniform.val = tmp;                                               \
-        rlSetUniform(                                                                           \
+        glUniform4fv(                                                                           \
             R3D.shader.shader_name.uniform.loc,                                                 \
-            &R3D.shader.shader_name.uniform.val,                                                \
-            RL_SHADER_UNIFORM_VEC4, 1                                                           \
+            1, (float*)(&R3D.shader.shader_name.uniform.val)                                    \
         );                                                                                      \
     }                                                                                           \
 } while(0)
@@ -587,10 +579,9 @@ do {                                                                            
     };                                                                                          \
     if (!Vector3Equals(R3D.shader.shader_name.uniform.val, v)) {                                \
         R3D.shader.shader_name.uniform.val = v;                                                 \
-        rlSetUniform(                                                                           \
+        glUniform3fv(                                                                           \
             R3D.shader.shader_name.uniform.loc,                                                 \
-            &R3D.shader.shader_name.uniform.val,                                                \
-            RL_SHADER_UNIFORM_VEC3, 1                                                           \
+            1, (float*)(&R3D.shader.shader_name.uniform.val)                                    \
         );                                                                                      \
     }                                                                                           \
 } while(0)
@@ -605,22 +596,21 @@ do {                                                                            
     };                                                                                          \
     if (!Vector4Equals(R3D.shader.shader_name.uniform.val, v)) {                                \
         R3D.shader.shader_name.uniform.val = v;                                                 \
-        rlSetUniform(                                                                           \
+        glUniform4fv(                                                                           \
             R3D.shader.shader_name.uniform.loc,                                                 \
-            &R3D.shader.shader_name.uniform.val,                                                \
-            RL_SHADER_UNIFORM_VEC4, 1                                                           \
+            1, (float*)(&R3D.shader.shader_name.uniform.val)                                    \
         );                                                                                      \
     }                                                                                           \
 } while(0)
 
 #define r3d_shader_set_mat4(shader_name, uniform, value)                                        \
 do {                                                                                            \
-    rlSetUniformMatrix(R3D.shader.shader_name.uniform.loc, (value));                            \
+    glUniformMatrix4fv(R3D.shader.shader_name.uniform.loc, 1, GL_TRUE, (float*)(&(value)));     \
 } while(0)
 
 #define r3d_shader_set_mat4_v(shader_name, uniform, array, count)                               \
 do {                                                                                            \
-    rlSetUniformMatrices(R3D.shader.shader_name.uniform.loc, (array), (count));                 \
+    glUniformMatrix4fv(R3D.shader.shader_name.uniform.loc, (count), GL_TRUE, (float*)(array));  \
 } while(0)
 
 

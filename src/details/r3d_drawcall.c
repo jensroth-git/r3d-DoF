@@ -400,20 +400,23 @@ void r3d_drawcall_raster_depth_cube_inst(const r3d_drawcall_t* call, bool shadow
 
 void r3d_drawcall_raster_geometry(const r3d_drawcall_t* call)
 {
-    Matrix matModel, matMVP, temp;
+    Matrix matModel, matNormal, matMVP, temp;
 
-    // Calculate transform
+    // Calculate transform matrix
     temp = rlGetMatrixTransform();
     matModel = r3d_matrix_multiply(&call->transform, &temp);
 
-    // Calculate MVP
+    // Calculate normal matrix
+    matNormal = r3d_matrix_normal(&matModel);
+
+    // Calculate MVP matrix
     temp = rlGetMatrixModelview();
     matMVP = r3d_matrix_multiply(&matModel, &temp);
     temp = rlGetMatrixProjection();
     matMVP = r3d_matrix_multiply(&matMVP, &temp);
 
     // Set additional matrix uniforms
-    r3d_shader_set_mat4(raster.geometry, uMatNormal, r3d_matrix_normal(&matModel));
+    r3d_shader_set_mat4(raster.geometry, uMatNormal, matNormal);
     r3d_shader_set_mat4(raster.geometry, uMatModel, matModel);
     r3d_shader_set_mat4(raster.geometry, uMatMVP, matMVP);
 
@@ -558,20 +561,23 @@ void r3d_drawcall_raster_geometry_inst(const r3d_drawcall_t* call)
 
 void r3d_drawcall_raster_forward(const r3d_drawcall_t* call)
 {
-    Matrix matModel, matMVP, temp;
+    Matrix matModel, matNormal, matMVP, temp;
 
-    // Calculate transform
+    // Calculate transform matrix
     temp = rlGetMatrixTransform();
     matModel = r3d_matrix_multiply(&call->transform, &temp);
 
-    // Calculate MVP
+    // Calculate normal matrix
+    matNormal = r3d_matrix_normal(&matModel);
+
+    // Calculate MVP matrix
     temp = rlGetMatrixModelview();
     matMVP = r3d_matrix_multiply(&matModel, &temp);
     temp = rlGetMatrixProjection();
     matMVP = r3d_matrix_multiply(&matMVP, &temp);
 
     // Set additional matrix uniforms
-    r3d_shader_set_mat4(raster.forward, uMatNormal, r3d_matrix_normal(&matModel));
+    r3d_shader_set_mat4(raster.forward, uMatNormal, matNormal);
     r3d_shader_set_mat4(raster.forward, uMatModel, matModel);
     r3d_shader_set_mat4(raster.forward, uMatMVP, matMVP);
 
