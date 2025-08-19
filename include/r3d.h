@@ -224,6 +224,8 @@ typedef struct R3D_Mesh {
     unsigned int vao;       /**< Vertex Array Object (GPU handle). */
 
     Matrix* boneMatrices;   /**< Cached animation matrices for all passes. */
+    int boneCount;          /**< Number of bones (and matrices) that affect the mesh. */
+
     BoundingBox aabb;       /**< Axis-Aligned Bounding Box in local space. */
 
 } R3D_Mesh;

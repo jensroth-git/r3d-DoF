@@ -2789,13 +2789,24 @@ bool r3d_process_bones_and_offsets(R3D_Model* model, const struct aiScene* scene
         return false;
     }
 
-    // Determine maximum possible bones to pre-allocate, avoiding temporary heap buffers.
+    /* --- Pre-allocates bone matrices cache for each mesh and computes the model's maximum possible bones --- */
+
     int maxPossibleBones = 0;
-    for (unsigned int m = 0; m < scene->mNumMeshes; m++) {
-        maxPossibleBones += scene->mMeshes[m]->mNumBones;
+    for (unsigned int i = 0; i < scene->mNumMeshes; i++) {
+        int meshNumBones = scene->mMeshes[i]->mNumBones;
+        if (meshNumBones > 0) {
+            if (meshNumBones > R3D_SHADER_MAX_BONES) {
+                TraceLog(LOG_WARNING, "R3D: Bone count (%i / %i) exceeded for mesh (IDX %i), animations may be incorrect", meshNumBones, R3D_SHADER_MAX_BONES, i);
+                meshNumBones = R3D_SHADER_MAX_BONES; //< Clamp also for 'maxPossibleBones' is incorrect, yes, but at this point, it will be anyway...
+            }
+            model->meshes[i].boneMatrices = RL_MALLOC(meshNumBones * sizeof(Matrix));
+            model->meshes[i].boneCount = meshNumBones;
+            maxPossibleBones += meshNumBones;
+        }
     }
 
-    // Early exit if no bones are found across all meshes.
+    /* --- Early exit if no bones are found across all meshes --- */
+
     if (maxPossibleBones == 0) {
         model->boneCount = 0;
         model->bones = NULL;
@@ -2803,48 +2814,53 @@ bool r3d_process_bones_and_offsets(R3D_Model* model, const struct aiScene* scene
         return true;
     }
 
-    // Allocate final bone and offset arrays directly in the model.
-    model->bones = (BoneInfo*)RL_CALLOC(maxPossibleBones, sizeof(BoneInfo));
-    model->boneOffsets = (Matrix*)RL_CALLOC(maxPossibleBones, sizeof(Matrix));
-    if (!model->bones || !model->boneOffsets) {
-        RL_FREE(model->bones);
+    /* --- Pre-allocation of the maximum possible number of bones and offsets before processing --- */
+
+    model->boneOffsets = (Matrix*)RL_MALLOC(maxPossibleBones * sizeof(Matrix));
+    model->bones = (BoneInfo*)RL_MALLOC(maxPossibleBones * sizeof(BoneInfo));
+
+    if (!model->boneOffsets || !model->bones) {
+        TraceLog(LOG_ERROR, "R3D: Failed to allocate memory for model bones and offsets");
         RL_FREE(model->boneOffsets);
-        model->bones = NULL;
+        RL_FREE(model->bones);
         model->boneOffsets = NULL;
+        model->bones = NULL;
         model->boneCount = 0;
         return false;
     }
 
-    // Collect unique bones and their offset matrices directly into the model's arrays.
+    /* --- Collect unique bones and their offset matrices directly into the model's arrays. --- */
+
     int uniqueBoneCount = 0;
     for (unsigned int m = 0; m < scene->mNumMeshes; m++) {
         const struct aiMesh* mesh = scene->mMeshes[m];
         for (unsigned int b = 0; b < mesh->mNumBones; b++) {
-            const struct aiBone* bone = mesh->mBones[b];
-
-            // Add bone if it's unique.
+            const struct aiBone* bone = mesh->mBones[b]; // Add bone if it's unique.
             if (find_bone_index(bone->mName.data, model->bones, uniqueBoneCount) == -1) {
+                model->boneOffsets[uniqueBoneCount] = r3d_matrix_from_ai_matrix(&bone->mOffsetMatrix);
                 strncpy(model->bones[uniqueBoneCount].name, bone->mName.data, 31);
                 model->bones[uniqueBoneCount].name[31] = '\0';
-                model->bones[uniqueBoneCount].parent = -1; // Initialize parent
-
-                model->boneOffsets[uniqueBoneCount] = r3d_matrix_from_ai_matrix(&bone->mOffsetMatrix);
-
+                model->bones[uniqueBoneCount].parent = -1;
                 uniqueBoneCount++;
             }
         }
     }
-    model->boneCount = uniqueBoneCount; // Update the actual number of unique bones.
 
-    // Build the bone hierarchy by traversing the Assimp scene graph.
+    model->boneCount = uniqueBoneCount; //< Update the actual number of unique bones.
+
+    /* --- Attempts to reduce the size of the bone and offset buffers to the size actually occupied --- */
+
+    if (uniqueBoneCount < maxPossibleBones) {
+        void* boneOffsets = RL_REALLOC(model->boneOffsets, uniqueBoneCount * sizeof(Matrix));
+        void* bones = RL_REALLOC(model->bones, uniqueBoneCount * sizeof(BoneInfo));
+        if (boneOffsets) model->boneOffsets = boneOffsets;
+        if (bones) model->bones = bones;
+    }
+
+    /* --- Build the bone hierarchy by traversing the Assimp scene graph --- */
+
     build_hierarchy_recursive(scene->mRootNode, model->bones, model->boneCount, -1);
 
-    // Allocate a boneMatrices cache array for all meshes
-    // Which will be used to calculate only one of the matrices and be reused between passes
-    for (int i = 0; i < model->meshCount; i++) {
-        model->meshes[i].boneMatrices = RL_MALLOC(R3D_SHADER_MAX_BONES * sizeof(Matrix));
-    }
-    
     return true;
 }
 

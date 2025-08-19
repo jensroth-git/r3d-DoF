@@ -1057,12 +1057,7 @@ void r3d_shader_load_raster_geometry(void)
         GEOMETRY_VERT, GEOMETRY_FRAG
     );
 
-    for (int i = 0; i < R3D_SHADER_MAX_BONES; i++) {
-        R3D.shader.raster.geometry.uBoneMatrices[i].loc = rlGetLocationUniform(
-            R3D.shader.raster.geometry.id, TextFormat("uBoneMatrices[%i]", i)
-        );
-    }
-
+    r3d_shader_get_location(raster.geometry, uBoneMatrices);
     r3d_shader_get_location(raster.geometry, uUseSkinning);
     r3d_shader_get_location(raster.geometry, uMatNormal);
     r3d_shader_get_location(raster.geometry, uMatModel);
@@ -1095,12 +1090,7 @@ void r3d_shader_load_raster_geometry_inst(void)
         GEOMETRY_INSTANCED_VERT, GEOMETRY_FRAG
     );
 
-    for (int i = 0; i < R3D_SHADER_MAX_BONES; i++) {
-        R3D.shader.raster.geometryInst.uBoneMatrices[i].loc = rlGetLocationUniform(
-            R3D.shader.raster.geometryInst.id, TextFormat("uBoneMatrices[%i]", i)
-        );
-    }
-
+    r3d_shader_get_location(raster.geometryInst, uBoneMatrices);
     r3d_shader_get_location(raster.geometryInst, uUseSkinning);
     r3d_shader_get_location(raster.geometryInst, uMatInvView);
     r3d_shader_get_location(raster.geometryInst, uMatModel);
@@ -1136,12 +1126,7 @@ void r3d_shader_load_raster_forward(void)
 
     r3d_shader_raster_forward_t* shader = &R3D.shader.raster.forward;
 
-    for (int i = 0; i < R3D_SHADER_MAX_BONES; i++) {
-        R3D.shader.raster.forward.uBoneMatrices[i].loc = rlGetLocationUniform(
-            R3D.shader.raster.forward.id, TextFormat("uBoneMatrices[%i]", i)
-        );
-    }
-
+    r3d_shader_get_location(raster.forward, uBoneMatrices);
     r3d_shader_get_location(raster.forward, uUseSkinning);
     r3d_shader_get_location(raster.forward, uMatNormal);
     r3d_shader_get_location(raster.forward, uMatModel);
@@ -1220,12 +1205,7 @@ void r3d_shader_load_raster_forward_inst(void)
 
     r3d_shader_raster_forward_inst_t* shader = &R3D.shader.raster.forwardInst;
 
-    for (int i = 0; i < R3D_SHADER_MAX_BONES; i++) {
-        R3D.shader.raster.forwardInst.uBoneMatrices[i].loc = rlGetLocationUniform(
-            R3D.shader.raster.forwardInst.id, TextFormat("uBoneMatrices[%i]", i)
-        );
-    }
-
+    r3d_shader_get_location(raster.forwardInst, uBoneMatrices);
     r3d_shader_get_location(raster.forwardInst, uUseSkinning);
     r3d_shader_get_location(raster.forwardInst, uMatInvView);
     r3d_shader_get_location(raster.forwardInst, uMatModel);
@@ -1329,12 +1309,7 @@ void r3d_shader_load_raster_depth(void)
         DEPTH_VERT, DEPTH_FRAG
     );
 
-    for (int i = 0; i < R3D_SHADER_MAX_BONES; i++) {
-        R3D.shader.raster.depth.uBoneMatrices[i].loc = rlGetLocationUniform(
-            R3D.shader.raster.depth.id, TextFormat("uBoneMatrices[%i]", i)
-        );
-    }
-
+    r3d_shader_get_location(raster.depth, uBoneMatrices);
     r3d_shader_get_location(raster.depth, uUseSkinning);
     r3d_shader_get_location(raster.depth, uMatMVP);
     r3d_shader_get_location(raster.depth, uAlpha);
@@ -1348,12 +1323,7 @@ void r3d_shader_load_raster_depth_inst(void)
         DEPTH_INSTANCED_VERT, DEPTH_FRAG
     );
 
-    for (int i = 0; i < R3D_SHADER_MAX_BONES; i++) {
-        R3D.shader.raster.depthInst.uBoneMatrices[i].loc = rlGetLocationUniform(
-            R3D.shader.raster.depthInst.id, TextFormat("uBoneMatrices[%i]", i)
-        );
-    }
-
+    r3d_shader_get_location(raster.depthInst, uBoneMatrices);
     r3d_shader_get_location(raster.depthInst, uUseSkinning);
     r3d_shader_get_location(raster.depthInst, uMatInvView);
     r3d_shader_get_location(raster.depthInst, uMatModel);
@@ -1370,12 +1340,7 @@ void r3d_shader_load_raster_depth_cube(void)
         DEPTH_CUBE_VERT, DEPTH_CUBE_FRAG
     );
 
-    for (int i = 0; i < R3D_SHADER_MAX_BONES; i++) {
-        R3D.shader.raster.depthCube.uBoneMatrices[i].loc = rlGetLocationUniform(
-            R3D.shader.raster.depthCube.id, TextFormat("uBoneMatrices[%i]", i)
-        );
-    }
-
+    r3d_shader_get_location(raster.depthCube, uBoneMatrices);
     r3d_shader_get_location(raster.depthCube, uUseSkinning);
     r3d_shader_get_location(raster.depthCube, uViewPosition);
     r3d_shader_get_location(raster.depthCube, uMatModel);
@@ -1392,12 +1357,7 @@ void r3d_shader_load_raster_depth_cube_inst(void)
         DEPTH_CUBE_INSTANCED_VERT, DEPTH_CUBE_FRAG
     );
 
-    for (int i = 0; i < R3D_SHADER_MAX_BONES; i++) {
-        R3D.shader.raster.depthCubeInst.uBoneMatrices[i].loc = rlGetLocationUniform(
-            R3D.shader.raster.depthCubeInst.id, TextFormat("uBoneMatrices[%i]", i)
-        );
-    }
-
+    r3d_shader_get_location(raster.depthCubeInst, uBoneMatrices);
     r3d_shader_get_location(raster.depthCubeInst, uUseSkinning);
     r3d_shader_get_location(raster.depthCubeInst, uViewPosition);
     r3d_shader_get_location(raster.depthCubeInst, uMatInvView);
