@@ -401,6 +401,26 @@ typedef struct {
 typedef struct {
     unsigned int id;
     r3d_shader_uniform_sampler2D_t uTexColor;
+    r3d_shader_uniform_sampler2D_t uTexNormal;
+    r3d_shader_uniform_sampler2D_t uTexORM;
+    r3d_shader_uniform_sampler2D_t uTexDepth;
+    r3d_shader_uniform_int_t uMaxRaySteps;
+    r3d_shader_uniform_int_t uBinarySearchSteps;
+    r3d_shader_uniform_float_t uRayMarchLength;
+    r3d_shader_uniform_float_t uDepthThickness;
+    r3d_shader_uniform_float_t uDepthTolerance;
+    r3d_shader_uniform_float_t uEdgeFadeStart;
+    r3d_shader_uniform_float_t uEdgeFadeEnd;
+    r3d_shader_uniform_mat4_t uMatView;
+    r3d_shader_uniform_mat4_t uMatInvProj;
+    r3d_shader_uniform_mat4_t uMatInvView;
+    r3d_shader_uniform_mat4_t uMatViewProj;
+    r3d_shader_uniform_vec3_t uViewPosition;
+} r3d_shader_screen_ssr_t;
+
+typedef struct {
+    unsigned int id;
+    r3d_shader_uniform_sampler2D_t uTexColor;
     r3d_shader_uniform_sampler2D_t uTexDepth;
     r3d_shader_uniform_float_t uNear;
     r3d_shader_uniform_float_t uFar;
@@ -413,21 +433,14 @@ typedef struct {
 
 typedef struct {
     unsigned int id;
-
-    // inputs
     r3d_shader_uniform_sampler2D_t uTexColor;
     r3d_shader_uniform_sampler2D_t uTexDepth;
-
-    // camera
+    r3d_shader_uniform_vec2_t uTexelSize;
     r3d_shader_uniform_float_t uNear;
     r3d_shader_uniform_float_t uFar;
-
-    // focus controls
     r3d_shader_uniform_float_t uFocusPoint;
     r3d_shader_uniform_float_t uFocusScale;
     r3d_shader_uniform_float_t uMaxBlurSize;
-
-    // debug
     r3d_shader_uniform_int_t   uDebugMode;
 } r3d_shader_screen_dof_t;
 

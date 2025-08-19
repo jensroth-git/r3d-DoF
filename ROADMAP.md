@@ -21,10 +21,10 @@
   Currently, occlusion (from ORM or SSAO) only affects ambient light (simulated or IBL). Add a factor to control how much direct lighting is influenced too. While this is less physically accurate, it allows better artistic control.
   *Note: Consider splitting this into two separate factors: one per material and another for SSAO globally.*
 
-## **v0.5**
-
-* [ ] **Implement Screen Space Reflections (SSR)**
+* [x] **Implement Screen Space Reflections (SSR)**
   Add SSR support with an example.
+
+## **v0.5**
 
 * [ ] **Create Shader Include System**
   Implement an internal shader include system to reduce code duplication in built-in shaders. This could be integrated during the compilation phase, either in `glsl_minifier` or a dedicated pre-processing script.

@@ -204,6 +204,84 @@ float R3D_GetBloomSoftThreshold(void)
 	return R3D.env.bloomSoftThreshold;
 }
 
+void R3D_SetSSR(bool enabled)
+{
+	R3D.env.ssrEnabled = enabled;
+
+	if (enabled) {
+		if (R3D.shader.screen.ssr.id == 0) {
+			r3d_shader_load_screen_ssr();
+		}
+	}
+}
+
+bool R3D_GetSSR(void)
+{
+	return R3D.env.ssrEnabled;
+}
+
+void R3D_SetSSRMaxRaySteps(int maxRaySteps)
+{
+	R3D.env.ssrMaxRaySteps = maxRaySteps;
+}
+
+int R3D_GetSSRMaxRaySteps(void)
+{
+	return R3D.env.ssrMaxRaySteps;
+}
+
+void R3D_SetSSRBinarySearchSteps(int binarySearchSteps)
+{
+	R3D.env.ssrBinarySearchSteps = binarySearchSteps;
+}
+
+int R3D_GetSSRBinarySearchSteps(void)
+{
+	return R3D.env.ssrBinarySearchSteps;
+}
+
+void R3D_SetSSRRayMarchLength(float rayMarchLength)
+{
+	R3D.env.ssrRayMarchLength = rayMarchLength;
+}
+
+float R3D_GetSSRRayMarchLength(void)
+{
+	return R3D.env.ssrRayMarchLength;
+}
+
+void R3D_SetSSRDepthThickness(float depthThickness)
+{
+	R3D.env.ssrDepthThickness = depthThickness;
+}
+
+float R3D_GetSSRDepthThickness(void)
+{
+	return R3D.env.ssrDepthThickness;
+}
+
+void R3D_SetSSRDepthTolerance(float depthTolerance)
+{
+	R3D.env.ssrDepthTolerance = depthTolerance;
+}
+
+float R3D_GetSSRDepthTolerance(void)
+{
+	return R3D.env.ssrDepthTolerance;
+}
+
+void R3D_SetSSRScreenEdgeFade(float start, float end)
+{
+	R3D.env.ssrEdgeFadeStart = start;
+	R3D.env.ssrEdgeFadeEnd = end;
+}
+
+void R3D_GetSSRScreenEdgeFade(float* start, float* end)
+{
+	if (start) *start = R3D.env.ssrEdgeFadeStart;
+	if (end) *end = R3D.env.ssrEdgeFadeEnd;
+}
+
 void R3D_SetFogMode(R3D_Fog mode)
 {
 	R3D.env.fogMode = mode;
@@ -335,7 +413,22 @@ float R3D_GetSaturation(void)
 	return R3D.env.saturation;
 }
 
-// DOF
+void R3D_SetDofMode(R3D_Dof mode)
+{
+	R3D.env.dofMode = mode;
+
+	if (mode != R3D_DOF_DISABLED) {
+		if (R3D.shader.screen.dof.id == 0) {
+			r3d_shader_load_screen_dof();
+		}
+	}
+}
+
+R3D_Dof R3D_GetDofMode(void)
+{
+	return R3D.env.dofMode;
+}
+
 void R3D_SetDofFocusPoint(float value)
 {
 	R3D.env.dofFocusPoint = value;
@@ -367,28 +460,12 @@ float R3D_GetDofMaxBlurSize(void)
 	return R3D.env.dofMaxBlurSize;
 }
 
-void R3D_SetDofDebugMode(int value)
+void R3D_SetDofDebugMode(bool enabled)
 {
-	R3D.env.dofDebugMode = value;
+	R3D.env.dofDebugMode = enabled;
 }
 
-int R3D_GetDofDebugMode(void)
+bool R3D_GetDofDebugMode(void)
 {
 	return R3D.env.dofDebugMode;
-}
-
-void R3D_SetDofMode(R3D_Dof mode)
-{
-	R3D.env.dofMode = mode;
-
-	if (mode != R3D_DOF_DISABLED) {
-		if (R3D.shader.screen.dof.id == 0) {
-			r3d_shader_load_screen_dof();
-		}
-	}
-}
-
-R3D_Dof R3D_GetDofMode(void)
-{
-	return R3D.env.dofMode;
 }

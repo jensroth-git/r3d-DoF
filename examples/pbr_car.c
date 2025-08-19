@@ -31,15 +31,18 @@ const char* Init(void)
     R3D_SetBloomMode(R3D_BLOOM_MIX);
     R3D_SetTonemapMode(R3D_TONEMAP_ACES);
 
+    R3D_SetSSR(true);
+
     R3D_SetModelImportScale(0.01f);
 	model = R3D_LoadModel(RESOURCES_PATH "pbr/car.glb");
-    ground = R3D_GenMeshPlane(100.0f, 100.0f, 1, 1, true);
+    ground = R3D_GenMeshPlane(10.0f, 10.0f, 1, 1, true);
 
     groundMat = R3D_GetDefaultMaterial();
-    groundMat.albedo.color = (Color) { 0, 31, 7, 255 };
+    groundMat.albedo.color = (Color) { 31, 31, 31, 255 };
+    groundMat.orm.roughness = 0.0f;
+    groundMat.orm.metalness = 0.5f;
 
 	skybox = R3D_LoadSkybox(RESOURCES_PATH "sky/skybox3.png", CUBEMAP_LAYOUT_AUTO_DETECT);
-	R3D_EnableSkybox(skybox);
 
 	camera = (Camera3D){
 		.position = (Vector3) { 0, 0, 5 },

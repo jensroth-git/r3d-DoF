@@ -1,5 +1,5 @@
 ﻿cmake_minimum_required(VERSION 3.8)
-project("r3d")
+project(r3d VERSION 0.4.0 LANGUAGES C)
 
 # This section configures MSVC (Visual Studio) to enable "Edit and Continue" debugging
 
@@ -20,7 +20,9 @@ endif()
 
 # Project configuration options
 
+option(R3D_BUILD_DOCS "Build the doxygen doc" ${R3D_IS_MAIN})
 option(R3D_BUILD_EXAMPLES "Build the examples" ${R3D_IS_MAIN})
+
 option(R3D_RAYLIB_VENDORED "Use vendored raylib from submodule" OFF)
 option(R3D_ASSIMP_VENDORED "Use vendored assimp from submodule" OFF)
 
@@ -227,6 +229,7 @@ EmbedShaders(${PROJECT_NAME}
     "${R3D_ROOT_PATH}/shaders/screen/lighting.frag"
     "${R3D_ROOT_PATH}/shaders/screen/scene.frag"
     "${R3D_ROOT_PATH}/shaders/screen/bloom.frag"
+    "${R3D_ROOT_PATH}/shaders/screen/ssr.frag"
     "${R3D_ROOT_PATH}/shaders/screen/fog.frag"
     "${R3D_ROOT_PATH}/shaders/screen/dof.frag"
     "${R3D_ROOT_PATH}/shaders/screen/output.frag"
@@ -261,6 +264,24 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 
 if(CMAKE_VERSION VERSION_GREATER 3.12)
     set_property(TARGET r3d PROPERTY C_STANDARD 99)
+endif()
+
+# Doxygen configuration
+
+if(R3D_BUILD_DOCS)
+    find_package(Doxygen REQUIRED)
+
+    set(DOXYGEN_IN ${R3D_ROOT_PATH}/Doxyfile.in)
+    set(DOXYGEN_OUT ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile)
+
+    configure_file(${DOXYGEN_IN} ${DOXYGEN_OUT} @ONLY)
+
+    add_custom_target(docs
+        COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_OUT}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+        COMMENT "Generating API documentation with Doxygen"
+        VERBATIM
+    )
 endif()
 
 # Example configuration

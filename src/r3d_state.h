@@ -185,6 +185,7 @@ extern struct R3D_State {
             r3d_shader_screen_lighting_t lighting;
             r3d_shader_screen_scene_t scene;
             r3d_shader_screen_bloom_t bloom;
+            r3d_shader_screen_ssr_t ssr;
             r3d_shader_screen_fog_t fog;
             r3d_shader_screen_output_t output[R3D_TONEMAP_COUNT];
             r3d_shader_screen_fxaa_t fxaa;
@@ -217,6 +218,15 @@ extern struct R3D_State {
         float bloomThreshold;           // (gen pass)
         float bloomSoftThreshold;       // (gen pass)
         Vector4 bloomPrefilter;         // (gen pass)
+
+        bool ssrEnabled;                // (post pass)
+        int ssrMaxRaySteps;             // (post pass)
+        int ssrBinarySearchSteps;       // (post pass)
+        float ssrRayMarchLength;        // (post pass)
+        float ssrDepthThickness;        // (post pass)
+        float ssrDepthTolerance;        // (post pass)
+        float ssrEdgeFadeStart;         // (post pass)
+        float ssrEdgeFadeEnd;           // (post pass)
                                         
         R3D_Fog fogMode;                // (post pass)
         Vector3 fogColor;               // (post pass)
@@ -236,7 +246,8 @@ extern struct R3D_State {
         float dofFocusPoint;            // (post pass)
         float dofFocusScale;            // (post pass)
         float dofMaxBlurSize;           // (post pass)
-        int dofDebugMode;               // (post pass)
+        bool dofDebugMode;              // (post pass)
+
     } env;
 
     // Default textures
@@ -283,8 +294,8 @@ extern struct R3D_State {
         struct {
             int width;
             int height;
-            float texelX;
-            float texelY;
+            int maxLevel;   //< Maximum mipmap level
+            Vector2 texel;  //< Texel size
         } resolution;
 
         // Loading param
@@ -365,6 +376,7 @@ void r3d_shader_load_screen_ambient(void);
 void r3d_shader_load_screen_lighting(void);
 void r3d_shader_load_screen_scene(void);
 void r3d_shader_load_screen_bloom(void);
+void r3d_shader_load_screen_ssr(void);
 void r3d_shader_load_screen_fog(void);
 void r3d_shader_load_screen_dof(void);
 void r3d_shader_load_screen_output(R3D_Tonemap tonemap);

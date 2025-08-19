@@ -79,7 +79,7 @@ void Update(float delta)
 
     if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
         camera.position.y = Clamp(camera.position.y + 0.01f * GetMouseDelta().y, 0.25f, 2.5f);
-        rotModel += GetMouseDelta().x;
+        rotModel += 0.01f * GetMouseDelta().x;
     }
 }
 

@@ -19,7 +19,7 @@ R3D is ideal for developers who want to add 3D rendering to their raylib project
 - **Lighting**: Supports directional, spot, and omni lights, fully integrated with both deferred and forward rendering paths.
 - **Shadow Mapping**: Soft shadows with per-light resolution and dynamic update modes (manual, interval, or per-frame).
 - **Skyboxes**: HDR and non-HDR skybox rendering with IBL (image-based lighting) support.
-- **Post-processing Effects**: Includes SSAO, bloom, fog, tonemapping, color grading, FXAA, and more.
+- **Post-processing Effects**: Includes SSAO, SSR, DoF, bloom, fog, tonemapping, color grading, FXAA, and more.
 - **Enhanced Instanced Rendering**: Render instances with per-instance transform matrices, optional global matrix, color instances support, and global AABB for frustum culling.
 - **Flexible Mesh Generation**: Complete set of mesh generation functions with optional deferred upload via `R3D_UploadMesh()` for better control over GPU resource management.
 - **Blit Management**: Renders at internal resolution and blits to screen or texture with aspect ratio controls.

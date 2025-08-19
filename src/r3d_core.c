@@ -17,7 +17,8 @@
  *   3. This notice may not be removed or altered from any source distribution.
  */
 
-#include "details/r3d_frustum.h"
+#include "./details/r3d_frustum.h"
+#include "./details/r3d_math.h"
 #include "r3d.h"
 
 #include <raylib.h>
@@ -72,6 +73,7 @@ static void r3d_pass_scene_forward(void);
 
 static void r3d_pass_post_setup(void);
 static void r3d_pass_post_bloom(void);
+static void r3d_pass_post_ssr(void);
 static void r3d_pass_post_fog(void);
 static void r3d_pass_post_dof(void);
 static void r3d_pass_post_output(void);
@@ -119,10 +121,23 @@ void R3D_Init(int resWidth, int resHeight, unsigned int flags)
     R3D.env.bloomThreshold = 0.0f;
     R3D.env.bloomSoftThreshold = 0.5f;
     R3D.env.fogMode = R3D_FOG_DISABLED;
+    R3D.env.ssrEnabled = false;
+    R3D.env.ssrMaxRaySteps = 64;
+    R3D.env.ssrBinarySearchSteps = 8;
+    R3D.env.ssrRayMarchLength = 8.0f;
+    R3D.env.ssrDepthThickness = 0.2f;
+    R3D.env.ssrDepthTolerance = 0.005f;
+    R3D.env.ssrEdgeFadeStart = 0.7f;
+    R3D.env.ssrEdgeFadeEnd = 1.0f;
     R3D.env.fogColor = (Vector3) { 1.0f, 1.0f, 1.0f };
     R3D.env.fogStart = 1.0f;
     R3D.env.fogEnd = 50.0f;
     R3D.env.fogDensity = 0.05f;
+    R3D.env.dofMode = R3D_DOF_DISABLED;
+    R3D.env.dofFocusPoint = 10.0f;
+    R3D.env.dofFocusScale = 1.0f;
+    R3D.env.dofMaxBlurSize = 20.0f;
+    R3D.env.dofDebugMode = false;
     R3D.env.tonemapMode = R3D_TONEMAP_LINEAR;
     R3D.env.tonemapExposure = 1.0f;
     R3D.env.tonemapWhite = 1.0f;
@@ -130,18 +145,12 @@ void R3D_Init(int resWidth, int resHeight, unsigned int flags)
     R3D.env.contrast = 1.0f;
     R3D.env.saturation = 1.0f;
 
-    //dof
-    R3D.env.dofMode = R3D_DOF_DISABLED;
-    R3D.env.dofFocusPoint = 10.0f;
-    R3D.env.dofFocusScale = 1.0f;
-    R3D.env.dofMaxBlurSize = 20.0f;
-    R3D.env.dofDebugMode = 0;
-
     // Init resolution state
     R3D.state.resolution.width = resWidth;
     R3D.state.resolution.height = resHeight;
-    R3D.state.resolution.texelX = 1.0f / resWidth;
-    R3D.state.resolution.texelY = 1.0f / resHeight;
+    R3D.state.resolution.texel.x = 1.0f / resWidth;
+    R3D.state.resolution.texel.y = 1.0f / resHeight;
+    R3D.state.resolution.maxLevel = 1 + (int)floor(log2((float)fmax(resWidth, resHeight)));
 
     // Init scene data
     R3D.state.scene.bounds = (BoundingBox) {
@@ -261,8 +270,9 @@ void R3D_UpdateResolution(int width, int height)
 
     R3D.state.resolution.width = width;
     R3D.state.resolution.height = height;
-    R3D.state.resolution.texelX = 1.0f / width;
-    R3D.state.resolution.texelY = 1.0f / height;
+    R3D.state.resolution.texel.x = 1.0f / width;
+    R3D.state.resolution.texel.y = 1.0f / height;
+    R3D.state.resolution.maxLevel = 1 + (int)floor(log2((float)fmax(width, height)));
 }
 
 void R3D_SetRenderTarget(const RenderTexture* target)
@@ -336,7 +346,7 @@ void R3D_Begin(Camera3D camera)
     R3D.state.transform.invView = MatrixInvert(R3D.state.transform.view);
 
     // Compute view projection matrix
-    R3D.state.transform.viewProj = MatrixMultiply(R3D.state.transform.view, R3D.state.transform.proj);
+    R3D.state.transform.viewProj = r3d_matrix_multiply(&R3D.state.transform.view, &R3D.state.transform.proj);
 
     // Compute frustum
     R3D.state.frustum.aabb = r3d_frustum_get_bounding_box(R3D.state.transform.viewProj);
@@ -400,15 +410,15 @@ void R3D_End(void)
 
     r3d_pass_post_setup();
 
+    if (R3D.env.ssrEnabled) {
+        r3d_pass_post_ssr();
+    }
+
     if (R3D.env.fogMode != R3D_FOG_DISABLED) {
         r3d_pass_post_fog();
     }
 
     if (R3D.env.dofMode != R3D_DOF_DISABLED) {
-        // Ensure the DOF shader is loaded before use
-        if (R3D.shader.screen.dof.id == 0) {
-            r3d_shader_load_screen_dof();
-        }
         r3d_pass_post_dof();
     }
 
@@ -519,10 +529,16 @@ void R3D_DrawModel(const R3D_Model* model, Vector3 position, float scale)
 
 void R3D_DrawModelEx(const R3D_Model* model, Vector3 position, Vector3 rotationAxis, float rotationAngle, Vector3 scale)
 {
-    Matrix matScale = MatrixScale(scale.x, scale.y, scale.z);
-    Matrix matRotation = MatrixRotate(rotationAxis, rotationAngle * DEG2RAD);
-    Matrix matTranslation = MatrixTranslate(position.x, position.y, position.z);
-    Matrix matTransform = MatrixMultiply(MatrixMultiply(matScale, matRotation), matTranslation);
+    Matrix matTransform = r3d_matrix_scale_rotaxis_translate(
+        &scale,
+        &(Vector4) {
+            rotationAxis.x,
+            rotationAxis.y,
+            rotationAxis.z,
+            rotationAngle
+        },
+        &position
+    );
 
     R3D_DrawModelPro(model, matTransform);
 }
@@ -658,10 +674,20 @@ void R3D_DrawSpritePro(const R3D_Sprite* sprite, Vector3 position, Vector2 size,
 
     /* --- Calculation of the transformation matrix --- */
 
-    Matrix matScale = MatrixScale(fabsf(size.x) * 0.5f, -fabsf(size.y) * 0.5f, 1.0f);
-    Matrix matRotation = MatrixRotate(rotationAxis, rotationAngle * DEG2RAD);
-    Matrix matTranslation = MatrixTranslate(position.x, position.y, position.z);
-    Matrix matTransform = MatrixMultiply(MatrixMultiply(matScale, matRotation), matTranslation);
+    Matrix matTransform = r3d_matrix_scale_rotaxis_translate(
+        &(Vector3) {
+            fabsf(size.x) * 0.5f,
+            -fabsf(size.y) * 0.5f,
+            1.0f
+        },
+        &(Vector4) {
+            rotationAxis.x,
+            rotationAxis.y,
+            rotationAxis.z,
+            rotationAngle
+        },
+        &position
+    );
 
     /* --- Applying transformation to billboard --- */
 
@@ -1143,7 +1169,7 @@ void r3d_pass_shadow_maps(void)
                 }
 
                 // Store combined view and projection matrix for the shadow map
-                light->data->shadow.matVP = MatrixMultiply(matView, matProj);
+                light->data->shadow.matVP = r3d_matrix_multiply(&matView, &matProj);
 
                 // Set up projection matrix
                 rlMatrixMode(RL_PROJECTION);
@@ -1360,7 +1386,7 @@ void r3d_pass_ssao(void)
                 // Horizontal pass
                 r3d_framebuffer_swap_pingpong(R3D.framebuffer.pingPongSSAO);
                 r3d_shader_set_vec2(generate.gaussianBlurDualPass, uTexelDir,
-                    (Vector2) { R3D.state.resolution.texelX, 0 }
+                    (Vector2) { R3D.state.resolution.texel.x, 0 }
                 );
                 r3d_shader_bind_sampler2D(
                     generate.gaussianBlurDualPass, uTexture,
@@ -1371,7 +1397,7 @@ void r3d_pass_ssao(void)
                 // Vertical pass
                 r3d_framebuffer_swap_pingpong(R3D.framebuffer.pingPongSSAO);
                 r3d_shader_set_vec2(generate.gaussianBlurDualPass, uTexelDir,
-                    (Vector2) { 0, R3D.state.resolution.texelY }
+                    (Vector2) { 0, R3D.state.resolution.texel.y }
                 );
                 r3d_shader_bind_sampler2D(
                     generate.gaussianBlurDualPass, uTexture,
@@ -1548,10 +1574,12 @@ void r3d_pass_deferred_lights(void)
 
                     Vector3 scale = Vector3Scale(Vector3Subtract(light->aabb.max, light->aabb.min), 0.5f);
                     Vector3 position = Vector3Scale(Vector3Add(light->aabb.min, light->aabb.max), 0.5f);
+                    Matrix transform = r3d_matrix_scale_translate(&scale, &position);
 
-                    Matrix transform = MatrixScale(scale.x, scale.y, scale.z);
-                    transform = MatrixMultiply(transform, MatrixTranslate(position.x, position.y, position.z));
-                    r3d_shader_set_mat4(raster.depthVolume, uMatMVP, MatrixMultiply(transform, R3D.state.transform.viewProj));
+                    r3d_shader_set_mat4(
+                        raster.depthVolume, uMatMVP,
+                        r3d_matrix_multiply(&transform, &R3D.state.transform.viewProj)
+                    );
                     
                     // Stencil setup for volume writing
                     if (R3D.state.flags & R3D_FLAG_STENCIL_TEST) {
@@ -2103,10 +2131,7 @@ void r3d_pass_post_bloom(void)
 
         r3d_shader_enable(generate.downsampling);
         {
-            r3d_shader_set_vec2(generate.downsampling, uTexelSize, (Vector2) {
-                (float)R3D.state.resolution.texelX,
-                (float)R3D.state.resolution.texelY
-            });
+            r3d_shader_set_vec2(generate.downsampling, uTexelSize, R3D.state.resolution.texel);
             r3d_shader_set_int(generate.downsampling, uMipLevel, 0);
 
             // Set brightness threshold prefilter data
@@ -2196,7 +2221,7 @@ void r3d_pass_post_bloom(void)
     }
 }
 
-void r3d_pass_post_dof(void)	
+void r3d_pass_post_ssr(void)
 {
     glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.pingPong.id);
     {
@@ -2204,17 +2229,26 @@ void r3d_pass_post_dof(void)
 
         r3d_framebuffer_swap_pingpong(R3D.framebuffer.pingPong);
 
-        r3d_shader_enable(screen.dof);
+        r3d_shader_enable(screen.ssr);
         {
-            r3d_shader_bind_sampler2D(screen.dof, uTexColor, R3D.framebuffer.pingPong.source);
-            r3d_shader_bind_sampler2D(screen.dof, uTexDepth, R3D.framebuffer.gBuffer.depth);
+            r3d_shader_bind_sampler2D(screen.ssr, uTexColor, R3D.framebuffer.pingPong.source);
+            r3d_shader_bind_sampler2D(screen.ssr, uTexNormal, R3D.framebuffer.gBuffer.normal);
+            r3d_shader_bind_sampler2D(screen.ssr, uTexORM, R3D.framebuffer.gBuffer.orm);
+            r3d_shader_bind_sampler2D(screen.ssr, uTexDepth, R3D.framebuffer.gBuffer.depth);
 
-            r3d_shader_set_float(screen.dof, uNear, (float)rlGetCullDistanceNear());
-            r3d_shader_set_float(screen.dof, uFar, (float)rlGetCullDistanceFar());
-            r3d_shader_set_float(screen.dof, uFocusPoint, R3D.env.dofFocusPoint);
-            r3d_shader_set_float(screen.dof, uFocusScale, R3D.env.dofFocusScale);
-            r3d_shader_set_float(screen.dof, uMaxBlurSize, R3D.env.dofMaxBlurSize);
-            r3d_shader_set_int(screen.dof, uDebugMode, R3D.env.dofDebugMode);
+            r3d_shader_set_int(screen.ssr, uMaxRaySteps, R3D.env.ssrMaxRaySteps);
+            r3d_shader_set_int(screen.ssr, uBinarySearchSteps, R3D.env.ssrBinarySearchSteps);
+            r3d_shader_set_float(screen.ssr, uRayMarchLength, R3D.env.ssrRayMarchLength);
+            r3d_shader_set_float(screen.ssr, uDepthThickness, R3D.env.ssrDepthThickness);
+            r3d_shader_set_float(screen.ssr, uDepthTolerance, R3D.env.ssrDepthTolerance);
+            r3d_shader_set_float(screen.ssr, uEdgeFadeStart, R3D.env.ssrEdgeFadeStart);
+            r3d_shader_set_float(screen.ssr, uEdgeFadeEnd, R3D.env.ssrEdgeFadeEnd);
+
+            r3d_shader_set_mat4(screen.ssr, uMatView, R3D.state.transform.view);
+            r3d_shader_set_mat4(screen.ssr, uMatInvProj, R3D.state.transform.invProj);
+            r3d_shader_set_mat4(screen.ssr, uMatInvView, R3D.state.transform.invView);
+            r3d_shader_set_mat4(screen.ssr, uMatViewProj, R3D.state.transform.viewProj);
+            r3d_shader_set_vec3(screen.ssr, uViewPosition, R3D.state.transform.viewPos);
 
             r3d_primitive_bind_and_draw_screen();
         }
@@ -2242,6 +2276,33 @@ void r3d_pass_post_fog(void)
             r3d_shader_set_float(screen.fog, uFogStart, R3D.env.fogStart);
             r3d_shader_set_float(screen.fog, uFogEnd, R3D.env.fogEnd);
             r3d_shader_set_float(screen.fog, uFogDensity, R3D.env.fogDensity);
+
+            r3d_primitive_bind_and_draw_screen();
+        }
+        r3d_shader_disable();
+    }
+}
+
+void r3d_pass_post_dof(void)	
+{
+    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.pingPong.id);
+    {
+        glViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
+
+        r3d_framebuffer_swap_pingpong(R3D.framebuffer.pingPong);
+
+        r3d_shader_enable(screen.dof);
+        {
+            r3d_shader_bind_sampler2D(screen.dof, uTexColor, R3D.framebuffer.pingPong.source);
+            r3d_shader_bind_sampler2D(screen.dof, uTexDepth, R3D.framebuffer.gBuffer.depth);
+
+            r3d_shader_set_vec2(screen.dof, uTexelSize, R3D.state.resolution.texel);
+            r3d_shader_set_float(screen.dof, uNear, (float)rlGetCullDistanceNear());
+            r3d_shader_set_float(screen.dof, uFar, (float)rlGetCullDistanceFar());
+            r3d_shader_set_float(screen.dof, uFocusPoint, R3D.env.dofFocusPoint);
+            r3d_shader_set_float(screen.dof, uFocusScale, R3D.env.dofFocusScale);
+            r3d_shader_set_float(screen.dof, uMaxBlurSize, R3D.env.dofMaxBlurSize);
+            r3d_shader_set_int(screen.dof, uDebugMode, R3D.env.dofDebugMode);
 
             r3d_primitive_bind_and_draw_screen();
         }
@@ -2294,11 +2355,7 @@ void r3d_pass_post_fxaa(void)
         r3d_shader_enable(screen.fxaa);
         {
             r3d_shader_bind_sampler2D(screen.fxaa, uTexture, R3D.framebuffer.pingPong.source);
-
-            r3d_shader_set_vec2(screen.fxaa, uTexelSize, (Vector2) {
-                R3D.state.resolution.texelX, R3D.state.resolution.texelY
-            });
-
+            r3d_shader_set_vec2(screen.fxaa, uTexelSize, R3D.state.resolution.texel);
             r3d_primitive_bind_and_draw_screen();
         }
         r3d_shader_disable();

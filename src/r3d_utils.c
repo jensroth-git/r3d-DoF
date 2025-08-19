@@ -117,7 +117,7 @@ void R3D_DrawBufferAlbedo(float x, float y, float w, float h)
     };
 
     DrawTexturePro(
-        tex, (Rectangle) { 0, 0, (float)tex.width, (float)tex.height },
+        tex, (Rectangle) { 0, 0, (float)tex.width, (float)-tex.height },
         (Rectangle) { x, y, w, h }, (Vector2) { 0 }, 0, WHITE
     );
 
@@ -137,7 +137,7 @@ void R3D_DrawBufferEmission(float x, float y, float w, float h)
     };
 
     DrawTexturePro(
-        tex, (Rectangle) { 0, 0, (float)tex.width, (float)tex.height },
+        tex, (Rectangle) { 0, 0, (float)tex.width, (float)-tex.height },
         (Rectangle) { x, y, w, h }, (Vector2) { 0 }, 0, WHITE
     );
 
@@ -157,7 +157,7 @@ void R3D_DrawBufferNormal(float x, float y, float w, float h)
     };
 
     DrawTexturePro(
-        tex, (Rectangle) { 0, 0, (float)tex.width, (float)tex.height },
+        tex, (Rectangle) { 0, 0, (float)tex.width, (float)-tex.height },
         (Rectangle) { x, y, w, h }, (Vector2) { 0 }, 0, WHITE
     );
 
@@ -177,7 +177,7 @@ void R3D_DrawBufferORM(float x, float y, float w, float h)
     };
 
     DrawTexturePro(
-        tex, (Rectangle) { 0, 0, (float)tex.width, (float)tex.height },
+        tex, (Rectangle) { 0, 0, (float)tex.width, (float)-tex.height },
         (Rectangle) { x, y, w, h }, (Vector2) { 0 }, 0, WHITE
     );
 
@@ -197,7 +197,7 @@ void R3D_DrawBufferSSAO(float x, float y, float w, float h)
     };
 
     DrawTexturePro(
-        tex, (Rectangle) { 0, 0, (float)tex.width, (float)tex.height },
+        tex, (Rectangle) { 0, 0, (float)tex.width, (float)-tex.height },
         (Rectangle) { x, y, w, h }, (Vector2) { 0 }, 0, WHITE
     );
 
@@ -217,7 +217,7 @@ void R3D_DrawBufferBloom(float x, float y, float w, float h)
     };
 
     DrawTexturePro(
-        tex, (Rectangle) { 0, 0, (float)tex.width, (float)tex.height },
+        tex, (Rectangle) { 0, 0, (float)tex.width, (float)-tex.height },
         (Rectangle) { x, y, w, h }, (Vector2) { 0 }, 0, WHITE
     );
 
