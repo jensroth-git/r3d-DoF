@@ -28,6 +28,9 @@ const char* Init(void)
     material = R3D_GetDefaultMaterial();
 
     texture = LoadTexture(RESOURCES_PATH "spritesheet.png");
+
+    SetTextureFilter(texture, TEXTURE_FILTER_BILINEAR);
+
     sprite = R3D_LoadSprite(texture, 4, 1);
 
     camera = (Camera3D){
