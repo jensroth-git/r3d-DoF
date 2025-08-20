@@ -171,6 +171,14 @@ void main()
 {
     /* --- Texture sampling and scene property extraction --- */
 
+    // REVIEW: Here we sample 'uTexColor', which represents the scene,
+    //         and use it as 'albedo' to compute the Fresnel normal incidence.
+    //         Technically, this is incorrect, the already rendered scene does
+    //         not match the true material albedo that will receive the reflection.
+    //         For now, this is the simplest compromise to make it work with forward
+    //         rendering. In the future, we should also output the actual albedo from
+    //         the forward render and sample it here instead of relying on the scene color.
+
     vec3 sceneColor = texture(uTexColor, vTexCoord).rgb;
     float depth = texture(uTexDepth, vTexCoord).r;
 
