@@ -401,6 +401,7 @@ typedef struct {
 typedef struct {
     unsigned int id;
     r3d_shader_uniform_sampler2D_t uTexColor;
+    r3d_shader_uniform_sampler2D_t uTexAlbedo;
     r3d_shader_uniform_sampler2D_t uTexNormal;
     r3d_shader_uniform_sampler2D_t uTexORM;
     r3d_shader_uniform_sampler2D_t uTexDepth;

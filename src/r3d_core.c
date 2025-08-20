@@ -2108,6 +2108,7 @@ void r3d_pass_post_ssr(void)
         r3d_shader_enable(screen.ssr);
         {
             r3d_shader_bind_sampler2D(screen.ssr, uTexColor, R3D.target.scenePp[1]);
+            r3d_shader_bind_sampler2D(screen.ssr, uTexAlbedo, R3D.target.albedo);
             r3d_shader_bind_sampler2D(screen.ssr, uTexNormal, R3D.target.normal);
             r3d_shader_bind_sampler2D(screen.ssr, uTexORM, R3D.target.orm);
             r3d_shader_bind_sampler2D(screen.ssr, uTexDepth, R3D.target.depthStencil);

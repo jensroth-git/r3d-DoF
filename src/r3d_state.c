@@ -1630,6 +1630,7 @@ void r3d_shader_load_screen_ssr(void)
     );
 
     r3d_shader_get_location(screen.ssr, uTexColor);
+    r3d_shader_get_location(screen.ssr, uTexAlbedo);
     r3d_shader_get_location(screen.ssr, uTexNormal);
     r3d_shader_get_location(screen.ssr, uTexORM);
     r3d_shader_get_location(screen.ssr, uTexDepth);
@@ -1648,9 +1649,10 @@ void r3d_shader_load_screen_ssr(void)
 
     r3d_shader_enable(screen.ssr);
     r3d_shader_set_sampler2D_slot(screen.ssr, uTexColor, 0);
-    r3d_shader_set_sampler2D_slot(screen.ssr, uTexNormal, 1);
-    r3d_shader_set_sampler2D_slot(screen.ssr, uTexORM, 2);
-    r3d_shader_set_sampler2D_slot(screen.ssr, uTexDepth, 3);
+    r3d_shader_set_sampler2D_slot(screen.ssr, uTexAlbedo, 1);
+    r3d_shader_set_sampler2D_slot(screen.ssr, uTexNormal, 2);
+    r3d_shader_set_sampler2D_slot(screen.ssr, uTexORM, 3);
+    r3d_shader_set_sampler2D_slot(screen.ssr, uTexDepth, 4);
     r3d_shader_disable();
 }
 
