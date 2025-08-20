@@ -60,14 +60,19 @@ const char* Init(void)
 
     /* --- Generate a checkerboard texture for the material --- */
 
-    Image checked = GenImageChecked(256, 256, 4, 4, (Color) { 20, 20, 20, 255 }, WHITE);
+    Image checked = GenImageChecked(2, 2, 1, 1, (Color) { 20, 20, 20, 255 }, WHITE);
     material.albedo.texture = LoadTextureFromImage(checked);
     UnloadImage(checked);
+
+    SetTextureWrap(material.albedo.texture, TEXTURE_WRAP_REPEAT);
 
     /* --- Set material properties --- */
 
     material.orm.roughness = 0.5f;
     material.orm.metalness = 0.5f;
+
+    material.uvScale.x = 64.0f;
+    material.uvScale.y = 64.0f;
 
     /* --- Load model animations --- */
 
