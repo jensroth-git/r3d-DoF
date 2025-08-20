@@ -4,8 +4,6 @@
 
 R3D is a modern 3D rendering library for [raylib](https://www.raylib.com/) that provides advanced lighting, shadows, materials, and post-processing effects without the complexity of building a full engine from scratch.
 
----
-
 ## Key Features
 
 - **Hybrid Renderer**: Automatic (or manual) deferred/forward rendering
