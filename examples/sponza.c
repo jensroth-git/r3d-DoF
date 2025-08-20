@@ -15,6 +15,8 @@ static bool sky = false;
 
 const char* Init(void)
 {
+    /* --- Initialize R3D with its internal resolution --- */
+
     R3D_Init(GetScreenWidth(), GetScreenHeight(), 0);
     SetTargetFPS(60);
 

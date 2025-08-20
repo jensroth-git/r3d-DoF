@@ -7,6 +7,7 @@ noperspective in vec2 vTexCoord;
 /* === Uniforms === */
 
 uniform sampler2D uTexColor;
+uniform sampler2D uTexAlbedo;
 uniform sampler2D uTexNormal;
 uniform sampler2D uTexORM;
 uniform sampler2D uTexDepth;
@@ -180,6 +181,7 @@ void main()
     }
 
     vec2 encodedNormal = texture(uTexNormal, vTexCoord).rg;
+    vec3 albedo = texture(uTexAlbedo, vTexCoord).rgb;
     vec3 orm = texture(uTexORM, vTexCoord).rgb;
 
     float occlusion = orm.r;
@@ -204,7 +206,7 @@ void main()
     vec3 reflectionColor = TraceReflectionRay(worldPos, reflectionDir);
 
     float cNdotV = max(0.0, dot(worldNormal, -viewDir));
-    vec3 F0 = ComputeF0(metallic, 0.5, sceneColor);
+    vec3 F0 = ComputeF0(metallic, 0.5, albedo);
 
     vec3 F = SchlickFresnel(cNdotV, F0);
     vec3 specular = reflectionColor * F;

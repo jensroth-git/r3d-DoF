@@ -16,23 +16,38 @@ static R3D_ParticleSystem particles = { 0 };
 
 const char* Init(void)
 {
+    /* --- Initialize R3D with its internal resolution --- */
+
     R3D_Init(GetScreenWidth(), GetScreenHeight(), 0);
     SetTargetFPS(60);
 
-    R3D_SetBloomMode(R3D_BLOOM_ADDITIVE);
+    /* --- Setup the background color and ambient light --- */
+
     R3D_SetBackgroundColor((Color) { 4, 4, 4 });
     R3D_SetAmbientColor(BLACK);
 
+    /* --- Activate bloom in additive mode --- */
+
+    R3D_SetBloomMode(R3D_BLOOM_ADDITIVE);
+
+    /* --- Gen a sphere as particle mesh --- */
+
     sphere = R3D_GenMeshSphere(0.1f, 16, 32, true);
+
+    /* --- Setup material of particle mesh --- */
 
     material = R3D_GetDefaultMaterial();
     material.emission.color = (Color) { 255, 0, 0, 255 };
     material.emission.energy = 1.0f;
 
+    /* --- Create scale over time interpolation curve for particle system --- */
+
     curve = R3D_LoadInterpolationCurve(3);
     R3D_AddKeyframe(&curve, 0.0f, 0.0f);
     R3D_AddKeyframe(&curve, 0.5f, 1.0f);
     R3D_AddKeyframe(&curve, 1.0f, 0.0f);
+
+    /* --- Create a particle system --- */
 
     particles = R3D_LoadParticleSystem(2048);
     particles.initialVelocity = (Vector3){ 0, 10.0f, 0 };
@@ -41,7 +56,11 @@ const char* Init(void)
     particles.emissionRate = 2048;
     particles.lifetime = 2.0f;
 
+    /* --- Calculates the bounding box of the particle system (can be used for frustum culling) --- */
+
     R3D_CalculateParticleSystemBoundingBox(&particles);
+
+    /* --- Setup the camera --- */
 
     camera = (Camera3D) {
         .position = (Vector3) { -7, 7, -7 },

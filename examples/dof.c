@@ -110,6 +110,7 @@ void Update(float delta)
 void Draw(void)
 {
     /* --- Ensure Clear Background --- */
+
     ClearBackground(BLACK);
   
     /* --- Render R3D scene --- */

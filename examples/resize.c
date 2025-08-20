@@ -12,9 +12,16 @@ static R3D_Material materials[5] = { 0 };
 
 const char* Init(void)
 {
+    /* --- Initialize R3D with its internal resolution --- */
+
     R3D_Init(GetScreenWidth(), GetScreenHeight(), 0);
+
+    /* --- Some raylib setup --- */
+
     SetWindowState(FLAG_WINDOW_RESIZABLE);
     SetTargetFPS(60);
+
+    /* --- Generate a sphere mesh and configure its material --- */
 
     sphere = R3D_GenMeshSphere(0.5f, 64, 64, true);
 
@@ -23,18 +30,22 @@ const char* Init(void)
         materials[i].albedo.color = ColorFromHSV((float)i / 5 * 330, 1.0f, 1.0f);
     }
 
-    camera = (Camera3D){
-        .position = (Vector3) { 0, 2, 2 },
-        .target = (Vector3) { 0, 0, 0 },
-        .up = (Vector3) { 0, 1, 0 },
-        .fovy = 60,
-    };
+    /* --- Setup the scene lighting --- */
 
     R3D_Light light = R3D_CreateLight(R3D_LIGHT_DIR);
     {
         R3D_SetLightDirection(light, (Vector3) { 0, 0, -1 });
         R3D_SetLightActive(light, true);
     }
+
+    /* --- Setup the camera --- */
+
+    camera = (Camera3D){
+        .position = (Vector3) { 0, 2, 2 },
+        .target = (Vector3) { 0, 0, 0 },
+        .up = (Vector3) { 0, 1, 0 },
+        .fovy = 60,
+    };
 
     return "[r3d] - Resize example";
 }

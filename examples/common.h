@@ -17,7 +17,7 @@
 const char* Init(void);
 void Update(float delta);
 void Draw(void);
-void Close();
+void Close(void);
 
 /* === Helper Functions === */
 

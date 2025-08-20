@@ -13,10 +13,16 @@ static R3D_Material materials[7 * 7] = { 0 };
 
 const char* Init(void)
 {
+    /* --- Initialize R3D with its internal resolution --- */
+
     R3D_Init(GetScreenWidth(), GetScreenHeight(), 0);
     SetTargetFPS(60);
 
+    /* --- Generate a sphere mesh --- */
+
     sphere = R3D_GenMeshSphere(0.5f, 64, 64, true);
+
+    /* --- Create a grid of materials with varying metalness and roughness --- */
 
     for (int x = 0; x < 7; x++) {
         for (int y = 0; y < 7; y++) {
@@ -24,12 +30,16 @@ const char* Init(void)
             materials[i] = R3D_GetDefaultMaterial();
             materials[i].orm.metalness = (float)x / 7;
             materials[i].orm.roughness = (float)y / 7;
-            materials[i].albedo.color = ColorFromHSV(((float)x/7) * 360, 1, 1);
+            materials[i].albedo.color = ColorFromHSV(((float)x / 7) * 360, 1, 1);
         }
     }
 
+    /* --- Load and enable a skybox --- */
+
     skybox = R3D_LoadSkybox(RESOURCES_PATH "sky/skybox1.png", CUBEMAP_LAYOUT_AUTO_DETECT);
     R3D_EnableSkybox(skybox);
+
+    /* --- Setup the camera --- */
 
     camera = (Camera3D){
         .position = (Vector3) { 0, 0, 5 },
@@ -38,10 +48,13 @@ const char* Init(void)
         .fovy = 60,
     };
 
+    /* --- Capture the mouse and, action! --- */
+
     DisableCursor();
 
     return "[r3d] - Skybox example";
 }
+
 
 void Update(float delta)
 {

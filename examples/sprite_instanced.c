@@ -19,25 +19,44 @@ static Matrix transforms[512] = { 0 };
 
 const char* Init(void)
 {
+    /* --- Initialize R3D with its internal resolution --- */
+
     R3D_Init(GetScreenWidth(), GetScreenHeight(), 0);
     SetTargetFPS(60);
-    DisableCursor();
+
+    /* --- Set the background color --- */
 
     R3D_SetBackgroundColor(SKYBLUE);
+
+    /* --- Generate a large plane to act as the ground --- */
 
     plane = R3D_GenMeshPlane(1000, 1000, 1, 1, true);
     material = R3D_GetDefaultMaterial();
     material.albedo.color = GREEN;
 
+    /* --- Load a texture and create a sprite --- */
+
     texture = LoadTexture(RESOURCES_PATH "tree.png");
     sprite = R3D_LoadSprite(texture, 1, 1);
+
+    /* --- Create multiple transforms for instanced sprites with random positions and scales --- */
 
     for (int i = 0; i < sizeof(transforms) / sizeof(*transforms); i++) {
         float scaleFactor = GetRandomValue(50, 100) / 10.0f;
         Matrix scale = MatrixScale(scaleFactor, scaleFactor, 1.0f);
-        Matrix translate = MatrixTranslate(GetRandomValue(-500, 500), scaleFactor, GetRandomValue(-500, 500));;
+        Matrix translate = MatrixTranslate(GetRandomValue(-500, 500), scaleFactor, GetRandomValue(-500, 500));
         transforms[i] = MatrixMultiply(scale, translate);
     }
+
+    /* --- Setup the scene lighting --- */
+
+    R3D_Light light = R3D_CreateLight(R3D_LIGHT_OMNI);
+    {
+        R3D_SetLightPosition(light, (Vector3) { 0, 10, 10 });
+        R3D_SetLightActive(light, true);
+    }
+
+    /* --- Setup the camera --- */
 
     camera = (Camera3D){
         .position = (Vector3) { 0, 5, 0 },
@@ -46,11 +65,9 @@ const char* Init(void)
         .fovy = 60,
     };
 
-    R3D_Light light = R3D_CreateLight(R3D_LIGHT_OMNI);
-    {
-        R3D_SetLightPosition(light, (Vector3) { 0, 10, 10 });
-        R3D_SetLightActive(light, true);
-    }
+    /* --- Capture the mouse and let's go! --- */
+
+    DisableCursor();
 
     return "[r3d] - Instanced sprites example";
 }
