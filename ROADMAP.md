@@ -60,6 +60,9 @@
 * [ ] **Implement Cascaded Shadow Maps (CSM)**
   Add CSM support for directional lights.
 
+* [ ] **Make a Wiki**
+  Add wiki pages to the Github repository.
+
 *Note: v0.7 features are still incomplete.*
 
 ## **v0.7**
