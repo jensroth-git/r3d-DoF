@@ -21,16 +21,18 @@ static Color instanceColors[INSTANCE_COUNT];
 const char* Init(void)
 {
     R3D_Init(GetScreenWidth(), GetScreenHeight(), R3D_FLAG_FXAA);
-    SetTargetFPS(60);
+    SetTargetFPS(0);
 
     /* --- Enable and configure DOF --- */
 
     R3D_SetDofMode(R3D_DOF_ENABLED);
-    R3D_SetDofFocusPoint(2.0f);
-    R3D_SetDofFocusScale(3.0f);
-    R3D_SetDofMaxBlurSize(20.0f);
+    R3D_SetDofFocusPoint(2.5f);
+    R3D_SetDofFocusScale(10.0f);
+    R3D_SetDofMaxBlurSize(30.0f);
     R3D_SetDofDebugMode(0);
 
+    //R3D_SetBloomMode(R3D_BLOOM_SCREEN);
+    
     /* --- Setup scene lighting --- */
 
     R3D_Light light = R3D_CreateLight(R3D_LIGHT_DIR);
@@ -77,32 +79,32 @@ void Update(float delta)
 {
     /* --- Rotate camera --- */
 
-    Matrix rotation = MatrixRotate(GetCameraUp(&camDefault), 0.1f * delta);
-    Vector3 view = Vector3Subtract(camDefault.position, camDefault.target);
-    view = Vector3Transform(view, rotation);
-    camDefault.position = Vector3Add(camDefault.target, view);
+    // Matrix rotation = MatrixRotate(GetCameraUp(&camDefault), 0.1f * delta);
+    // Vector3 view = Vector3Subtract(camDefault.position, camDefault.target);
+    // view = Vector3Transform(view, rotation);
+    // camDefault.position = Vector3Add(camDefault.target, view);
 
     /* --- Adjust DoF based on mouse position --- */
 
-    Vector2 mousePosition = GetMousePosition();
-    float mouseWheel = GetMouseWheelMove();
-
-    float focusPoint = 0.5f + (5.0f - (mousePosition.y / GetScreenHeight()) * 5.0f);
-    R3D_SetDofFocusPoint(focusPoint);
-
-    float focusScale = 0.5f + (5.0f - (mousePosition.x / GetScreenWidth()) * 5.0f);
-    R3D_SetDofFocusScale(focusScale);
-
-    if (mouseWheel != 0.0f) {
-        float maxBlurSize = R3D_GetDofMaxBlurSize();
-        maxBlurSize += mouseWheel * 0.1f;
-        R3D_SetDofMaxBlurSize(maxBlurSize);
-    }
-
-    if (IsKeyPressed(KEY_F1)) {
-        int debugMode = R3D_GetDofDebugMode();
-        R3D_SetDofDebugMode((debugMode + 1) % 3);
-    }
+    // Vector2 mousePosition = GetMousePosition();
+    // float mouseWheel = GetMouseWheelMove();
+    //
+    // float focusPoint = 0.5f + (5.0f - (mousePosition.y / GetScreenHeight()) * 5.0f);
+    // R3D_SetDofFocusPoint(focusPoint);
+    //
+    // float focusScale = 0.5f + (5.0f - (mousePosition.x / GetScreenWidth()) * 5.0f);
+    // R3D_SetDofFocusScale(focusScale);
+    //
+    // if (mouseWheel != 0.0f) {
+    //     float maxBlurSize = R3D_GetDofMaxBlurSize();
+    //     maxBlurSize += mouseWheel * 0.1f;
+    //     R3D_SetDofMaxBlurSize(maxBlurSize);
+    // }
+    //
+    // if (IsKeyPressed(KEY_F1)) {
+    //     int debugMode = R3D_GetDofDebugMode();
+    //     R3D_SetDofDebugMode((debugMode + 1) % 3);
+    // }
 }
 
 void Draw(void)
@@ -122,17 +124,21 @@ void Draw(void)
     char dofText[128];
     snprintf(dofText, sizeof(dofText), "Focus Point: %.2f\nFocus Scale: %.2f\nMax Blur Size: %.2f\nDebug Mode: %d",
         R3D_GetDofFocusPoint(), R3D_GetDofFocusScale(), R3D_GetDofMaxBlurSize(), R3D_GetDofDebugMode());
-    DrawText(dofText, 10, 30, 20, WHITE);
+    DrawText(dofText, 10, 50, 20, WHITE);
 
     /* --- Print instructions --- */
 
     DrawText("F1: Toggle Debug Mode\nScroll: Adjust Max Blur Size\nMouse Left/Right: Shallow/Deep DoF\nMouse Up/Down: Adjust Focus Point Depth", 300, 10, 20, WHITE);
 
-    /* --- Draw FPS --- */
+    /* --- Draw FPS & Profiling--- */
 
     char fpsText[32];
     snprintf(fpsText, sizeof(fpsText), "FPS: %d", GetFPS());
     DrawText(fpsText, 10, 10, 20, WHITE);
+
+    char profText[64];
+    snprintf(profText, sizeof(profText), "DoF: %.2f, Bloom: %.2f", R3D_ProfGetGPUZoneMS("DOF Pass", 64), R3D_ProfGetGPUZoneMS("Bloom Pass", 64));
+    DrawText(profText, 10, 30, 20, WHITE);
 }
 
 void Close(void)

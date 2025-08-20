@@ -1,8 +1,10 @@
 set(RESOURCES_PATH "${R3D_ROOT_PATH}/examples/resources/")
+set(COMMON_PATH "${R3D_ROOT_PATH}/examples/common.h")
 set(INCLUDE_PATH "${R3D_ROOT_PATH}/include")
 
 function(add_example example_name source_file)
     add_executable(${example_name} ${source_file})
+    target_sources(${example_name} PRIVATE "${COMMON_PATH}")
     target_link_libraries(${example_name} PRIVATE raylib r3d)
     target_compile_definitions(${example_name} PRIVATE RESOURCES_PATH="${RESOURCES_PATH}")
     target_include_directories(${example_name} PRIVATE ${RAYLIB_PATH} ${INCLUDE_PATH})

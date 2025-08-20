@@ -29,13 +29,16 @@
 #include <assimp/cimport.h>
 #include <float.h>
 
-#include "./r3d_state.h"
-#include "./details/r3d_light.h"
-#include "./details/r3d_drawcall.h"
-#include "./details/r3d_billboard.h"
-#include "./details/r3d_primitives.h"
 #include "./details/containers/r3d_array.h"
 #include "./details/containers/r3d_registry.h"
+#include "./details/profiling/r3d_prof_min.h"
+#include "./details/r3d_billboard.h"
+#include "./details/r3d_drawcall.h"
+#include "./details/r3d_light.h"
+#include "./details/r3d_primitives.h"
+#include "./r3d_state.h"
+
+#include <stdio.h>
 
 /* === Internal declarations === */
 
@@ -184,6 +187,9 @@ void R3D_Init(int resWidth, int resHeight, unsigned int flags)
 
     // Defines suitable clipping plane distances for r3d
     rlSetClipPlanes(0.05f, 4000.0f);
+
+    // Init profiler
+    r3d_prof_init();
 }
 
 void R3D_Close(void)
@@ -437,6 +443,10 @@ void R3D_End(void)
     /* --- Reset states changed by R3D --- */
 
     r3d_reset_raylib_state();
+    
+    /* --- poll the latest profiler zones --- */
+    
+    r3d_prof_poll_pending();
 }
 
 void R3D_DrawMesh(const R3D_Mesh* mesh, const R3D_Material* material, Matrix transform)
@@ -2123,100 +2133,101 @@ void r3d_pass_post_setup(void)
 void r3d_pass_post_bloom(void)
 {
     /* ---- Generate mip chain --- */
-
-    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.mipChainBloom.id);
-    {
-        /* --- Bloom: Down Sampling --- */
-
-        r3d_shader_enable(generate.downsampling);
+    R3D_PROF_ZONE_GPU("Bloom Pass") {
+        glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.mipChainBloom.id);
         {
-            r3d_shader_set_vec2(generate.downsampling, uTexelSize, R3D.state.resolution.texel);
-            r3d_shader_set_int(generate.downsampling, uMipLevel, 0);
+            /* --- Bloom: Down Sampling --- */
 
-            // Set brightness threshold prefilter data
-            r3d_shader_set_vec4(generate.downsampling, uPrefilter, R3D.env.bloomPrefilter);
-
-            // Bind scene color (HDR color buffer) as initial texture input
-            r3d_shader_bind_sampler2D(generate.downsampling, uTexture, R3D.framebuffer.pingPong.target);
-        
-            // Progressively downsample through the mip chain
-            for (int i = 0; i < R3D.framebuffer.mipChainBloom.mipCount; i++)
+            r3d_shader_enable(generate.downsampling);
             {
-                const struct r3d_mip_bloom* mip = &R3D.framebuffer.mipChainBloom.mipChain[i];
+                r3d_shader_set_vec2(generate.downsampling, uTexelSize, R3D.state.resolution.texel);
+                r3d_shader_set_int(generate.downsampling, uMipLevel, 0);
 
-                glViewport(0, 0, mip->w, mip->h);
-                glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, mip->id, 0);
+                // Set brightness threshold prefilter data
+                r3d_shader_set_vec4(generate.downsampling, uPrefilter, R3D.env.bloomPrefilter);
 
-                // Render screen-filled quad of resolution of current mip
-                r3d_primitive_bind_and_draw_screen();
+                // Bind scene color (HDR color buffer) as initial texture input
+                r3d_shader_bind_sampler2D(generate.downsampling, uTexture, R3D.framebuffer.pingPong.target);
+            
+                // Progressively downsample through the mip chain
+                for (int i = 0; i < R3D.framebuffer.mipChainBloom.mipCount; i++)
+                {
+                    const struct r3d_mip_bloom* mip = &R3D.framebuffer.mipChainBloom.mipChain[i];
 
-                // Set current mip resolution as srcResolution for next iteration
-                r3d_shader_set_vec2(generate.downsampling, uTexelSize, (Vector2) { mip->tx, mip->ty });
+                    glViewport(0, 0, mip->w, mip->h);
+                    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, mip->id, 0);
 
-                // Set current mip as texture input for next iteration
-                glBindTexture(GL_TEXTURE_2D, mip->id);
+                    // Render screen-filled quad of resolution of current mip
+                    r3d_primitive_bind_and_draw_screen();
 
-                // Disable Karis average for consequent downsamples
-                r3d_shader_set_int(generate.downsampling, uMipLevel, 1);
+                    // Set current mip resolution as srcResolution for next iteration
+                    r3d_shader_set_vec2(generate.downsampling, uTexelSize, (Vector2) { mip->tx, mip->ty });
+
+                    // Set current mip as texture input for next iteration
+                    glBindTexture(GL_TEXTURE_2D, mip->id);
+
+                    // Disable Karis average for consequent downsamples
+                    r3d_shader_set_int(generate.downsampling, uMipLevel, 1);
+                }
+            }
+
+            /* --- Bloom: Up Sampling --- */
+
+            r3d_shader_enable(generate.upsampling);
+            {
+                // Enable additive blending
+                glEnable(GL_BLEND);
+                glBlendFunc(GL_ONE, GL_ONE);
+                glBlendEquation(GL_FUNC_ADD);
+
+                for (int i = R3D.framebuffer.mipChainBloom.mipCount - 1; i > 0; i--)
+                {
+                    const struct r3d_mip_bloom* mip = &R3D.framebuffer.mipChainBloom.mipChain[i];
+                    const struct r3d_mip_bloom* nextMip = &R3D.framebuffer.mipChainBloom.mipChain[i-1];
+
+                    // Bind viewport and texture from where to read
+                    glActiveTexture(GL_TEXTURE0);
+                    glBindTexture(GL_TEXTURE_2D, mip->id);
+
+                    // Set framebuffer render target (we write to this texture)
+                    glViewport(0, 0, (int)nextMip->w, (int)nextMip->h);
+                    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, nextMip->id, 0);
+
+                    // Set filter radius for the current mip source
+                    r3d_shader_set_vec2(generate.upsampling, uFilterRadius, (Vector2) {
+                        R3D.env.bloomFilterRadius * mip->tx,
+                        R3D.env.bloomFilterRadius * mip->ty
+                    });
+
+                    // Render screen-filled quad of resolution of current mip
+                    r3d_primitive_bind_and_draw_screen();
+                }
+            
+                // Disable additive blending
+                glDisable(GL_BLEND);
             }
         }
 
-        /* --- Bloom: Up Sampling --- */
+        /* --- Apply bloom to the scene --- */
 
-        r3d_shader_enable(generate.upsampling);
+        glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.pingPong.id);
         {
-            // Enable additive blending
-            glEnable(GL_BLEND);
-            glBlendFunc(GL_ONE, GL_ONE);
-            glBlendEquation(GL_FUNC_ADD);
+            glViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
 
-            for (int i = R3D.framebuffer.mipChainBloom.mipCount - 1; i > 0; i--)
+            r3d_framebuffer_swap_pingpong(R3D.framebuffer.pingPong);
+
+            r3d_shader_enable(screen.bloom);
             {
-                const struct r3d_mip_bloom* mip = &R3D.framebuffer.mipChainBloom.mipChain[i];
-                const struct r3d_mip_bloom* nextMip = &R3D.framebuffer.mipChainBloom.mipChain[i-1];
+                r3d_shader_bind_sampler2D(screen.bloom, uTexColor, R3D.framebuffer.pingPong.source);
+                r3d_shader_bind_sampler2D(screen.bloom, uTexBloomBlur, R3D.framebuffer.mipChainBloom.mipChain[0].id);
 
-                // Bind viewport and texture from where to read
-                glActiveTexture(GL_TEXTURE0);
-                glBindTexture(GL_TEXTURE_2D, mip->id);
+                r3d_shader_set_int(screen.bloom, uBloomMode, R3D.env.bloomMode);
+                r3d_shader_set_float(screen.bloom, uBloomIntensity, R3D.env.bloomIntensity);
 
-                // Set framebuffer render target (we write to this texture)
-                glViewport(0, 0, (int)nextMip->w, (int)nextMip->h);
-                glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, nextMip->id, 0);
-
-                // Set filter radius for the current mip source
-                r3d_shader_set_vec2(generate.upsampling, uFilterRadius, (Vector2) {
-                    R3D.env.bloomFilterRadius * mip->tx,
-                    R3D.env.bloomFilterRadius * mip->ty
-                });
-
-                // Render screen-filled quad of resolution of current mip
                 r3d_primitive_bind_and_draw_screen();
             }
-        
-            // Disable additive blending
-            glDisable(GL_BLEND);
+            r3d_shader_disable();
         }
-    }
-
-    /* --- Apply bloom to the scene --- */
-
-    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.pingPong.id);
-    {
-        glViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
-
-        r3d_framebuffer_swap_pingpong(R3D.framebuffer.pingPong);
-
-        r3d_shader_enable(screen.bloom);
-        {
-            r3d_shader_bind_sampler2D(screen.bloom, uTexColor, R3D.framebuffer.pingPong.source);
-            r3d_shader_bind_sampler2D(screen.bloom, uTexBloomBlur, R3D.framebuffer.mipChainBloom.mipChain[0].id);
-
-            r3d_shader_set_int(screen.bloom, uBloomMode, R3D.env.bloomMode);
-            r3d_shader_set_float(screen.bloom, uBloomIntensity, R3D.env.bloomIntensity);
-
-            r3d_primitive_bind_and_draw_screen();
-        }
-        r3d_shader_disable();
     }
 }
 
@@ -2284,28 +2295,31 @@ void r3d_pass_post_fog(void)
 
 void r3d_pass_post_dof(void)	
 {
-    glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.pingPong.id);
-    {
-        glViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
-
-        r3d_framebuffer_swap_pingpong(R3D.framebuffer.pingPong);
-
-        r3d_shader_enable(screen.dof);
+    // Profile this GPU Section
+    R3D_PROF_ZONE_GPU("DOF Pass") {
+        glBindFramebuffer(GL_FRAMEBUFFER, R3D.framebuffer.pingPong.id);
         {
-            r3d_shader_bind_sampler2D(screen.dof, uTexColor, R3D.framebuffer.pingPong.source);
-            r3d_shader_bind_sampler2D(screen.dof, uTexDepth, R3D.framebuffer.gBuffer.depth);
+            glViewport(0, 0, R3D.state.resolution.width, R3D.state.resolution.height);
 
-            r3d_shader_set_vec2(screen.dof, uTexelSize, R3D.state.resolution.texel);
-            r3d_shader_set_float(screen.dof, uNear, (float)rlGetCullDistanceNear());
-            r3d_shader_set_float(screen.dof, uFar, (float)rlGetCullDistanceFar());
-            r3d_shader_set_float(screen.dof, uFocusPoint, R3D.env.dofFocusPoint);
-            r3d_shader_set_float(screen.dof, uFocusScale, R3D.env.dofFocusScale);
-            r3d_shader_set_float(screen.dof, uMaxBlurSize, R3D.env.dofMaxBlurSize);
-            r3d_shader_set_int(screen.dof, uDebugMode, R3D.env.dofDebugMode);
+            r3d_framebuffer_swap_pingpong(R3D.framebuffer.pingPong);
 
-            r3d_primitive_bind_and_draw_screen();
+            r3d_shader_enable(screen.dof);
+            {
+                r3d_shader_bind_sampler2D(screen.dof, uTexColor, R3D.framebuffer.pingPong.source);
+                r3d_shader_bind_sampler2D(screen.dof, uTexDepth, R3D.framebuffer.gBuffer.depth);
+
+                r3d_shader_set_vec2(screen.dof, uTexelSize, R3D.state.resolution.texel);
+                r3d_shader_set_float(screen.dof, uNear, (float)rlGetCullDistanceNear());
+                r3d_shader_set_float(screen.dof, uFar, (float)rlGetCullDistanceFar());
+                r3d_shader_set_float(screen.dof, uFocusPoint, R3D.env.dofFocusPoint);
+                r3d_shader_set_float(screen.dof, uFocusScale, R3D.env.dofFocusScale);
+                r3d_shader_set_float(screen.dof, uMaxBlurSize, R3D.env.dofMaxBlurSize);
+                r3d_shader_set_int(screen.dof, uDebugMode, R3D.env.dofDebugMode);
+
+                r3d_primitive_bind_and_draw_screen();
+            }
+            r3d_shader_disable();
         }
-        r3d_shader_disable();
     }
 }
 

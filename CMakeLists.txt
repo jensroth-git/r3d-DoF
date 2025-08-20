@@ -181,6 +181,8 @@ if(BUILD_SHARED_LIBS)
 endif()
 
 add_library(${PROJECT_NAME}
+    "${R3D_ROOT_PATH}/src/details/profiling/r3d_cpu_timer.c"
+    "${R3D_ROOT_PATH}/src/details/profiling/r3d_prof_min.c"
     "${R3D_ROOT_PATH}/src/details/r3d_primitives.c"
     "${R3D_ROOT_PATH}/src/details/r3d_billboard.c"
     "${R3D_ROOT_PATH}/src/details/r3d_drawcall.c"
@@ -258,6 +260,33 @@ target_include_directories(${PROJECT_NAME} PUBLIC
     "${R3D_ROOT_PATH}/include"
     "${R3D_RAYLIB_INC_PATH}"
     "${R3D_ASSIMP_INC_PATH}"
+)
+
+# Add headers to the project for easier IDE navigation
+
+target_sources(${PROJECT_NAME} PRIVATE
+    # main
+    "${R3D_ROOT_PATH}/include/r3d.h"
+    # state
+    "${R3D_ROOT_PATH}/src/r3d_state.h"
+    # details
+    "${R3D_ROOT_PATH}/src/details/r3d_billboard.h"
+    "${R3D_ROOT_PATH}/src/details/r3d_drawcall.h"
+    "${R3D_ROOT_PATH}/src/details/r3d_frustum.h"
+    "${R3D_ROOT_PATH}/src/details/r3d_light.h"
+    "${R3D_ROOT_PATH}/src/details/r3d_math.h"
+    "${R3D_ROOT_PATH}/src/details/r3d_primitives.h"
+    "${R3D_ROOT_PATH}/src/details/r3d_shaders.h"
+    "${R3D_ROOT_PATH}/src/details/r3d_simd.h"
+    # misc 
+    "${R3D_ROOT_PATH}/src/details/misc/r3d_dds_loader_ext.h"
+    "${R3D_ROOT_PATH}/src/details/misc/r3d_half.h"
+    # containers
+    "${R3D_ROOT_PATH}/src/details/containers/r3d_array.h"
+    "${R3D_ROOT_PATH}/src/details/containers/r3d_registry.h"
+    # profiling
+    "${R3D_ROOT_PATH}/src/details/profiling/r3d_cpu_timer.h"
+    "${R3D_ROOT_PATH}/src/details/profiling/r3d_prof_min.h"
 )
 
 # Ensure the C standard is set for MSVC if using CMake version greater than 3.12

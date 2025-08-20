@@ -3165,6 +3165,22 @@ R3DAPI void R3D_DrawBufferBloom(float x, float y, float w, float h);
 
 /** @} */ // end of Utils
 
+/**
+ * @defgroup Profiling Profiling Functions
+ * @{
+ */
+
+/**
+ * @brief Retrieves the average time spent in a GPU zone.
+ *
+ * This function returns the average time spent in a specific GPU zone
+ *
+ * @param zoneName The name of the GPU zone to query.
+ * @param samplesAverage The number of samples to average over.
+ */
+R3DAPI double R3D_ProfGetGPUZoneMS(const char* zoneName, int samplesAverage);
+
+/** @} */ // end of Utils
 #ifdef __cplusplus
 }
 #endif // __cplusplus

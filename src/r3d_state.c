@@ -594,28 +594,6 @@ void r3d_shaders_unload(void)
     }
 }
 
-void r3d_shader_load_screen_dof(void)
-{
-    R3D.shader.screen.dof.id = rlLoadShaderCode(
-        SCREEN_VERT, DOF_FRAG
-    );
-
-    r3d_shader_get_location(screen.dof, uTexColor);
-    r3d_shader_get_location(screen.dof, uTexDepth);
-    r3d_shader_get_location(screen.dof, uTexelSize);
-    r3d_shader_get_location(screen.dof, uNear);
-    r3d_shader_get_location(screen.dof, uFar);
-    r3d_shader_get_location(screen.dof, uFocusPoint);
-    r3d_shader_get_location(screen.dof, uFocusScale);
-    r3d_shader_get_location(screen.dof, uMaxBlurSize);
-    r3d_shader_get_location(screen.dof, uDebugMode);
-
-    r3d_shader_enable(screen.dof);
-    r3d_shader_set_sampler2D_slot(screen.dof, uTexColor, 0);
-    r3d_shader_set_sampler2D_slot(screen.dof, uTexDepth, 1);
-    r3d_shader_disable();
-}
-
 /* === Framebuffer loading functions === */
 
 void r3d_framebuffer_load_gbuffer(int width, int height)
@@ -1591,6 +1569,28 @@ void r3d_shader_load_screen_fog(void)
     r3d_shader_enable(screen.fog);
     r3d_shader_set_sampler2D_slot(screen.fog, uTexColor, 0);
     r3d_shader_set_sampler2D_slot(screen.fog, uTexDepth, 1);
+    r3d_shader_disable();
+}
+
+void r3d_shader_load_screen_dof(void)
+{
+    R3D.shader.screen.dof.id = rlLoadShaderCode(
+        SCREEN_VERT, DOF_FRAG
+    );
+
+    r3d_shader_get_location(screen.dof, uTexColor);
+    r3d_shader_get_location(screen.dof, uTexDepth);
+    r3d_shader_get_location(screen.dof, uTexelSize);
+    r3d_shader_get_location(screen.dof, uNear);
+    r3d_shader_get_location(screen.dof, uFar);
+    r3d_shader_get_location(screen.dof, uFocusPoint);
+    r3d_shader_get_location(screen.dof, uFocusScale);
+    r3d_shader_get_location(screen.dof, uMaxBlurSize);
+    r3d_shader_get_location(screen.dof, uDebugMode);
+
+    r3d_shader_enable(screen.dof);
+    r3d_shader_set_sampler2D_slot(screen.dof, uTexColor, 0);
+    r3d_shader_set_sampler2D_slot(screen.dof, uTexDepth, 1);
     r3d_shader_disable();
 }
 
