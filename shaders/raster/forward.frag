@@ -102,6 +102,9 @@ const int TEX_NOISE_SIZE = 128;
 /* === Fragments === */
 
 layout(location = 0) out vec4 FragColor;
+layout(location = 1) out vec4 FragAlbedo;
+layout(location = 2) out vec4 FragNormal;
+layout(location = 3) out vec4 FragORM;
 
 /* === Constants === */
 
@@ -308,7 +311,23 @@ float Shadow(int i, float cNdotL)
     return mix(1.0, shadow, inside);
 }
 
-/* === Misc functions === */
+/* === Helper functions === */
+
+vec2 OctahedronWrap(vec2 val)
+{
+    // Reference(s):
+    // - Octahedron normal vector encoding
+    //   https://web.archive.org/web/20191027010600/https://knarkowicz.wordpress.com/2014/04/16/octahedron-normal-vector-encoding/comment-page-1/
+    return (1.0 - abs(val.yx)) * mix(vec2(-1.0), vec2(1.0), vec2(greaterThanEqual(val.xy, vec2(0.0))));
+}
+
+vec2 EncodeOctahedral(vec3 normal)
+{
+    normal /= abs(normal.x) + abs(normal.y) + abs(normal.z);
+    normal.xy = normal.z >= 0.0 ? normal.xy : OctahedronWrap(normal.xy);
+    normal.xy = normal.xy * 0.5 + 0.5;
+    return normal.xy;
+}
 
 vec3 NormalScale(vec3 normal, float scale)
 {
@@ -493,4 +512,10 @@ void main()
     /* Compute the final fragment color by combining diffuse, specular, and emission contributions */
 
     FragColor = vec4(diffuse + specular + emission, albedo.a);
+
+    /* Output material data */
+
+    FragAlbedo = vec4(albedo.rgb, 1.0);
+    FragNormal = vec4(EncodeOctahedral(N), vec2(1.0));
+    FragORM = vec4(occlusion, roughness, metalness, 1.0);
 }

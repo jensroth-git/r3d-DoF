@@ -1010,6 +1010,7 @@ void r3d_framebuffer_load_scene(int width, int height)
     /* --- Ensures that targets exist --- */
 
     if (!R3D.target.scenePp[0])     r3d_target_load_scene_pp(width, height);
+    if (!R3D.target.albedo)         r3d_target_load_albedo(width, height);
     if (!R3D.target.normal)         r3d_target_load_normal(width, height);
     if (!R3D.target.orm)            r3d_target_load_orm(width, height);
     if (!R3D.target.depthStencil)   r3d_target_load_depth_stencil(width, height);
@@ -1027,8 +1028,9 @@ void r3d_framebuffer_load_scene(int width, int height)
     });
 
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, R3D.target.scenePp[0], 0);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, R3D.target.normal, 0);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, R3D.target.orm, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, R3D.target.albedo, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, R3D.target.normal, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, R3D.target.orm, 0);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, R3D.target.depthStencil, 0);
 
     GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);

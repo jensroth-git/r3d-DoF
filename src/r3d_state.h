@@ -137,8 +137,9 @@ extern struct R3D_State {
                              */
 
         GLuint scene;       /**< [0] = scenePp
-                              *  [1] = normal
-                              *  [2] = orm
+                              *  [1] = albedo
+                              *  [2] = normal
+                              *  [3] = orm
                               *  [_] = depthStencil
                               */
 

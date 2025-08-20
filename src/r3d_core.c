@@ -1958,6 +1958,14 @@ void r3d_pass_scene_forward(void)
             glDepthMask(GL_TRUE);
         }
 
+        // Enables output for materials
+        glDrawBuffers(4, (GLenum[]) {
+            GL_COLOR_ATTACHMENT0,       //< Scene
+            GL_COLOR_ATTACHMENT1,       //< Albedo
+            GL_COLOR_ATTACHMENT2,       //< Normal
+            GL_COLOR_ATTACHMENT3        //< ORM
+        });
+
         // Setup projection matrix
         rlMatrixMode(RL_PROJECTION);
         rlPushMatrix();
@@ -2057,6 +2065,11 @@ void r3d_pass_scene_forward(void)
             }
             r3d_shader_disable();
         }
+
+        // Disable material outputs
+        glDrawBuffers(1, (GLenum[]) {
+            GL_COLOR_ATTACHMENT0        //< Scene
+        });
 
         // Reset projection matrix
         rlMatrixMode(RL_PROJECTION);
