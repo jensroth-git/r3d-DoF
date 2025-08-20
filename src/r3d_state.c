@@ -103,10 +103,10 @@ r3d_test_internal_format(GLuint fbo, GLuint tex, GLenum internalFormat, GLenum f
 
 /* === Helper functions === */
 
-bool r3d_texture_is_default(unsigned int id)
+bool r3d_texture_is_default(GLuint id)
 {
-    for (int i = 0; i < sizeof(R3D.texture) / sizeof(unsigned int); i++) {
-        if (id == ((unsigned int*)(&R3D.texture))[i]) {
+    for (int i = 0; i < sizeof(R3D.texture) / sizeof(GLuint); i++) {
+        if (id == ((GLuint*)(&R3D.texture))[i]) {
             return true;
         }
     }

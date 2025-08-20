@@ -263,18 +263,18 @@ extern struct R3D_State {
 
     // Default textures
     struct {
-        unsigned int white;
-        unsigned int black;
-        unsigned int normal;
-        unsigned int blueNoise;
-        unsigned int ssaoNoise;
-        unsigned int ssaoKernel;
-        unsigned int iblBrdfLut;
+        GLuint white;
+        GLuint black;
+        GLuint normal;
+        GLuint blueNoise;
+        GLuint ssaoNoise;
+        GLuint ssaoKernel;
+        GLuint iblBrdfLut;
     } texture;
 
     // Primitives
     struct {
-        unsigned int dummyVAO;      //< VAO with no buffers, used to generate geometry in the shader via glDrawArrays
+        GLuint dummyVAO;        //< VAO with no buffers, used when the vertex shader takes care of geometry
         r3d_primitive_t quad;
         r3d_primitive_t cube;
     } primitive;
@@ -329,7 +329,7 @@ extern struct R3D_State {
 
 /* === Helper functions === */
 
-bool r3d_texture_is_default(unsigned int id);
+bool r3d_texture_is_default(GLuint id);
 void r3d_calculate_bloom_prefilter_data(void);
 
 /* === Support functions === */
