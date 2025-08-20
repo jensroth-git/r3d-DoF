@@ -12,12 +12,14 @@ static Camera3D camera = { 0 };
 
 const char* Init(void)
 {
+    /* --- Initialize R3D with its internal resolution --- */
+
     R3D_Init(GetScreenWidth(), GetScreenHeight(), 0);
     SetTargetFPS(60);
 
-    R3D_Mesh mesh = { 0 };
-
     /* --- Load cube model --- */
+
+    R3D_Mesh mesh = { 0 };
 
     mesh = R3D_GenMeshCube(1, 1, 1, true);
     cube = R3D_LoadModelFromMesh(&mesh);

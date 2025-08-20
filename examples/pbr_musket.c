@@ -16,76 +16,81 @@ static float modelScale = 1.0f;
 
 const char* Init(void)
 {
-	R3D_Init(GetScreenWidth(), GetScreenHeight(), R3D_FLAG_FXAA);
-	SetTargetFPS(60);
+    /* --- Initialize R3D with its internal resolution and flags --- */
 
-	R3D_SetSSAO(true);
-	R3D_SetSSAORadius(4.0f);
+    R3D_Init(GetScreenWidth(), GetScreenHeight(), R3D_FLAG_FXAA);
+    SetTargetFPS(60);
 
-	R3D_SetTonemapMode(R3D_TONEMAP_ACES);
-	R3D_SetTonemapExposure(0.75f);
-	R3D_SetTonemapWhite(1.25f);
+    /* --- Setup tonemapping --- */
 
-	R3D_SetModelImportScale(0.01f);
-	model = R3D_LoadModel(RESOURCES_PATH "pbr/musket.glb");
-	{
-		Matrix transform = MatrixRotateY(PI / 2);
+    R3D_SetTonemapMode(R3D_TONEMAP_ACES);
+    R3D_SetTonemapExposure(0.75f);
+    R3D_SetTonemapWhite(1.25f);
 
-		for (int i = 0; i < model.materialCount; i++) {
-			SetTextureFilter(model.materials[i].albedo.texture, TEXTURE_FILTER_BILINEAR);
-			SetTextureFilter(model.materials[i].orm.texture, TEXTURE_FILTER_BILINEAR);
-		}
-	}
+    /* --- Load model --- */
 
-	modelMatrix = MatrixIdentity();
+    R3D_SetModelImportScale(0.01f);
+    R3D_SetTextureFilter(TEXTURE_FILTER_TRILINEAR);	//< Automatically generate mipmaps when set
 
-	skybox = R3D_LoadSkybox(RESOURCES_PATH "sky/skybox2.png", CUBEMAP_LAYOUT_AUTO_DETECT);
-	R3D_EnableSkybox(skybox);
+    model = R3D_LoadModel(RESOURCES_PATH "pbr/musket.glb");
 
-	camera = (Camera3D){
-		.position = (Vector3) { 0, 0, 0.5f },
-		.target = (Vector3) { 0, 0, 0 },
-		.up = (Vector3) { 0, 1, 0 },
-		.fovy = 60,
-	};
+    /* --- Setup defaut model matrix --- */
 
-	R3D_Light light = R3D_CreateLight(R3D_LIGHT_DIR);
-	{
-		R3D_SetLightDirection(light, (Vector3) { 0, -1, -1 });
-		R3D_SetLightActive(light, true);
-	}
+    modelMatrix = MatrixIdentity();
 
-	return "[r3d] - PBR musket example";
+    /* --- Load and enable the skybox --- */
+
+    skybox = R3D_LoadSkybox(RESOURCES_PATH "sky/skybox2.png", CUBEMAP_LAYOUT_AUTO_DETECT);
+    R3D_EnableSkybox(skybox);
+
+    /* --- Setup the scene lighting --- */
+
+    R3D_Light light = R3D_CreateLight(R3D_LIGHT_DIR);
+    {
+        R3D_SetLightDirection(light, (Vector3) { 0, -1, -1 });
+        R3D_SetLightActive(light, true);
+    }
+
+    /* --- Setup the camera --- */
+
+    camera = (Camera3D){
+        .position = (Vector3) { 0, 0, 0.5f },
+        .target = (Vector3) { 0, 0, 0 },
+        .up = (Vector3) { 0, 1, 0 },
+        .fovy = 60,
+    };
+
+    return "[r3d] - PBR musket example";
 }
 
 void Update(float delta)
 {
-	modelScale = Clamp(modelScale + GetMouseWheelMove() * 0.1, 0.25f, 2.5f);
+    modelScale = Clamp(modelScale + GetMouseWheelMove() * 0.1, 0.25f, 2.5f);
 
-	if (IsMouseButtonDown(MOUSE_BUTTON_LEFT))
-	{
-		float pitch = (GetMouseDelta().y * 0.005f) / modelScale;
-		float yaw = (GetMouseDelta().x * 0.005f) / modelScale;
+    if (IsMouseButtonDown(MOUSE_BUTTON_LEFT))
+    {
+        float pitch = (GetMouseDelta().y * 0.005f) / modelScale;
+        float yaw = (GetMouseDelta().x * 0.005f) / modelScale;
 
-		Matrix rotate = MatrixRotateXYZ((Vector3) { pitch, yaw, 0.0f });
-		modelMatrix = MatrixMultiply(modelMatrix, rotate);
-	}
+        Matrix rotate = MatrixRotateXYZ((Vector3) { pitch, yaw, 0.0f });
+        modelMatrix = MatrixMultiply(modelMatrix, rotate);
+    }
 }
 
 void Draw(void)
 {
-	R3D_Begin(camera);
-		Matrix scale = MatrixScale(modelScale, modelScale, modelScale);
-		Matrix transform = MatrixMultiply(modelMatrix, scale);
-		R3D_DrawModelPro(&model, transform);
-	R3D_End();
+    R3D_Begin(camera);
+        Matrix scale = MatrixScale(modelScale, modelScale, modelScale);
+        Matrix transform = MatrixMultiply(modelMatrix, scale);
+        R3D_DrawModelPro(&model, transform);
+    R3D_End();
 
-	DrawCredits("Model made by TommyLingL");
+    DrawCredits("Model made by TommyLingL");
 }
 
 void Close(void)
 {
-	R3D_UnloadModel(&model, true);
-	R3D_UnloadSkybox(skybox);
-	R3D_Close();
+    R3D_UnloadModel(&model, true);
+    R3D_UnloadSkybox(skybox);
+    R3D_Close();
 }

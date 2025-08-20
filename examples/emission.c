@@ -30,11 +30,17 @@ void ToggleLight(void)
 
 const char* Init(void)
 {
+    /* --- Initialize R3D with its internal resolution --- */
+
     R3D_Init(GetScreenWidth(), GetScreenHeight(), 0);
     SetTargetFPS(60);
 
+    /* --- Configure the background color and ambient lighting --- */
+
     R3D_SetBackgroundColor(BLACK);
     R3D_SetAmbientColor(DARKGRAY);
+
+    /* --- Configure the post process parameters --- */
 
     R3D_SetTonemapMode(R3D_TONEMAP_ACES);
     R3D_SetTonemapExposure(0.8f);
@@ -45,19 +51,16 @@ const char* Init(void)
     R3D_SetBloomIntensity(0.2f);
     R3D_SetBloomThreshold(0.6f);
 
-    R3D_SetModelImportScale(0.01f);
+    /* --- Loads the main model of the scene --- */
 
     model = R3D_LoadModel(RESOURCES_PATH "emission.glb");
 
+    /* --- Generates a mesh for the ground and load a material for it --- */
+    
     plane = R3D_GenMeshPlane(1000, 1000, 1, 1, true);
     material = R3D_GetDefaultMaterial();
 
-    camera = (Camera3D) {
-        .position = (Vector3) { -1.0f, 1.75f, 1.75f },
-        .target = (Vector3) { 0, 0.5f, 0 },
-        .up = (Vector3) { 0, 1, 0 },
-        .fovy = 60,
-    };
+    /* --- Setup the scene lighting --- */
 
     light = R3D_CreateLight(R3D_LIGHT_SPOT);
     {
@@ -67,6 +70,15 @@ const char* Init(void)
         R3D_EnableShadow(light, 4096);
         R3D_SetLightActive(light, true);
     }
+
+    /* --- Setup the camera --- */
+
+    camera = (Camera3D) {
+        .position = (Vector3) { -10.0f, 17.5f, 17.5f },
+        .target = (Vector3) { 0, 0.5f, 0 },
+        .up = (Vector3) { 0, 1, 0 },
+        .fovy = 60,
+    };
 
     return "[r3d] - Emission example";
 }
@@ -87,7 +99,7 @@ void Draw(void)
 {
     R3D_Begin(camera);
         R3D_DrawMesh(&plane, &material, MatrixIdentity());
-        R3D_DrawModelEx(&model, (Vector3) { 0 }, (Vector3) { 0, 1, 0 }, rotModel, (Vector3) { 10.0f, 10.0f, 10.0f });
+        R3D_DrawModelEx(&model, (Vector3) { 0 }, (Vector3) { 0, 1, 0 }, rotModel, (Vector3) { 1.0f, 1.0f, 1.0f });
     R3D_End();
 
     DrawText("Press SPACE to toggle the light", 10, 10, 20, LIME);

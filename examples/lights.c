@@ -18,19 +18,18 @@ static R3D_Light lights[100] = { 0 };
 
 const char* Init(void)
 {
+    /* --- Initialize R3D with its internal resolution --- */
+
     R3D_Init(GetScreenWidth(), GetScreenHeight(), 0);
     SetTargetFPS(60);
+
+    /* --- Generates a plane and sphere meshes and a default material to render them --- */
 
     plane = R3D_GenMeshPlane(1000, 1000, 1, 1, true);
     sphere = R3D_GenMeshSphere(0.35f, 16, 16, true);
     material = R3D_GetDefaultMaterial();
 
-    camera = (Camera3D) {
-        .position = (Vector3) { 0, 2, 2 },
-        .target = (Vector3) { 0, 0, 0 },
-        .up = (Vector3) { 0, 1, 0 },
-        .fovy = 60,
-    };
+    /* --- Calculating transformations for all sphere instances --- */
 
     transforms = RL_MALLOC(100 * 100 * sizeof(Matrix));
 
@@ -40,6 +39,8 @@ const char* Init(void)
             transforms[index] = MatrixTranslate(x, 0, z);
         }
     }
+
+    /* --- Setup 100 omni-directional lights --- */
 
     for (int x = -5; x < 5; x++) {
         for (int z = -5; z < 5; z++) {
@@ -51,6 +52,15 @@ const char* Init(void)
             R3D_SetLightActive(lights[index], true);
         }
     }
+
+    /* --- Setup the camera --- */
+
+    camera = (Camera3D) {
+        .position = (Vector3) { 0, 2, 2 },
+        .target = (Vector3) { 0, 0, 0 },
+        .up = (Vector3) { 0, 1, 0 },
+        .fovy = 60,
+    };
 
     return "[r3d] - Many lights example";
 }

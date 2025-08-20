@@ -12,19 +12,18 @@ static Camera3D camera = { 0 };
 
 const char* Init(void)
 {
+    /* --- Initialize R3D with its internal resolution --- */
+
     R3D_Init(GetScreenWidth(), GetScreenHeight(), 0);
     SetTargetFPS(60);
+
+    /* --- Load gen a plane and sphere meshes and a default material to render them --- */
 
     plane = R3D_GenMeshPlane(1000, 1000, 1, 1, true);
     sphere = R3D_GenMeshSphere(0.5f, 64, 64, true);
     material = R3D_GetDefaultMaterial();
 
-    camera = (Camera3D) {
-        .position = (Vector3) { 0, 2, 2 },
-        .target = (Vector3) { 0, 0, 0 },
-        .up = (Vector3) { 0, 1, 0 },
-        .fovy = 60,
-    };
+    /* --- Setup the scene lighting --- */
 
     R3D_Light light = R3D_CreateLight(R3D_LIGHT_SPOT);
     {
@@ -32,6 +31,15 @@ const char* Init(void)
         R3D_EnableShadow(light, 4096);
         R3D_SetLightActive(light, true);
     }
+
+    /* --- Setup the camera --- */
+
+    camera = (Camera3D) {
+        .position = (Vector3) { 0, 2, 2 },
+        .target = (Vector3) { 0, 0, 0 },
+        .up = (Vector3) { 0, 1, 0 },
+        .fovy = 60,
+    };
 
     return "[r3d] - Basic example";
 }

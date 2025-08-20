@@ -31,12 +31,18 @@ static const char* getBloomModeName(R3D_Bloom mode)
 
 const char* Init(void)
 {
+    /* --- Initialize R3D with its internal resolution --- */
+
     R3D_Init(GetScreenWidth(), GetScreenHeight(), 0);
     SetTargetFPS(60);
+
+    /* --- Setup the default bloom parameters --- */
 
     R3D_SetTonemapMode(R3D_TONEMAP_ACES);
     R3D_SetBloomMode(R3D_BLOOM_MIX);
     R3D_SetBackgroundColor(BLACK);
+
+    /* --- Load a cube mesh and setup its material --- */
 
     cube = R3D_GenMeshCube(1.0f, 1.0f, 1.0f, true);
     material = R3D_GetDefaultMaterial();
@@ -44,6 +50,8 @@ const char* Init(void)
     material.emission.color = ColorFromHSV(hueCube, 1.0f, 1.0f);
     material.emission.energy = 1.0f;
     material.albedo.color = BLACK;
+
+    /* --- Setup the camera --- */    
 
     camera = (Camera3D){
         .position = (Vector3) { 0, 3.5, 5 },

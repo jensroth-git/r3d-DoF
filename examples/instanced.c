@@ -18,13 +18,17 @@ static Color colors[INSTANCE_COUNT] = { 0 };
 
 const char* Init(void)
 {
+    /* --- Initialize R3D with its internal resolution --- */
+
     R3D_Init(GetScreenWidth(), GetScreenHeight(), 0);
     SetTargetFPS(60);
+
+    /* --- Generates a cube mesh and a default material to render it --- */
 
     mesh = R3D_GenMeshCube(1, 1, 1, true);
     material = R3D_GetDefaultMaterial();
 
-    //GenMeshTangents(&mesh);
+    /* --- Randomly generate the transformation and color of each cube instance --- */
 
     for (int i = 0; i < INSTANCE_COUNT; i++) {
         Matrix translate = MatrixTranslate(
@@ -46,6 +50,16 @@ const char* Init(void)
         colors[i] = ColorFromHSV((float)GetRandomValue(0, 360000) / 1000, 1.0f, 1.0f);
     }
 
+    /* --- Setup the scene lighting --- */
+
+    R3D_Light light = R3D_CreateLight(R3D_LIGHT_DIR);
+    {
+        R3D_SetLightDirection(light, (Vector3) { 0, -1, 0 });
+        R3D_SetLightActive(light, true);
+    }
+
+    /* --- Setup the camera --- */
+
     camera = (Camera3D){
         .position = (Vector3) { 0, 2, 2 },
         .target = (Vector3) { 0, 0, 0 },
@@ -53,11 +67,7 @@ const char* Init(void)
         .fovy = 60,
     };
 
-    R3D_Light light = R3D_CreateLight(R3D_LIGHT_DIR);
-    {
-        R3D_SetLightDirection(light, (Vector3) { 0, -1, 0 });
-        R3D_SetLightActive(light, true);
-    }
+    /* --- Capture the mouse and ready to go! --- */
 
     DisableCursor();
 
